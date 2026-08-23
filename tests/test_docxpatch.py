@@ -91,3 +91,19 @@ def test_settings_compat_stamp(tmp_path):
     assert "compatibilityMode" in settings
     assert 'w:val="15"' in settings
     assert "Cambria" in theme
+
+
+def test_track_changes_collab_only(tmp_path):
+    for tracked in (True, False):
+        doc = Document()
+        path = tmp_path / f"t{tracked}.docx"
+        doc.save(str(path))
+        render.patch_theme_fonts(path, "Cambria", track_changes=tracked)
+        import zipfile
+
+        with zipfile.ZipFile(str(path)) as z:
+            settings = z.read("word/settings.xml").decode()
+        assert ("<w:trackChanges/>" in settings) is tracked
+        if tracked and "<w:defaultTabStop" in settings:
+            # schema order: trackChanges must precede defaultTabStop
+            assert settings.index("<w:trackChanges/>") < settings.index("<w:defaultTabStop")

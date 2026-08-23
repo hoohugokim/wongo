@@ -109,13 +109,19 @@ def set_fonts(doc: Document, name: str) -> None:
                 del rfonts.attrib[qn(attr)]
 
 
-def patch_theme_fonts(path: Path, name: str) -> None:
+def patch_theme_fonts(path: Path, name: str, track_changes: bool = False) -> None:
     """Zip-level fixes python-docx can't do: (1) rewrite the document theme's
     typefaces so anything resolving through the theme lands on the same font
     instead of Word's Aptos default; (2) stamp compatibilityMode 15 into
     settings.xml — pandoc emits NO compatSetting at all, so Word opens every
     render in Compatibility Mode and applies legacy layout rules (pct table
-    widths and in-cell justification misbehave). See quarto-docx-quirks.md."""
+    widths and in-cell justification misbehave); (3) when track_changes is
+    True (collab target only — NEVER submission), plant <w:trackChanges/> so
+    the document OPENS with Track Changes already on: coauthors start editing
+    and every edit is captured without anyone remembering the toggle. It is a
+    default, not a lock — a reviewer can still switch it off; we deliberately
+    skip documentProtection (password-hash lock) as hostile to coauthors.
+    See quarto-docx-quirks.md."""
     import zipfile
 
     with zipfile.ZipFile(str(path)) as z:
@@ -147,6 +153,18 @@ def patch_theme_fonts(path: Path, name: str) -> None:
             lambda m: re.sub(r'w:val="\d+"', 'w:val="15"', m.group(0)),
             settings,
         )
+        items["word/settings.xml"] = settings.encode("utf-8")
+    settings = items.get("word/settings.xml", b"").decode("utf-8")
+    if track_changes and settings and "<w:trackChanges" not in settings:
+        # CT_Settings order: trackChanges precedes doNotTrackMoves and
+        # defaultTabStop — anchor on whichever exists (pandoc has both).
+        el = "<w:trackChanges/>"
+        for anchor in ("<w:doNotTrackMoves", "<w:defaultTabStop"):
+            if anchor in settings:
+                settings = settings.replace(anchor, el + anchor, 1)
+                break
+        else:
+            settings = re.sub(r"(<w:settings[^>]*>)", r"\1" + el, settings, count=1)
         items["word/settings.xml"] = settings.encode("utf-8")
     tmp = path.with_suffix(".tmp.docx")
     with zipfile.ZipFile(str(tmp), "w", zipfile.ZIP_DEFLATED) as z:
@@ -686,7 +704,7 @@ def postprocess_main(path: Path, profile: dict, cfg: dict, target: str, project:
     apply_house_style(doc, read_front_matter(project, "index.qmd"))
     add_page_numbers(doc)
     doc.save(str(path))
-    patch_theme_fonts(path, FONTS[target])
+    patch_theme_fonts(path, FONTS[target], track_changes=(target == "collab"))
 
 
 def postprocess_si(path: Path, profile: dict, cfg: dict, target: str) -> None:
@@ -703,7 +721,7 @@ def postprocess_si(path: Path, profile: dict, cfg: dict, target: str) -> None:
     add_page_numbers(doc, prefix=si.get("page_prefix", "S"))
     restart_page_numbering(doc, start=1)
     doc.save(str(path))
-    patch_theme_fonts(path, FONTS[target])
+    patch_theme_fonts(path, FONTS[target], track_changes=(target == "collab"))
 
 
 def main() -> int:
