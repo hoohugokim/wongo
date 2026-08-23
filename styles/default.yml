@@ -1,0 +1,17 @@
+# Style profile: plain default — what a lab gets before choosing a house look.
+# Deliberately minimal: journal HARD rules come from the journal profile;
+# OOXML correctness fixes are unconditional engine behavior. This file exists
+# so the style layer always resolves and kist-wcr.yml is a choice, not a default.
+
+name: default
+description: >
+  Neutral look: the journal profile's reference-doc styling, correctness fixes
+  only. No house title block, no line numbers, single spacing, no table
+  re-styling beyond full-width rescaling.
+
+font: null                # keep the journal profile reference-doc fonts
+line_numbers: none
+title_block: {style: pandoc}
+captions: {lead: plain, delimiter: ".", align: left}
+tables: {width: full, rules: keep, bold_header_row: false, bold_first_column: false}
+keywords_line: false

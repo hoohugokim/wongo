@@ -1,0 +1,3 @@
+journal: ""        # journal profile slug, e.g. est -> quarto-manuscript-est
+ms_type: ""        # must match a manuscript_types entry in the profile
+blinding: default  # or override per submission

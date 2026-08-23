@@ -1,0 +1,35 @@
+---
+title: "TITLE"
+author:
+  - name: AUTHOR
+    orcid: 0000-0000-0000-0000
+    affiliations:
+      - name: AFFILIATION
+abstract: |
+  ABSTRACT (one sentence per line here too).
+keywords: [KEYWORD1, KEYWORD2]
+---
+
+<!-- Writing rules (quarto-manuscript-sci):
+     - ONE SENTENCE PER LINE. Never reflow; the DOCX round-trip depends on it.
+     - Analysis numbers ONLY as inline R code — backtick r expr backtick, e.g. r sprintf("%.2f", k_obs) wrapped in backticks — never typed by hand.
+     - Cross-references only via @fig-/@tbl-/@eq-/@sec-; citations only via @citekey. -->
+
+# Introduction
+
+First sentence.
+
+# Materials and Methods
+
+<!-- Journal profile may rename this section — check the profile's section_headings. -->
+
+# Results and Discussion
+
+# Conclusions
+
+# Acknowledgments
+
+# References
+
+::: {#refs}
+:::

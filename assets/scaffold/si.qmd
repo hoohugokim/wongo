@@ -1,0 +1,13 @@
+---
+title: "Supporting Information for: TITLE"
+crossref:
+  fig-title: "Figure S"
+  tbl-title: "Table S"
+---
+
+<!-- SI policy: content a specialist needs but a reader doesn't.
+     Rendered separately; S-page numbering applied by render.py. -->
+
+# Supplementary Methods
+
+# Supplementary Figures and Tables

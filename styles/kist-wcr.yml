@@ -1,0 +1,53 @@
+# Style profile: KIST Water Cycle Research group house look.
+# Extracted verbatim from the HOUSE_* constants hardcoded in legacy/render.py
+# (matched by forensic analysis against the group's prior Water Research /
+# WR X submissions). MIGRATION TASK: the engine must READ this file instead of
+# its hardcoded constants, selected via _journal.yml `style:` or --style.
+# Values here are lab TASTE; OOXML correctness fixes (pPr dedupe/ordering,
+# compatibilityMode, theme-font stripping, grid rescaling) are unconditional
+# engine behavior and never belong in a style profile.
+
+name: kist-wcr
+description: >
+  KIST Water Cycle Research house look: the title-page shape, line numbering,
+  double spacing, and caption/table conventions of the group's prior Water
+  Research submissions, so Word-native coauthors meet a familiar page.
+
+font: Cambria            # all targets; equations stay Cambria Math
+
+page:
+  size_mm: [210, 297]    # A4
+  margins_mm: {left: 25, right: 25, top: 30, bottom: 25}
+
+line_numbers: continuous # countBy 1
+
+spacing:
+  double: [Normal, Body Text, First Paragraph, Abstract]
+  single: [Compact, Caption, Image Caption, Table Caption, Footnote Text,
+           Heading 1, Heading 2, Heading 3, Heading 4, Title, Author, Date]
+
+justify: [Body Text, First Paragraph, Abstract, Bibliography,
+          Caption, Image Caption, Table Caption,
+          Heading 1, Heading 2, Heading 3, Heading 4]
+
+headings_pt: {Heading 1: 16, Heading 2: 13, Heading 3: 12, Heading 4: 12}
+title_pt: 14
+
+title_block:                 # WR-style title page, rebuilt from .qmd YAML
+  style: wr                  # superscript affiliation letters, * corresponding,
+  blank_line_before_authors: true   # lettered affiliation lines, e-mail line
+  blank_line_after_block: true
+
+captions:
+  lead: bold                 # bold "Figure 1." / "Table S2."
+  delimiter: "."             # normalized from crossref's ":"
+  spacing: single
+  align: justify
+
+tables:
+  width: full                # rescale grids to the text column
+  rules: booktabs            # closed 1pt top/bottom + style header midrule
+  bold_header_row: true
+  bold_first_column: true
+
+keywords_line: true          # inject "Keywords: ..." after the abstract
