@@ -51,7 +51,6 @@ def main(argv: list[str] | None = None) -> int:
     args, passthrough = parser.parse_known_args(argv)
 
     root = repo_root()
-    os.environ.setdefault("QM_SKILLS_DIR", str(root / "profiles"))
     script = root / "legacy" / COMMANDS[args.command][0]
     sys.path.insert(0, str(script.parent))
     sys.argv = [str(script)] + passthrough

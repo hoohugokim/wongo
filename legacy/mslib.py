@@ -1,18 +1,26 @@
 """Shared helpers for quarto-manuscript-sci scripts (render/validate/roundtrip).
 
 Not a CLI. Sibling scripts import it directly (same directory on sys.path).
-Journal profiles resolve to <skills-dir>/quarto-manuscript-<slug>/profile.yml,
-where <skills-dir> defaults to this skill's parent directory and can be
-overridden with the QM_SKILLS_DIR environment variable (used by tests).
+
+Uplift state (HANDOFF step 3): profile discovery/loading/staleness live in
+wongo.profiles; this module re-exports them for the sibling scripts and keeps
+the pure text-analysis helpers (word count, citekeys, crossrefs) that have no
+home yet. The old skills-dir resolution and quarto-manuscript-<slug> naming
+are gone from here — wongo.profiles owns the resolution chain
+(project-local profiles/ -> $WONGO_PROFILES -> packaged -> repo fallback).
 """
 from __future__ import annotations
 
-import os
 import re
-from datetime import date
-from pathlib import Path
 
 import yaml
+
+from wongo.profiles import (  # noqa: F401  (re-exported)
+    load_journal_config,
+    load_profile,
+    manuscript_type,
+    profile_staleness_days,
+)
 
 CROSSREF_PREFIXES = ("fig-", "tbl-", "eq-", "sec-", "lst-", "thm-")
 
@@ -32,49 +40,6 @@ LABEL_DEF_RE = re.compile(
 )
 CITE_RE = re.compile(r"(?<![\w@.\\])-?@([A-Za-z][\w:.#$%&+?<>~/-]*)")
 BIB_KEY_RE = re.compile(r"^@\w+\{([^,\s]+)\s*,", re.MULTILINE)
-
-
-def skills_dir() -> Path:
-    override = os.environ.get("QM_SKILLS_DIR")
-    if override:
-        return Path(override)
-    return Path(__file__).resolve().parent.parent.parent
-
-
-def load_journal_config(project_dir: Path) -> dict:
-    path = Path(project_dir) / "_journal.yml"
-    if not path.exists():
-        raise SystemExit(
-            "_journal.yml not found in project. Create it with 'journal: <slug>' "
-            "and 'ms_type: <type>' (see quarto-manuscript-sci S1)."
-        )
-    cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    missing = [k for k in ("journal", "ms_type") if not cfg.get(k)]
-    if missing:
-        raise SystemExit(f"_journal.yml missing required keys: {', '.join(missing)}")
-    return cfg
-
-
-def load_profile(slug: str) -> dict:
-    pdir = skills_dir() / f"quarto-manuscript-{slug}"
-    pfile = pdir / "profile.yml"
-    if not pfile.exists():
-        raise SystemExit(
-            f"Journal profile for slug '{slug}' not found: {pfile}. "
-            f"Install or create the quarto-manuscript-{slug} skill."
-        )
-    profile = yaml.safe_load(pfile.read_text(encoding="utf-8"))
-    profile["_dir"] = str(pdir)
-    return profile
-
-
-def manuscript_type(profile: dict, ms_type: str) -> dict:
-    types = profile.get("manuscript_types") or []
-    for t in types:
-        if t.get("type") == ms_type:
-            return t
-    known = ", ".join(t.get("type", "?") for t in types)
-    raise SystemExit(f"ms_type '{ms_type}' not defined by profile '{profile.get('slug')}'. Known: {known}")
 
 
 def split_front_matter(text: str) -> tuple[dict, str]:
@@ -142,12 +107,3 @@ def bib_keys(bib_text: str) -> set[str]:
 def image_paths(text: str) -> list[str]:
     body = FENCE_RE.sub("", split_front_matter(text)[1])
     return [m.group(2) for m in IMAGE_RE.finditer(body)]
-
-
-def profile_staleness_days(profile: dict) -> int | None:
-    vd = profile.get("verified_date")
-    if not vd:
-        return None
-    if isinstance(vd, str):
-        vd = date.fromisoformat(vd)
-    return (date.today() - vd).days

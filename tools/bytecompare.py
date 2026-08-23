@@ -78,12 +78,9 @@ def render_and_extract(engine: list[str], target: str, tag: str) -> list[Path]:
     targets = ["collab", "submission"] if target == "both" else [target]
     docxs: list[Path] = []
     for t in targets:
-        import os
-
-        env = dict(os.environ, QM_SKILLS_DIR=str(REPO / "profiles"))
         subprocess.run(
             engine + ["--target", t, "--project", str(proj)],
-            cwd=REPO, check=True, env=env,
+            cwd=REPO, check=True,
         )
         for stem in (f"main-{t}", f"si-{t}"):
             d = proj / "output" / f"{stem}.docx"
