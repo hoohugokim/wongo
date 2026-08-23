@@ -95,16 +95,19 @@ def tree_files(root: Path) -> dict[str, Path]:
     return {str(p.relative_to(root)): p for p in sorted(root.rglob("*")) if p.is_file()}
 
 
-def diff_trees(a_root: Path, b_root: Path) -> list[str]:
-    """Return human-readable diff report lines; empty list means identical."""
+def diff_trees(a_root: Path, b_root: Path) -> dict[str, list[str]]:
+    """Return {relative-file-name: diff-report-lines} for differing files.
+    Empty dict means identical trees. Diff lines for a single file can be
+    huge (document.xml is one line), so gating is per-FILE via the returned
+    keys — see allowed()."""
     fa, fb = tree_files(a_root), tree_files(b_root)
-    report: list[str] = []
+    report: dict[str, list[str]] = {}
     for name in sorted(set(fa) | set(fb)):
         if name not in fa:
-            report.append(f"ONLY-IN-CANDIDATE {name}")
+            report[name] = [f"ONLY-IN-CANDIDATE {name}"]
             continue
         if name not in fb:
-            report.append(f"ONLY-IN-BASELINE {name}")
+            report[name] = [f"ONLY-IN-BASELINE {name}"]
             continue
         if not filecmp.cmp(fa[name], fb[name], shallow=False):
             import difflib
@@ -113,15 +116,17 @@ def diff_trees(a_root: Path, b_root: Path) -> list[str]:
             b = fb[name].read_text(encoding="utf-8", errors="replace").splitlines()
             dl = list(difflib.unified_diff(a, b, fromfile=f"baseline/{name}",
                                            tofile=f"candidate/{name}", lineterm=""))
-            report.extend(dl if dl else [f"BIN-DIFF {name}"])
+            report[name] = dl or [f"BIN-DIFF {name}"]
     return report
 
 
-def allowed(report: list[str], patterns: list[re.Pattern]) -> list[str]:
-    def is_allowed(entry: str) -> bool:
-        return any(p.search(entry) for p in patterns)
+def allowed(report: dict[str, list[str]], patterns: list[re.Pattern]) -> dict[str, list[str]]:
+    """Keep only files whose NAME matches no allowlist pattern (whole-file
+    gating: content lines of one-line XML carry no filename)."""
+    def is_allowed(name: str) -> bool:
+        return any(p.search(name) for p in patterns)
 
-    return [ln for ln in report if not is_allowed(ln)]
+    return {n: d for n, d in report.items() if not is_allowed(n)}
 
 
 def load_patterns(path: Path | None) -> list[re.Pattern]:
@@ -162,9 +167,9 @@ def main() -> int:
             if tmp_move.exists():
                 shutil.rmtree(tmp_move)
         if report:
-            print(f"NOISE FLOOR: {len(report)} diff lines across runs — "
+            print(f"NOISE FLOOR: {len(report)} differing files across runs — "
                   "quarto output is NOT deterministic; comparisons need normalization.")
-            print("\n".join(report[:80]))
+            print("\n".join(sorted(report)[:40]))
             return 1
         print("NOISE FLOOR: zero — consecutive legacy renders are byte-identical.")
         return 0
@@ -180,11 +185,14 @@ def main() -> int:
     report = diff_trees(args.baseline, SCRATCH / "candidate")
     unexplained = allowed(report, load_patterns(args.allow))
     if not unexplained:
-        print(f"BYTE-COMPARE PASS ({len(report)} raw diffs, all allowlisted)"
+        print(f"BYTE-COMPARE PASS ({len(report)} raw diffs in "
+              f"{', '.join(sorted(report))}, all allowlisted)"
               if report else "BYTE-COMPARE PASS (identical)")
         return 0
-    print("BYTE-COMPARE FAIL — unexplained diffs:")
-    print("\n".join(unexplained[:200]))
+    print(f"BYTE-COMPARE FAIL — unexplained diffs in: {', '.join(sorted(unexplained))}")
+    for name, dl in sorted(unexplained.items()):
+        print(f"\n===== {name} =====")
+        print("\n".join(dl[:60]))
     return 1
 
 

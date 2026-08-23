@@ -1,0 +1,10 @@
+# Byte-compare allowlist — every pattern must be justified in OVERNIGHT-LOG.md.
+# Format: one Python regex per line, matched against unified-diff lines.
+
+# 2026-08-24, engine step 4: SI cover-sheet gap fixes (pinned by
+# tests/test_engine.py). Gap 1: cover printed "Journal: <journal> — <ms_type>"
+# where the profile wants AUTHORS (ES&T verified guidance: authors, title,
+# page/figure/table counts) — now title + author line from index.qmd front
+# matter. Gap 2: page-count literal placeholder replaced by a live NUMPAGES
+# field Word resolves on open. Affects only si-<target>/word/document.xml.
+^si-(collab|submission)/word/document\.xml$
