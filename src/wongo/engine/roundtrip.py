@@ -240,11 +240,11 @@ def write_worksheet(changes, locations, out_path: Path, source_name: str) -> Non
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("docx")
     ap.add_argument("--project", default=".")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     project = Path(args.project).resolve()
     docx_path = Path(args.docx).resolve()
 

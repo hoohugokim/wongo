@@ -42,17 +42,14 @@ DEFAULT_STYLE = "default"
 
 def styles_dir() -> Path:
     """Locate the style-profile directory. $WONGO_STYLES_DIR overrides (tests);
-    otherwise the repo checkout's styles/ tree (packaged as wheel data once the
-    profiles migration lands — see HANDOFF step 3)."""
+    otherwise the packaged profiles shipped inside this package (wheel-safe)."""
     override = os.environ.get("WONGO_STYLES_DIR")
     if override:
         return Path(override)
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "styles"
-        if (candidate / "default.yml").exists():
-            return candidate
-    raise SystemExit("styles/ directory with default.yml not found; set WONGO_STYLES_DIR")
+    here = Path(__file__).resolve().parent
+    if (here / "default.yml").exists():
+        return here
+    raise SystemExit("packaged style profiles missing; set WONGO_STYLES_DIR")
 
 
 def load_style(name: str | None) -> dict:
