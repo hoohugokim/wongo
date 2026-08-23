@@ -20,11 +20,7 @@ from docx.oxml import OxmlElement  # noqa: E402
 from docx.oxml.ns import qn  # noqa: E402
 
 import wongo.docxpatch as render  # noqa: E402  (migrated engine module)
-
-# Caption-lead parsing is house-look code that migrates in HANDOFF step 2
-# (wongo.styles); until then it still lives in legacy/render.py.
-sys.path.insert(1, str(REPO / "legacy"))
-import render as legacy_render  # noqa: E402
+import wongo.styles as wstyles  # noqa: E402  (caption parsing moved here, step 2)
 
 
 def _para_with_duplicate_ppr(doc):
@@ -75,12 +71,37 @@ def test_normalize_ppr_order_puts_spacing_before_jc():
 
 
 def test_caption_lead_regex_handles_nbsp_and_si_prefix():
-    m = legacy_render._CAPTION_LEAD.match("Figure\xa01: A caption.")
+    m = wstyles._CAPTION_LEAD.match("Figure\xa01: A caption.")
     assert m and m.group(1).replace("\xa0", " ") == "Figure 1"
-    m = legacy_render._CAPTION_LEAD.match("Table S\xa02: An SI caption.")
+    m = wstyles._CAPTION_LEAD.match("Table S\xa02: An SI caption.")
     assert m is not None
     # prose like "Table 1 shows" (no delimiter) must NOT match the strict form
-    assert legacy_render._CAPTION_LEAD.match("Table 1 shows the result") is None
+    assert wstyles._CAPTION_LEAD.match("Table 1 shows the result") is None
+
+
+def test_style_profiles_load_and_kist_wcr_matches_legacy_constants():
+    default = wstyles.load_style(None)
+    assert default["_name"] == "default"
+    kist = wstyles.load_style("kist-wcr")
+    # the extracted profile must reproduce the HOUSE_* constants byte-for-byte
+    # (page A4/25/25/30/25, double/single/justify lists, heading/title pt)
+    assert kist["page"]["size_mm"] == [210, 297]
+    assert kist["page"]["margins_mm"] == {"left": 25, "right": 25, "top": 30, "bottom": 25}
+    assert kist["spacing"]["double"] == ["Normal", "Body Text", "First Paragraph", "Abstract"]
+    assert kist["spacing"]["single"] == [
+        "Compact", "Caption", "Image Caption", "Table Caption", "Footnote Text",
+        "Heading 1", "Heading 2", "Heading 3", "Heading 4", "Title", "Author", "Date",
+    ]
+    assert kist["justify"] == [
+        "Body Text", "First Paragraph", "Abstract", "Bibliography",
+        "Caption", "Image Caption", "Table Caption",
+        "Heading 1", "Heading 2", "Heading 3", "Heading 4",
+    ]
+    assert kist["headings_pt"] == {"Heading 1": 16, "Heading 2": 13, "Heading 3": 12, "Heading 4": 12}
+    assert kist["title_pt"] == 14
+    assert kist["title_block"]["style"] == "wr"
+    assert kist["captions"]["lead"] == "bold" and kist["tables"]["rules"] == "booktabs"
+    assert kist["keywords_line"] is True
 
 
 def test_settings_compat_stamp(tmp_path):

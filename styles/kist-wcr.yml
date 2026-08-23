@@ -33,6 +33,10 @@ justify: [Body Text, First Paragraph, Abstract, Bibliography,
 headings_pt: {Heading 1: 16, Heading 2: 13, Heading 3: 12, Heading 4: 12}
 title_pt: 14
 
+abstract_title:            # "Abstract" heading: bold, left, 12pt
+  pt: 12
+
+
 title_block:                 # WR-style title page, rebuilt from .qmd YAML
   style: wr                  # superscript affiliation letters, * corresponding,
   blank_line_before_authors: true   # lettered affiliation lines, e-mail line

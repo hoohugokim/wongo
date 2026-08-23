@@ -12,6 +12,7 @@ description: >
 font: null                # keep the journal profile reference-doc fonts
 line_numbers: none
 title_block: {style: pandoc}
+abstract_title: null      # leave pandoc's Abstract Title as-is
 captions: {lead: plain, delimiter: ".", align: left}
 tables: {width: full, rules: keep, bold_header_row: false, bold_first_column: false}
 keywords_line: false
