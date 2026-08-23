@@ -19,7 +19,12 @@ from docx import Document  # noqa: E402
 from docx.oxml import OxmlElement  # noqa: E402
 from docx.oxml.ns import qn  # noqa: E402
 
-import render  # noqa: E402  (legacy/render.py)
+import wongo.docxpatch as render  # noqa: E402  (migrated engine module)
+
+# Caption-lead parsing is house-look code that migrates in HANDOFF step 2
+# (wongo.styles); until then it still lives in legacy/render.py.
+sys.path.insert(1, str(REPO / "legacy"))
+import render as legacy_render  # noqa: E402
 
 
 def _para_with_duplicate_ppr(doc):
@@ -70,12 +75,12 @@ def test_normalize_ppr_order_puts_spacing_before_jc():
 
 
 def test_caption_lead_regex_handles_nbsp_and_si_prefix():
-    m = render._CAPTION_LEAD.match("Figure\xa01: A caption.")
+    m = legacy_render._CAPTION_LEAD.match("Figure\xa01: A caption.")
     assert m and m.group(1).replace("\xa0", " ") == "Figure 1"
-    m = render._CAPTION_LEAD.match("Table S\xa02: An SI caption.")
+    m = legacy_render._CAPTION_LEAD.match("Table S\xa02: An SI caption.")
     assert m is not None
     # prose like "Table 1 shows" (no delimiter) must NOT match the strict form
-    assert render._CAPTION_LEAD.match("Table 1 shows the result") is None
+    assert legacy_render._CAPTION_LEAD.match("Table 1 shows the result") is None
 
 
 def test_settings_compat_stamp(tmp_path):
@@ -107,3 +112,54 @@ def test_track_changes_collab_only(tmp_path):
         if tracked and "<w:defaultTabStop" in settings:
             # schema order: trackChanges must precede defaultTabStop
             assert settings.index("<w:trackChanges/>") < settings.index("<w:defaultTabStop")
+
+
+def test_patch_compat_mode_standalone(tmp_path):
+    """The split-out compat stamp: inserts when absent, upgrades when < 15."""
+    import re
+    import zipfile
+
+    for initial in (None, 'w:val="14"'):
+        doc = Document()
+        path = tmp_path / f"compat-{initial}.docx"
+        doc.save(str(path))
+        if initial is not None:
+            with zipfile.ZipFile(str(path)) as z:
+                items = {n: z.read(n) for n in z.namelist()}
+            s = items["word/settings.xml"].decode()
+            s = re.sub(
+                r'<w:compatSetting[^>]*w:name="compatibilityMode"[^>]*/>',
+                f'<w:compatSetting w:name="compatibilityMode" w:uri="x" {initial}/>',
+                s,
+            )
+            items["word/settings.xml"] = s.encode()
+            with zipfile.ZipFile(str(path), "w", zipfile.ZIP_DEFLATED) as z:
+                for n, data in items.items():
+                    z.writestr(n, data)
+        render.patch_compat_mode(path)
+        with zipfile.ZipFile(str(path)) as z:
+            settings = z.read("word/settings.xml").decode()
+        assert "compatibilityMode" in settings
+        assert 'w:val="15"' in settings
+
+
+def test_split_functions_match_combined_path(tmp_path):
+    """patch_theme_fonts (combined) and manual font+compat application must
+    produce identical settings.xml/theme bytes — the single-pass refactor
+    must not change engine output."""
+    import zipfile
+
+    def read(path, name):
+        with zipfile.ZipFile(str(path)) as z:
+            return z.read(name)
+
+    combined = tmp_path / "combined.docx"
+    Document().save(str(combined))
+    render.patch_theme_fonts(combined, "Cambria", track_changes=True)
+
+    stepped = tmp_path / "stepped.docx"
+    Document().save(str(stepped))
+    render.patch_document_package(stepped, font="Cambria", track_changes=True)
+
+    assert read(combined, "word/settings.xml") == read(stepped, "word/settings.xml")
+    assert read(combined, "word/theme/theme1.xml") == read(stepped, "word/theme/theme1.xml")
