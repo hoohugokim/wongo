@@ -184,3 +184,25 @@ def test_split_functions_match_combined_path(tmp_path):
 
     assert read(combined, "word/settings.xml") == read(stepped, "word/settings.xml")
     assert read(combined, "word/theme/theme1.xml") == read(stepped, "word/theme/theme1.xml")
+
+
+def test_table_spacer_after_table_floats_only():
+    """kist-wcr tables.spacer_after: empty single-spaced paragraph after TABLE
+    floats, none after FIGURE floats (regression: NameError shipped because no
+    test exercised fix_tables)."""
+    from wongo.styles import fix_tables
+
+    doc = Document()
+    wrapper_t = doc.add_table(rows=1, cols=1)  # table float: nested data table
+    inner = wrapper_t.rows[0].cells[0].add_table(rows=2, cols=2)
+    assert inner is not None
+    doc.add_paragraph("after table")
+    style = {"tables": {"width": "full", "rules": "booktabs",
+                        "bold_header_row": True, "bold_first_column": True,
+                        "spacer_after": True}}
+    fix_tables(doc, style)
+    body = list(doc.element.body)
+    ti = next(i for i, el in enumerate(body) if el.tag == qn("w:tbl"))
+    nxt = body[ti + 1]
+    assert nxt.tag == qn("w:p")
+    assert not "".join(x.text or "" for x in nxt.iter(qn("w:t")))  # empty spacer

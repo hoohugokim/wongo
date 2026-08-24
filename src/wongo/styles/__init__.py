@@ -25,6 +25,8 @@ from pathlib import Path
 import yaml
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Mm, Pt, RGBColor
 
 from wongo.docxpatch import (
