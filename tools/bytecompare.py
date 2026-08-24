@@ -43,9 +43,10 @@ SCRATCH = Path("/tmp/wongo-bc")
 COMPARED = ("word/", "[Content_Types].xml", "_rels/.rels")
 
 ENGINES = {
-    # name -> argv template; {project} is substituted. The legacy engine is
-    # the oracle; later phases point "candidate" at wongo's own entry points.
+    # name -> argv template. The legacy engine was the oracle until v0.1.0
+    # (legacy/ removed); current engine is wongo CLI.
     "legacy": [sys.executable, str(REPO / "legacy" / "render.py")],
+    "wongo": ["uv", "run", "wongo", "render"],
 }
 
 
@@ -144,13 +145,16 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("mode", choices=("baseline", "selftest", "check"))
     ap.add_argument("--target", default="both", choices=("collab", "submission", "both"))
-    ap.add_argument("--engine", default="legacy", choices=sorted(ENGINES))
+    ap.add_argument("--engine", default="wongo", choices=sorted(ENGINES))
     ap.add_argument("--baseline", type=Path, default=SCRATCH / "baseline")
     ap.add_argument("--allow", type=Path, default=None,
                     help="file of regex patterns for pre-justified diffs")
     args = ap.parse_args()
 
     engine = ENGINES[args.engine]
+    if args.engine == "legacy" and not Path(engine[1]).exists():
+        print(f"legacy engine not found: {engine[1]} — legacy/ was removed in v0.1.0; use --engine wongo", file=sys.stderr)
+        return 1
 
     if args.mode == "selftest":
         first = render_and_extract(engine, args.target, "baseline")
@@ -171,7 +175,7 @@ def main() -> int:
                   "quarto output is NOT deterministic; comparisons need normalization.")
             print("\n".join(sorted(report)[:40]))
             return 1
-        print("NOISE FLOOR: zero — consecutive legacy renders are byte-identical.")
+        print(f"NOISE FLOOR: zero — consecutive {args.engine} renders are byte-identical.")
         return 0
 
     if args.mode == "baseline":
