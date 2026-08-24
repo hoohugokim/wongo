@@ -1,12 +1,12 @@
 [project]
 name = "wongo"
 version = "0.1.0"
-description = "wongo (원고, 'manuscript') — Quarto-to-journal manuscript pipeline: verified journal profiles, submission-grade DOCX rendering, and Word-coauthor round-tripping"
+description = "wongo (원고, 'manuscript') — Python package and CLI for a verified Quarto-to-journal manuscript pipeline (journal profiles, submission-grade DOCX, Word-coauthor round-tripping)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Hoo Hugo Kim", email = "hookim@kist.re.kr" }]
-keywords = ["quarto", "manuscript", "docx", "journal", "publishing", "reproducible-research"]
+keywords = ["quarto", "manuscript", "docx", "journal", "publishing", "reproducible-research", "research-software", "pipeline-framework"]
 dependencies = [
   "PyYAML>=6",
   "python-docx>=1.1",

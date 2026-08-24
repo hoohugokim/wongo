@@ -1,7 +1,10 @@
 # wongo (원고)
 
 *Wongo* is Korean for **manuscript** — and this is a manuscript pipeline:
-write a journal article as a Quarto `.qmd` with every inferential number wired
+
+> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.1.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `check` / `render` / `roundtrip` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
+
+Write a journal article as a Quarto `.qmd` with every inferential number wired
 to committed analysis artifacts, render **submission-grade DOCX** against
 **verified journal profiles**, keep **Word-native coauthors** in the loop with
 tracked-changes round-tripping, and never let a hand-typed number or a stale
@@ -62,8 +65,8 @@ R-engine manuscripts), and the fonts your style profile names.
 
 | Path | What |
 |---|---|
-| `src/wongo/` | The package: `cli`, `engine`/`checks`/`roundtrip`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
-| `docs/` | Profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), legacy spine docs |
+| `src/wongo/` | The package and library: `cli`, `engine`/`checks`/`roundtrip`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
+| `docs/` | Product definition (`docs/product-definition.md`), profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), legacy spine docs |
 | `tests/` | Regression tests pinning every shipped OOXML fix |
 | `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs baseline |
 
