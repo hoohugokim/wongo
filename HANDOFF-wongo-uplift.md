@@ -1,5 +1,12 @@
 # HANDOFF — wongo uplift (scaffold → v0.1.0)
 
+> **Status: completed in v0.1.0 (2026-08-24) — retained as historical record.**
+> `legacy/` shims removed, skills thinned to `wongo` wrappers, `style: kist-wcr`
+> pinned in the reference manuscript. Canonical code now in `src/wongo/`; skills at
+> `~/.claude/skills/quarto-manuscript-*` are wrappers calling `wongo`
+> (`docs/docx-quirks.md` is canonical quirks, `docs/journal-profile-contract.md`
+> is canonical contract). For active work see `CONTRIBUTING.md` + `CHANGELOG.md`.
+
 **For the dedicated session that turns this scaffold into the real package.**
 Scaffolded 2026-08-24 from the `quarto-manuscript-*` Claude Code skills, mid-flight
 of the the reference manuscript ES&T submission. Read this whole file before touching code.

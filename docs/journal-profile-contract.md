@@ -1,5 +1,11 @@
 # Journal Profile Contract
 
+> **Canonical implementation:** `src/wongo/profiles/<slug>/` in this repo (shipped as wheel data).
+> The `quarto-manuscript-<slug>` skills at `~/.claude/skills/` are now thin wrappers that retain judgment
+> (`SKILL.md`, `references/`) and point to `wongo` for machine-readable `profile.yml`/`assets/`.
+> New profiles must still satisfy this contract — add them under `src/wongo/profiles/` and register via
+> `wongo profile list` / `wongo profile verify`.
+
 Every `quarto-manuscript-<slug>` skill MUST provide the following so
 `quarto-manuscript-sci` can drive it without journal-specific code paths.
 

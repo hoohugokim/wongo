@@ -103,6 +103,14 @@ def _cmd_profile(args: argparse.Namespace) -> int:
         print("WARN: profile older than 6 months — re-verify against live guidelines")
         problems += 1
 
+    if getattr(args, "offline", False):
+        print("live sources: skipped (--offline)")
+        if problems:
+            print(f"\nVERIFY: {problems} issue(s) found — re-fetch and diff content before trusting this profile")
+            return 1
+        print("\nVERIFY: clean — no evidence of guideline drift since verified_date (offline check only)")
+        return 0
+
     print("live sources:")
     vd = profile.get("verified_date")
     vd_dt = datetime.fromisoformat(str(vd)).replace(tzinfo=timezone.utc) if vd else None
@@ -187,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     psub = p.add_subparsers(dest="profile_cmd", required=True)
     pv = psub.add_parser("verify", help="Live-refetch drift audit for one profile")
     pv.add_argument("slug")
+    pv.add_argument("--offline", action="store_true",
+                    help="skip live HEAD checks, only check local staleness")
     pl = psub.add_parser("list", help="List known journal profiles")
     pl.set_defaults(profile_cmd="list")
     pv.set_defaults(profile_cmd="verify")
