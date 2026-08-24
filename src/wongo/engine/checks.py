@@ -26,6 +26,11 @@ FENCE_RE = re.compile(r"^(```|~~~)[^\n]*\n.*?^\1\s*$\n?", re.DOTALL | re.MULTILI
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?")
+# chunk-option captions (`#| tbl-cap: "..."` / `#| fig-cap: "..."`) live INSIDE fenced
+# chunks, which `prose()` strips; journals count table/figure captions, so they are
+# harvested before the fence is dropped (2026-08-25: an ES&T draft passed the gate at
+# 6,739 while its rendered count, captions included, was 7,349).
+CHUNK_CAPTION_RE = re.compile(r"^#\|\s*(?:tbl|fig)-cap:\s*[\"']?(.*?)[\"']?\s*$", re.MULTILINE)
 HEADING_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
 REF_USE_RE = re.compile(r"@((?:fig|tbl|eq|sec|lst|thm)-[\w.-]+)")
 LABEL_DEF_RE = re.compile(
@@ -55,10 +60,14 @@ def prose(body: str) -> str:
     to its alt/caption text (captions are prose the journal's word count
     includes — dropping them entirely undercounts); each inline code
     expression collapses to one placeholder word (a code-generated number
-    reads as one word in any journal's count)."""
+    reads as one word in any journal's count). Table/figure captions declared
+    as chunk options inside fences are kept as prose — journals count them."""
+    captions = CHUNK_CAPTION_RE.findall(body)
     body = FENCE_RE.sub("", body)
     body = COMMENT_RE.sub("", body)
     body = IMAGE_RE.sub(lambda m: m.group(1), body)
+    if captions:
+        body = body + "\n" + "\n".join(captions) + "\n"
     return INLINE_CODE_RE.sub("X", body)
 
 
