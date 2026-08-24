@@ -116,6 +116,7 @@ def apply_spacing_and_alignment(doc: Document, style: dict) -> None:
 
 
 def apply_heading_look(doc: Document, style: dict) -> None:
+    space_before = style.get("headings_space_before_pt") or {}
     for name, pt in (style.get("headings_pt") or {}).items():
         st = _style_by_name(doc, name)
         if st is None:
@@ -123,6 +124,8 @@ def apply_heading_look(doc: Document, style: dict) -> None:
         st.font.size = Pt(pt)
         st.font.bold = True
         st.font.color.rgb = RGBColor(0, 0, 0)
+        if space_before.get(name):
+            st.paragraph_format.space_before = Pt(space_before[name])
 
 
 def restyle_title(doc: Document, style: dict) -> None:
@@ -221,6 +224,8 @@ def rebuild_title_block(doc: Document, meta: dict, opts: dict) -> None:
         a for a in authors if a.get("email")
     ]
     if corr:
+        if opts.get("blank_line_before_corresponding", True):
+            anchor.insert_paragraph_before("", style=author_style)
         label = "* Corresponding author" + ("s" if len(corr) > 1 else "") + ":"
         p = anchor.insert_paragraph_before(label, style=author_style)
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -312,6 +317,20 @@ def _bold_cells(cells) -> None:
                 run.font.bold = True
 
 
+def _spacer_after(tbl) -> None:
+    """One empty single-spaced paragraph after a table so body text doesn't
+    sit flush against its bottom rule (a bare empty paragraph would inherit
+    Normal's double spacing and gape)."""
+    p = OxmlElement("w:p")
+    pPr = OxmlElement("w:pPr")
+    sp = OxmlElement("w:spacing")
+    sp.set(qn("w:line"), "240")
+    sp.set(qn("w:lineRule"), "auto")
+    pPr.append(sp)
+    p.append(pPr)
+    tbl._tbl.addnext(p)
+
+
 def fix_tables(doc: Document, style: dict) -> None:
     """WR/booktabs table look when the profile asks for it. Quarto wraps every
     crossref float in a 1x1 outer table; real data tables live nested inside
@@ -323,7 +342,7 @@ def fix_tables(doc: Document, style: dict) -> None:
     text_w = (int(sec.page_width) - int(sec.left_margin) - int(sec.right_margin)) // 635
     tbl = style.get("tables") or {}
 
-    def walk(tables, width_dxa):
+    def walk(tables, width_dxa, top=False):
         for t in tables:
             is_wrapper = len(t.rows) == 1 and len(t.columns) == 1
             if tbl.get("width", "full") == "full":
@@ -332,17 +351,24 @@ def fix_tables(doc: Document, style: dict) -> None:
             if is_wrapper:
                 if tbl.get("rules") == "booktabs":
                     _tbl_set_borders(t, top=None, bottom=None)
+                holds_table = False
                 for row in t.rows:
                     for cell in row.cells:
+                        if cell.tables:
+                            holds_table = True
                         walk(cell.tables, width_dxa - 216)  # minus cell margins
+                if top and holds_table and tbl.get("spacer_after"):
+                    _spacer_after(t)  # table floats only; figure floats keep their flow
             elif tbl.get("rules") == "booktabs":
                 _tbl_set_borders(t, top=8, bottom=8)
                 if tbl.get("bold_header_row"):
                     _bold_cells(t.rows[0].cells)
                 if tbl.get("bold_first_column"):
                     _bold_cells(row.cells[0] for row in t.rows)
+                if top and tbl.get("spacer_after"):
+                    _spacer_after(t)
 
-    walk(doc.tables, text_w)
+    walk(doc.tables, text_w, top=True)
 
 
 # ---------------------------------------------------------------------------

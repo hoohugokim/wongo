@@ -31,6 +31,7 @@ justify: [Body Text, First Paragraph, Abstract, Bibliography,
           Heading 1, Heading 2, Heading 3, Heading 4]
 
 headings_pt: {Heading 1: 16, Heading 2: 13, Heading 3: 12, Heading 4: 12}
+headings_space_before_pt: {Heading 2: 14, Heading 3: 12}
 title_pt: 14
 
 abstract_title:            # "Abstract" heading: bold, left, 12pt
@@ -39,7 +40,8 @@ abstract_title:            # "Abstract" heading: bold, left, 12pt
 
 title_block:                 # WR-style title page, rebuilt from .qmd YAML
   style: wr                  # superscript affiliation letters, * corresponding,
-  blank_line_before_authors: true   # lettered affiliation lines, e-mail line
+  blank_line_before_authors: true
+  blank_line_before_corresponding: true   # lettered affiliation lines, e-mail line
   blank_line_after_block: true
 
 captions:
@@ -53,5 +55,6 @@ tables:
   rules: booktabs            # closed 1pt top/bottom + style header midrule
   bold_header_row: true
   bold_first_column: true
+  spacer_after: true         # empty line after each table float
 
 keywords_line: true          # inject "Keywords: ..." after the abstract
