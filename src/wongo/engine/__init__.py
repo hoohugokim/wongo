@@ -43,11 +43,10 @@ def set_line_spacing(doc: Document, factor: float) -> None:
 
 def resolve_style(cfg: dict) -> dict:
     """Style-profile resolution: _journal.yml `style:` key -> $WONGO_STYLE ->
-    legacy fallback. The final fallback is `kist-wcr`, NOT `default`, purely as
-    a transition measure: the reference manuscript must not gain a style key before ms-r0-sent
-    (ground rule 2) yet has always rendered with the house look. The CLI's
-    --style flag (HANDOFF step 5) slots in front of this chain."""
-    name = cfg.get("style") or os.environ.get("WONGO_STYLE") or "kist-wcr"
+    `default`. The CLI's --style flag slots in front of this chain; an
+    explicit `style: kist-wcr` in _journal.yml (as the reference manuscript now pins) selects
+    the KIST-WCR house look."""
+    name = cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
     return wstyles.load_style(name)
 
 
