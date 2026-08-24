@@ -7,12 +7,14 @@ into a shareable Python package. Private repo, MIT, owner Hoo Hugo Kim (KIST).
 **Start with `HANDOFF-wongo-uplift.md`** — it carries the migration map and
 the three ground rules. The short version:
 
-1. `legacy/` started as verbatim, battle-tested code that produced a real
-   ES&T submission (now thin shims over `wongo.*` after HANDOFF 1-5).
-   Migrations must keep `tests/` green and byte-compare renders
-   against the the reference manuscript manuscript (`~/workbench/the reference manuscript/manuscript`).
-2. The live the reference manuscript manuscript stays on the skill scripts until its r0 review
-   round closes (`ms-r0-sent` tag). Fix bugs in BOTH places until then.
+1. Behavior is pinned. The ES&T submission engine that lived in `legacy/`
+   is now in `src/wongo/` (`legacy/` removed in v0.1.0). Every change must
+   keep `tests/` green and byte-compare renders against the the reference manuscript manuscript
+   (`~/workbench/the reference manuscript/manuscript`, now pinned `style: kist-wcr`).
+2. the reference manuscript now uses `wongo` directly (post-`ms-r0-sent` wiring); the
+   `~/.claude/skills/quarto-manuscript-*` skills are thin wrappers that call the
+   installed `wongo` CLI and keep only judgment content. Canonical quirks memory
+   is `docs/docx-quirks.md`.
 3. Correctness (OOXML patches) is unconditional engine behavior
    (`wongo.docxpatch`); taste (KIST-WCR house look) lives in
    `src/wongo/styles/*.yml` via `wongo.styles`. Never blur that line.

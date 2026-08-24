@@ -1,6 +1,6 @@
 [project]
 name = "wongo"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "wongo (원고, 'manuscript') — Quarto-to-journal manuscript pipeline: verified journal profiles, submission-grade DOCX rendering, and Word-coauthor round-tripping"
 readme = "README.md"
 requires-python = ">=3.11"

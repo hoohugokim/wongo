@@ -7,11 +7,12 @@ to committed analysis artifacts, render **submission-grade DOCX** against
 tracked-changes round-tripping, and never let a hand-typed number or a stale
 journal rule reach a submission portal.
 
-> **Status: pre-alpha (v0.1.0.dev0).** The engine is battle-tested —
-> it produced a real ES&T submission — and has been migrated into `src/wongo/`
+> **Status: v0.1.0.** The engine is battle-tested — it produced a real ES&T
+> submission — and has been migrated into `src/wongo/`
 > (`docxpatch`/`styles`/`profiles`/`engine`) per `HANDOFF-wongo-uplift.md`.
-> `legacy/` now holds thin shims for the the reference manuscript manuscript until `ms-r0-sent`.
-> The CLI `wongo` is installed as a wheel/editable package.
+> `legacy/` shims were removed in v0.1.0; the live the reference manuscript manuscript pins
+> `style: kist-wcr` and now uses `wongo` directly. The CLI `wongo` is installed
+> as a wheel/editable package.
 
 ## Why this exists
 
@@ -62,10 +63,9 @@ R-engine manuscripts), and the fonts your style profile names.
 | Path | What |
 |---|---|
 | `src/wongo/` | The package: `cli`, `engine`/`checks`/`roundtrip`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
-| `legacy/` | Thin shims (`render.py`, `validate.py`, `roundtrip.py`, `mslib.py`) delegating to `wongo.*` — kept for the reference manuscript until `ms-r0-sent`, then removed |
 | `docs/` | Profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), legacy spine docs |
 | `tests/` | Regression tests pinning every shipped OOXML fix |
-| `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs legacy baseline |
+| `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs baseline |
 
 ## Provenance
 
