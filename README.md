@@ -57,6 +57,7 @@ wongo check                                  # validation report
 wongo render --target collab                 # coauthor-facing DOCX (main + SI)
 wongo render --target submission             # refuses on any HARD failure
 wongo roundtrip coauthor-edits.docx          # -> decisions/merge-<date>-*.md
+wongo diff original.docx revised.docx        # -> revised-tracked.docx (S6 marked-up revision)
 wongo scaffold my-paper && cd my-paper       # new manuscript from template
 wongo profile list && wongo profile verify est  # journal profile drift audit
 ```
