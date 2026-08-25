@@ -61,9 +61,9 @@ SOFT:
 - [ ] Scope self-check against the desk-rejection framing in
       editorial-framing.md — Water Research has NO pre-submission
       evaluation service; authors are expected to self-assess fit.
-- [ ] Cover letter continuity argument drafted, citing the group's own
-      prior WR papers (280:123521, 2025; 301:125995, 2026) as track record
-      in this exact journal.
+- [ ] Cover letter continuity argument drafted; if building on the group's
+      own prior WR papers, cite them explicitly as track record in this
+      exact journal (identify them privately — not listed here).
 - [ ] Funding statement drafted using the journal's standard "Funding:
       This work was supported by..." template (or the "did not receive any
       specific grant" fallback sentence if unfunded).

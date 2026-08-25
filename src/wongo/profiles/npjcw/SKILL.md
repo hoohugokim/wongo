@@ -182,16 +182,16 @@ Institutional open-access agreements may also cover costs.
 other papers under consideration/in press elsewhere (conference abstracts
 excepted); preprint posting is explicitly supported/encouraged.
 
-**AI policy (directly relevant to this manuscript's topic)**: LLMs "do not
+**AI policy (relevant to any AI-subject-matter manuscript)**: LLMs "do not
 currently satisfy our authorship criteria" — any LLM use must be documented
 in the Methods section (or a suitable alternative section if no Methods
 section exists); "AI assisted copy editing" (grammar/style/readability
 polish of human-written text) does not need to be declared, but generative
 content creation does. Generative AI-created images/video are not permitted
 in figures except narrow, labeled exceptions. This governs LLM-as-authoring-
-tool, not LLM-as-subject-of-study — a manuscript that *benchmarks* LLMs (as
-this one does) is not itself constrained by this policy beyond normal
-disclosure of any LLM used to help write the paper.
+tool, not LLM-as-subject-of-study — a manuscript that *benchmarks* LLMs is
+not itself constrained by this policy beyond normal disclosure of any LLM
+used to help write the paper.
 
 ## TO VERIFY (not addressed in any fetched official page — check before submission)
 
@@ -238,7 +238,7 @@ disclosure of any LLM used to help write the paper.
 - Rule: each checked item moves UP into VERIFIED with a link, and its
   number lands in `profile.yml`; update `verified_date`.
 
-## Editorial appetite for this manuscript's topic (LLM benchmark, a water-treatment application)
+## Editorial appetite for AI/benchmark-for-water submissions
 
 npj Clean Water has already published directly adjacent work: **"Towards
 domain-adapted large language models for water and wastewater management:
@@ -247,9 +247,9 @@ methods, datasets and benchmarking"**, npj Clean Water **8**, 82 (2025)
 published 2025-08-26) — an LLM/benchmarking-for-water-domain paper in this
 exact journal, confirmed via Crossref metadata (title, volume 8, article
 number 82, container-title "npj Clean Water"). This is strong precedent for
-editorial appetite for LLM-benchmark-for-water-technology submissions;
-expand the fit argument in `references/editorial-framing.md` and the cover
-letter around it.
+editorial appetite for AI/benchmark-for-water-technology submissions; build
+the per-manuscript fit argument in `references/editorial-framing.md` and the
+cover letter around it.
 
 ## Quarto/DOCX implementation notes for this journal
 

@@ -8,7 +8,7 @@ All notable changes to wongo are documented here. Format based on [Keep a Change
 
 ## [0.1.0] — 2026-08-24
 
-First shareable release: `quarto-manuscript-*` skills uplifted into `wongo` Python package. the reference manuscript manuscript now pins `style: kist-wcr` and uses `wongo` directly; skills thinned to wrappers.
+First shareable release: `quarto-manuscript-*` skills uplifted into `wongo` Python package. The lab's reference manuscript now pins `style: kist-wcr` and uses `wongo` directly; skills thinned to wrappers. (Manuscript identity intentionally unnamed in this public repo.)
 
 ### Added
 - `CONTRIBUTING.md` — ground-rule pinned behavior (now `legacy/` removed, post-`ms-r0-sent` wiring), dev setup, journal-profile contract and verification discipline, style layer, DOCX quirks memory, commit/release gates.
@@ -26,7 +26,7 @@ First shareable release: `quarto-manuscript-*` skills uplifted into `wongo` Pyth
 
 ## [0.1.0.dev0] — 2026-08-24 (scaffold) + 2026-08-24 overnight uplift (steps 1–5)
 
-Scaffolded from `~/.claude/skills/quarto-manuscript-*` mid-flight of the the reference manuscript ES&T submission (`HANDOFF-wongo-uplift.md`).
+Scaffolded from `~/.claude/skills/quarto-manuscript-*` mid-flight of an ES&T submission (identity intentionally unnamed here) (`HANDOFF-wongo-uplift.md`).
 
 ### Added
 - `wongo.docxpatch` (`f0a50a4`): unconditional OOXML fixes — `dedupe_ppr`, `normalize_ppr_order` (+`_PPR_ORDER`), `patch_theme_fonts`/`patch_compat_mode`→`patch_document_package` (single zip pass, preserves no-theme1.xml early-return quirk), `set_fonts` (theme-attr stripping), `_tbl_rescale_grid`/`_tbl_set_width_pct`/`_tbl_set_borders`, `add_line_numbers`/`add_page_numbers`/`restart_page_numbering` with `_SECT_PR_TAIL` schema-correct `insert_element_before` — split parity tests added.
@@ -41,7 +41,7 @@ Scaffolded from `~/.claude/skills/quarto-manuscript-*` mid-flight of the the ref
 - `legacy/render.py`, `legacy/mslib.py`, `legacy/validate.py`, `legacy/roundtrip.py` → thin shims delegating to `wongo.*` (now removed in v0.1.0); imports in tests flipped from `legacy.render` to `wongo.docxpatch` where moved.
 
 ### Verified
-- `pytest` 12 passed; `bytecompare selftest` noise floor zero; `bytecompare check --target both` identical for `main-*` (every phase) and allowlisted `si-*` (phase ≥4 only); wheel contains profiles/styles/scaffold and `~/.local/bin/wongo` renders all four DOCX from a fresh the reference manuscript copy.
+- `pytest` 12 passed; `bytecompare selftest` noise floor zero; `bytecompare check --target both` identical for `main-*` (every phase) and allowlisted `si-*` (phase ≥4 only); wheel contains profiles/styles/scaffold and `~/.local/bin/wongo` renders all four DOCX from a fresh copy of the reference manuscript.
 
 [Unreleased]: https://github.com/hoohugokim/wongo/compare/v0.1.0...HEAD
 [0.1.0.dev0]: https://github.com/hoohugokim/wongo/releases/tag/v0.1.0.dev0

@@ -6,10 +6,10 @@ document LOOKS and is selected by a style profile YAML under styles/
 house look). Unconditional OOXML correctness lives in wongo.docxpatch and
 runs regardless of the chosen profile.
 
-Resolution order (full chain once the CLI lands): _journal.yml `style:` key
--> --style flag -> `default`. During the transition legacy/render.py falls
-back to `kist-wcr` because the live the reference manuscript manuscript cannot gain a style
-key before ms-r0-sent (ground rule 2) yet must keep rendering byte-identical.
+Resolution order: _journal.yml `style:` key -> $WONGO_STYLE -> `default`.
+(Historical note: during the pre-v0.1.0 transition the final fallback was
+temporarily `kist-wcr` because the live manuscript could not gain a style
+key before ms-r0-sent; that wart was resolved in v0.1.0.)
 
 Style profiles migrated verbatim from the HOUSE_* constants of
 legacy/render.py; the WR title-block machinery (rebuild_title_block,

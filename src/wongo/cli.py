@@ -62,11 +62,56 @@ def _cmd_scaffold(args: argparse.Namespace) -> int:
     return 0
 
 
+def _url_allowed(url: str) -> str | None:
+    """Return a rejection reason, or None if the URL is safe to HEAD.
+
+    profile.yml sources resolve project-local first, so an untrusted
+    manuscript repo could point verify at arbitrary targets. Restrict to
+    http(s) and refuse loopback/private/link-local hosts (best-effort:
+    a public DNS name resolving to a private IP is not caught — DNS
+    rebinding is out of scope for a drift audit)."""
+    from urllib.parse import urlparse
+
+    u = urlparse(url)
+    if u.scheme not in ("http", "https"):
+        return f"scheme {u.scheme!r} not allowed (http/https only)"
+    host = (u.hostname or "").lower()
+    if not host:
+        return "no hostname"
+    import ipaddress
+
+    if host in ("localhost",) or host.endswith(".local") or host.endswith(".internal"):
+        return f"host {host!r} is local"
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return None
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+        return f"host {host} is private/reserved"
+    return None
+
+
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects that leave the http(s)/public-host envelope."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _url_allowed(str(newurl)) is not None:
+            raise urllib.error.URLError(f"redirect to disallowed URL: {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_opener = urllib.request.build_opener(_SafeRedirectHandler)
+
+
 def _head(url: str, timeout: float = 20.0) -> dict[str, str] | None:
+    bad = _url_allowed(url)
+    if bad:
+        print(f"  [refused] {bad}: {url}")
+        return {"X-Refused": bad}
     req = urllib.request.Request(url, method="HEAD",
                                  headers={"User-Agent": "wongo-profile-verify/" + __version__})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _opener.open(req, timeout=timeout) as resp:
             return dict(resp.headers)
     except urllib.error.HTTPError as e:
         # 403/405: bot-blocked or HEAD-refusing servers (ACS does both) —
@@ -123,6 +168,9 @@ def _cmd_profile(args: argparse.Namespace) -> int:
             continue
         if "X-Blocked" in h:
             print(f"  [blocked {h['X-Blocked']}] server refuses automated HEAD — verify manually: {url}")
+            continue
+        if "X-Refused" in h:
+            problems += 1
             continue
         if "X-Error" in h:
             problems += 1

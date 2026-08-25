@@ -2,26 +2,27 @@
 
 > **Status: completed in v0.1.0 (2026-08-24) — retained as historical record.**
 > `legacy/` shims removed, skills thinned to `wongo` wrappers, `style: kist-wcr`
-> pinned in the reference manuscript. Canonical code now in `src/wongo/`; skills at
+> pinned by the lab's reference manuscript. Canonical code now in `src/wongo/`; skills at
 > `~/.claude/skills/quarto-manuscript-*` are wrappers calling `wongo`
 > (`docs/docx-quirks.md` is canonical quirks, `docs/journal-profile-contract.md`
 > is canonical contract). For active work see `CONTRIBUTING.md` + `CHANGELOG.md`.
 
 **For the dedicated session that turns this scaffold into the real package.**
 Scaffolded 2026-08-24 from the `quarto-manuscript-*` Claude Code skills, mid-flight
-of the the reference manuscript ES&T submission. Read this whole file before touching code.
+of an ES&T submission (manuscript identity intentionally unnamed in the public repo).
+Read this whole file before touching code.
 
 ## Ground rules
 
 1. **Behavior is pinned.** `legacy/` is the verbatim, battle-tested engine that
    rendered a real submission. Every migration step must end with
-   `tests/` green AND a byte-relevant comparison against the the reference manuscript manuscript
-   renders (`~/workbench/the reference manuscript/manuscript`, tag `ms-r0-initial`+): render with
+   `tests/` green AND a byte-relevant comparison against the reference
+   manuscript's renders (`WONGO_REF_PROJECT`, tag `ms-r0-initial`+): render with
    legacy, render with the migrated code, diff the unzipped document.xml /
    styles.xml / settings.xml. Cosmetic-identical or explainable-diff only.
-2. **the reference manuscript stays pinned to the skill scripts until `ms-r0-sent` is tagged.**
-   Do NOT point the live manuscript at wongo before its r0 review round closes.
-   After that, the reference manuscript becomes the first consumer and validation target.
+2. **The live manuscript stays pinned to the skill scripts until `ms-r0-sent`
+   is tagged.** Do NOT point the live manuscript at wongo before its r0 review
+   round closes. After that, it becomes the first consumer and validation target.
 3. **Correctness vs taste.** OOXML fixes (dedupe_ppr, normalize_ppr_order,
    patch_theme_fonts incl. compatibilityMode, grid rescaling) are UNCONDITIONAL
    engine behavior. The HOUSE_* constants are KIST-WCR taste and must move
@@ -58,7 +59,7 @@ of the the reference manuscript ES&T submission. Read this whole file before tou
 5. **CLI**: replace the `runpy` delegation in `src/wongo/cli.py` subcommand by
    subcommand; add `wongo scaffold` (from `assets/scaffold/`) and
    `wongo profile verify <slug>` (the live-refetch drift audit — the 2026-08-24
-   ES&T audit found a July-30 guideline revision this way; see the reference manuscript session
+   ES&T audit found a July-30 guideline revision this way; see that session's
    notes: SI paragraph moved BEFORE Acknowledgment, reviewers min 4,
    keywords 5–8 mandatory).
 6. **Thin the Claude skills**: `quarto-manuscript-sci` and profile skills
@@ -78,7 +79,7 @@ of the the reference manuscript ES&T submission. Read this whole file before tou
 - `uv` is the runner of choice (`uv run --with pytest --with python-docx
   --with pyyaml pytest`).
 - The skills these files came from live at `~/.claude/skills/quarto-manuscript-*`
-  and REMAIN AUTHORITATIVE for the the reference manuscript manuscript until ms-r0-sent
+  and REMAIN AUTHORITATIVE for the live manuscript until ms-r0-sent
   (ground rule 2). Any bug found there during the review round must be fixed
   BOTH there and here until the switch.
 

@@ -7,14 +7,14 @@ on `main`). **Not pushed. No tag.** Everything below is reviewable per phase.
 
 All five migration phases from `HANDOFF-wongo-uplift.md` were executed in
 order, each gated by (a) pytest green and (b) a byte-compare of all four
-the reference manuscript render products (main/SI × collab/submission) against a
+reference-manuscript render products (main/SI × collab/submission) against a
 pre-migration baseline. The main documents stayed **byte-identical through
 every phase**. Exactly one intentional behavior change landed (the two
 long-standing SI cover-sheet gaps from the HANDOFF), isolated to
 `si-<target>/word/document.xml`, tests-first, allowlisted with justification.
 
 Steps 6 (thin the Claude skills) and 7 (docs/polish/tag v0.1.0) were
-deliberately NOT touched: they affect infrastructure the live the reference manuscript
+deliberately NOT touched: they affect infrastructure the live reference
 manuscript depends on before `ms-r0-sent`.
 
 ## 1. Ground-rule compliance
@@ -22,7 +22,7 @@ manuscript depends on before `ms-r0-sent`.
 | Rule | How it was held |
 |---|---|
 | 1. Behavior pinned | `tools/bytecompare.py`: fresh copy of the reference manuscript → render with engine → unzip → byte-diff every `word/*` part vs baseline. Noise floor measured first (`selftest`: consecutive legacy runs are byte-identical, so any diff is code-caused). |
-| 2. the reference manuscript untouched until ms-r0-sent | Zero writes into `~/workbench/the reference manuscript`; harness works on `/tmp/wongo-bc/ref`. No style key was added to its `_journal.yml` (consequence: transitional style fallback, see §3). |
+| 2. Live manuscript untouched until ms-r0-sent | Zero writes into the live project; harness works on a scratch copy. No style key was added to its `_journal.yml` (consequence: transitional style fallback, see §3). |
 | 3. Correctness vs taste | `wongo.docxpatch` = unconditional fixes only; everything visual is data-driven from `wongo/styles/*.yml` via `wongo.styles.apply_style()`. |
 
 ## 2. Phase-by-phase
@@ -36,7 +36,7 @@ manuscript depends on before `ms-r0-sent`.
   noise floor zero.
 
 **Harness gotchas found:** the manuscript references assets outside its dir
-(`../training/...`), so the whole the reference manuscript repo must be copied, not just
+(`../training/...`), so the whole reference repo must be copied, not just
 `manuscript/`. Quarto renders are deterministic for compared parts.
 
 ### Phase 1 — `wongo.docxpatch` (`f0a50a4`)
@@ -108,9 +108,9 @@ live against est/wr.
 
 `resolve_style` (wongo/engine/__init__.py) falls back to **`kist-wcr`**, not
 `default`, when neither `_journal.yml` nor `$WONGO_STYLE` provides a style.
-Reason: ground rule 2 forbids adding a `style:` key to the reference manuscript before
+Reason: ground rule 2 forbade adding a `style:` key to the live manuscript before
 `ms-r0-sent`, yet it must keep rendering the house look byte-identically.
-After ms-r0-sent: add `style: kist-wcr` to the reference manuscript, then flip the final
+After ms-r0-sent: add `style: kist-wcr` to the live manuscript, then flip the final
 fallback to `default` (one-line change, marked in the source).
 
 ## 4. Follow-ups left for daytime
@@ -136,4 +136,4 @@ fallback to `default` (one-line change, marked in the source).
 | bytecompare selftest | zero noise floor |
 | bytecompare check ×4 docs | main-collab/main-submission/si-* identical except allowlisted SI document.xml (phase ≥4); identical everywhere through phase 3 |
 | wheel build | contains profiles + styles + scaffold template |
-| wheel e2e | installed-tool `render --target both` produces all four DOCX from a fresh the reference manuscript copy |
+| wheel e2e | installed-tool `render --target both` produces all four DOCX from a fresh copy of the reference manuscript |

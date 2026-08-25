@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Byte-compare verification harness for the wongo uplift (ground rule 1).
 
-Renders the the reference manuscript manuscript (copied to a scratch dir — the live project is
-never touched) with an engine command, then diffs the unzipped DOCX XML
-against a stored baseline. Cosmetic-identical or explainable-diff only.
+Renders the reference manuscript (set WONGO_REF_PROJECT to its repo root;
+it is copied to a scratch dir — the live project is never touched) with an
+engine command, then diffs the unzipped DOCX XML against a stored baseline.
+Cosmetic-identical or explainable-diff only.
 
 Usage:
     bytecompare.py baseline [--target collab|submission|both]
@@ -18,7 +19,7 @@ Usage:
         changed lines) for diffs already justified in OVERNIGHT-LOG.md.
 
 Scratch layout under /tmp/wongo-bc/:
-    manuscript/   fresh copy of the the reference manuscript manuscript each invocation
+    manuscript/   fresh copy of the reference manuscript each invocation
     baseline/     unzipped word/*.xml trees of the baseline render
     candidate/    unzipped word/*.xml trees of the current render
 
@@ -29,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import os
 import re
 import shutil
 import subprocess
@@ -37,8 +39,11 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-REF_ROOT = Path.home() / "workbench" / "the reference manuscript"
-REF = REF_ROOT / "manuscript"
+# Root of the reference manuscript project (copied to a scratch dir each run;
+# the live project is never touched). Not hardcoded on purpose — point
+# WONGO_REF_PROJECT at your local checkout, e.g.:
+#   export WONGO_REF_PROJECT=~/workbench/<your-manuscript-repo>
+REF_ROOT = os.environ.get("WONGO_REF_PROJECT")
 SCRATCH = Path("/tmp/wongo-bc")
 COMPARED = ("word/", "[Content_Types].xml", "_rels/.rels")
 
@@ -51,14 +56,22 @@ ENGINES = {
 
 
 def prepare_project() -> Path:
-    """Copy the WHOLE the reference manuscript repo: index.qmd references assets outside
-    manuscript/ via ../training/... paths, which break in an isolated copy."""
+    """Copy the WHOLE reference repo: the manuscript may reference assets
+    outside its dir via ../ paths, which break in an isolated copy."""
+    if not REF_ROOT:
+        print("error: set WONGO_REF_PROJECT to the reference manuscript repo root",
+              file=sys.stderr)
+        raise SystemExit(2)
+    root_src = Path(REF_ROOT).expanduser().resolve()
+    proj = root_src / "manuscript"
+    if not proj.is_dir():
+        print(f"error: {proj} not found (WONGO_REF_PROJECT={REF_ROOT})", file=sys.stderr)
+        raise SystemExit(2)
     root = SCRATCH / "ref"
-    proj = root / "manuscript"
     if root.exists():
         shutil.rmtree(root)
     root.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(REF_ROOT, root, symlinks=True)
+    shutil.copytree(root_src, root, symlinks=True)
     return proj
 
 

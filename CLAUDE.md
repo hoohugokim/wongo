@@ -9,9 +9,9 @@ the three ground rules. The short version:
 
 1. Behavior is pinned. The ES&T submission engine that lived in `legacy/`
    is now in `src/wongo/` (`legacy/` removed in v0.1.0). Every change must
-   keep `tests/` green and byte-compare renders against the the reference manuscript manuscript
-   (`~/workbench/the reference manuscript/manuscript`, now pinned `style: kist-wcr`).
-2. the reference manuscript now uses `wongo` directly (post-`ms-r0-sent` wiring); the
+   keep `tests/` green and byte-compare renders against the reference
+   manuscript project (set `WONGO_REF_PROJECT`; it pins `style: kist-wcr`).
+2. The lab's reference manuscript now uses `wongo` directly; the
    `~/.claude/skills/quarto-manuscript-*` skills are thin wrappers that call the
    installed `wongo` CLI and keep only judgment content. Canonical quirks memory
    is `docs/docx-quirks.md`.

@@ -13,8 +13,8 @@ journal rule reach a submission portal.
 > **Status: v0.1.0.** The engine is battle-tested — it produced a real ES&T
 > submission — and has been migrated into `src/wongo/`
 > (`docxpatch`/`styles`/`profiles`/`engine`) per `HANDOFF-wongo-uplift.md`.
-> `legacy/` shims were removed in v0.1.0; the live the reference manuscript manuscript pins
-> `style: kist-wcr` and now uses `wongo` directly. The CLI `wongo` is installed
+> `legacy/` shims were removed in v0.1.0; the lab's reference manuscript pins
+> `style: kist-wcr` and renders through `wongo`. The CLI `wongo` is installed
 > as a wheel/editable package.
 
 ## Why this exists
@@ -72,7 +72,7 @@ R-engine manuscripts), and the fonts your style profile names.
 
 ## Provenance
 
-Grown inside the the reference manuscript project (KIST Water Cycle Research) while preparing
+Grown inside a KIST Water Cycle Research manuscript project while preparing
 a real ES&T submission with Word-native coauthors; extracted here to be
 standardized and shared. First consumer: that same manuscript, which pins the
 migration by byte-comparison of its renders.

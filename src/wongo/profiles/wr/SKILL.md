@@ -248,19 +248,13 @@ evidence the real portal is unavailable, since the GfA's own submission link
 points at the same journal code; noted for transparency, not treated as
 contradicting the GfA's explicit submission link).
 
-**Continuity angle for this manuscript's cover letter**: the group has two
-directly relevant prior Water Research publications, confirmed via Crossref
-bibliographic metadata (not read in full — ScienceDirect article pages are
-blocked): "Autonomous water quality management in an electrochemical
-desalination process," *Water Research* **280**, 123521 (2025-07), DOI
-[10.1016/j.watres.2025.123521](https://doi.org/10.1016/j.watres.2025.123521);
-and "On-device artificial intelligence agent based on language models for
-electrochemical water desalination," *Water Research* **301**, 125995
-(2026-08), DOI
-[10.1016/j.watres.2026.125995](https://doi.org/10.1016/j.watres.2026.125995).
-A reproduction-and-correction submission in the same journal as these two
-prior papers is a genuine editorial-fit and track-record argument — expand
-in `references/editorial-framing.md` and the cover-letter draft.
+**Continuity angle for cover letters**: when a submission builds on a group's
+own prior Water Research publications, that is a genuine editorial-fit and
+track-record argument — cite them explicitly (verify via Crossref
+bibliographic metadata; ScienceDirect article pages are blocked) and expand
+in `references/editorial-framing.md` and the cover-letter draft. Identify
+the specific prior papers privately; they are deliberately not listed in
+this public profile.
 
 ## TO VERIFY (not addressed in any fetched official page — check before submission)
 
@@ -347,4 +341,4 @@ in `references/editorial-framing.md` and the cover-letter draft.
   ISSN-matched dependent-style file (`dependent/water-research.csl`)
 - `references/submission-checklist.md` — S5 gate list, HARD/SOFT
 - `references/editorial-framing.md` — scope, desk-rejection framing, and the
-  cover-letter continuity angle (prior WR papers 280:123521 and 301:125995)
+  cover-letter continuity angle (prior-paper track record; identify papers privately)

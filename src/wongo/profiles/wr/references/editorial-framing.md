@@ -64,55 +64,48 @@ science, modelling, etc.) back to water-system relevance, rather than
 treating water as an incidental application domain for another field's
 methods.
 
-## Fit argument for an a water-treatment application LLM benchmark / correction paper
+## Fit-argument template for computational/AI-methods studies
 
-Two explicitly named scope items map directly onto this manuscript's domain:
-"Mathematical modelling, systems analysis, machine learning, and beneficial
-use of big data related to the anthropogenic water cycle" (an LLM agent for
-electrochemical desalination control sits squarely here) and the broader
-"anthropogenic water cycle" framing that covers desalination as a treatment/
-resource-recovery process. The desk-rejection caution above cuts the other
-way if the manuscript reads as primarily an LLM/ML methods paper with only
-incidental water framing — the applied link to electrochemical desalination
-performance, data, and operational relevance must be made explicit and
-central, not appended.
+> **Note (sanitized for public release):** the manuscript-specific version of
+> this section named an unpublished submission and its relationship to prior
+> publications; removed before publishing. Template kept; re-derive privately.
 
-**Continuity / track-record angle for the cover letter**: the group has two
-directly relevant prior publications in this exact journal, both confirmed
-via Crossref bibliographic metadata (not read in full — ScienceDirect
-article pages are blocked):
+Two explicitly named Guide-for-Authors scope items are natural anchors for an
+AI/computational study aimed at a water-treatment application: "Mathematical
+modelling, systems analysis, machine learning, and beneficial use of big data
+related to the anthropogenic water cycle" and the broader "anthropogenic water
+cycle" framing that covers desalination as a treatment/resource-recovery
+process. The desk-rejection caution above cuts the other way if the manuscript
+reads as primarily an LLM/ML methods paper with only incidental water framing —
+the applied link to treatment performance, data, and operational relevance must
+be made explicit and central, not appended.
 
-- "Autonomous water quality management in an electrochemical desalination
-  process," *Water Research* **280**, 123521 (published 2025-07), DOI
-  [10.1016/j.watres.2025.123521](https://doi.org/10.1016/j.watres.2025.123521).
-- "On-device artificial intelligence agent based on language models for
-  electrochemical water desalination," *Water Research* **301**, 125995
-  (published 2026-08), DOI
-  [10.1016/j.watres.2026.125995](https://doi.org/10.1016/j.watres.2026.125995).
-
-A manuscript that reproduces and/or corrects results building on this pair —
-submitted to the *same* journal — is a genuine editorial-fit asset: it
-demonstrates sustained engagement with Water Research's readership and
-editorial line on LLM/AI-for-desalination work, not a first-time or
-opportunistic submission. Cite both explicitly in the cover letter as prior
-art and track record, and be explicit about what the new manuscript adds
-relative to each (reproduction scope, corrected finding, extended benchmark,
-etc.) rather than gesturing at "our prior work" generally.
+**Continuity / track-record angle for the cover letter**: when a submission
+builds on the group's own prior publications in this same journal, that is a
+genuine editorial-fit asset — it demonstrates sustained engagement with Water
+Research's readership and editorial line, not a first-time or opportunistic
+submission. Cite the prior papers explicitly as prior art and track record,
+and be explicit about what the new manuscript adds relative to each
+(reproduction scope, corrected finding, extended benchmark, etc.) rather than
+gesturing at "our prior work" generally. Verify any cited prior art via
+Crossref bibliographic metadata (ScienceDirect article pages may be blocked;
+metadata is not).
 
 ## Desk-screen considerations (from journal structure, not stated explicitly
 as a rejection rubric — treat as judgment, not a hard rule)
 
-- Article type choice matters: a manuscript reproducing/correcting prior
-  results with new data and evaluation belongs in **Research Paper**, not
-  **Making Waves** (which is for opinion/perspective communications, not
-  substantive original research) or **Comment** (which is specifically for
-  short critiques of a *specific* prior published paper within 4 months of
-  its publication, not a standalone reproduction study).
-- If reproducing/correcting the group's own prior WR papers specifically
-  (rather than critiquing another group's), the "Comment on..." mechanism
-  (with its 4-month window and 1,200-word cap) is very unlikely to fit —
-  Research Paper is the appropriate type, with the relationship to the two
-  prior papers made explicit in the introduction and cover letter instead.
+- Article type choice matters: a manuscript presenting new data and
+  evaluation (including reproductions/corrections with original analysis)
+  belongs in **Research Paper**, not **Making Waves** (which is for
+  opinion/perspective communications, not substantive original research) or
+  **Comment** (which is specifically for short critiques of a *specific*
+  prior published paper within 4 months of its publication, not a standalone
+  reproduction study).
+- If building on the group's own prior WR papers specifically (rather than
+  critiquing another group's), the "Comment on..." mechanism (with its
+  4-month window and 1,200-word cap) is very unlikely to fit — Research
+  Paper is the appropriate type, with the relationship to the prior papers
+  made explicit in the introduction and cover letter instead.
 - No npj/ES&T-style formal "novelty rubric" was found in the fetched GfA
   beyond the interdisciplinary-applied-link caution above; treat the
   desk-rejection editorial (van Loosdrecht & Henze 2012) as the operative

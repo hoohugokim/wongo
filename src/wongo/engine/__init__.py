@@ -44,7 +44,7 @@ def set_line_spacing(doc: Document, factor: float) -> None:
 def resolve_style(cfg: dict) -> dict:
     """Style-profile resolution: _journal.yml `style:` key -> $WONGO_STYLE ->
     `default`. The CLI's --style flag slots in front of this chain; an
-    explicit `style: kist-wcr` in _journal.yml (as the reference manuscript now pins) selects
+    explicit `style: kist-wcr` in _journal.yml selects
     the KIST-WCR house look."""
     name = cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
     return wstyles.load_style(name)

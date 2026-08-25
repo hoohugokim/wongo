@@ -91,6 +91,12 @@ def set_fonts(doc: Document, name: str) -> None:
                 del rfonts.attrib[qn(attr)]
 
 
+# Safety valve against hostile/degenerate .docx inputs: refuse to load a
+# package whose decompressed parts exceed this many bytes (a real manuscript
+# render is a few hundred KB of XML; even image-heavy ones stay well under).
+MAX_PACKAGE_BYTES = 512 * 1024 * 1024
+
+
 def _rewrite_package(path: Path, transform) -> None:
     """One zip read/transform/write pass over a .docx (it's just a zip).
 
@@ -100,6 +106,12 @@ def _rewrite_package(path: Path, transform) -> None:
     functions while sharing this helper keeps the single-pass behavior the
     engine relies on (HANDOFF step 1)."""
     with zipfile.ZipFile(str(path)) as z:
+        total = sum(i.file_size for i in z.infolist())
+        if total > MAX_PACKAGE_BYTES:
+            raise ValueError(
+                f"{path}: decompressed package is {total} bytes "
+                f"(limit {MAX_PACKAGE_BYTES}) — refusing to process"
+            )
         items = {n: z.read(n) for n in z.namelist()}
     transform(items)
     tmp = path.with_suffix(".tmp.docx")

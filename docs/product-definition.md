@@ -33,14 +33,14 @@ If one label is required (e.g., PyPI classifier, keyword): use **"manuscript pip
 
 - **Version:** `0.1.0` (`src/wongo/__init__.py:3`, `pyproject.toml:3`, tag `v0.1.0`, GitHub Release `wongo v0.1.0` with wheel + sdist — private repo).
 - **Install (private):** `uv tool install --editable .` (dev) or `uv tool install dist/wongo-0.1.0-py3-none-any.whl` / `pip install -e .`. PyPI publication is deferred (name `wongo` reserved, not yet published) — see `CHANGELOG.md:33` and `HANDOFF-wongo-uplift.md:63`.
-- **First consumer:** the the reference manuscript manuscript (`~/workbench/the reference manuscript/manuscript`, now pinned `style: kist-wcr` in `_journal.yml`, tag `ms-r0-initial` baseline) — byte-compared via `tools/bytecompare.py:1`.
+- **First consumer:** the lab's reference manuscript (local project pointed to via `WONGO_REF_PROJECT`; pins `style: kist-wcr` in `_journal.yml`) — byte-compared via `tools/bytecompare.py:1`. Its identity is intentionally not named in this public repo.
 
 ## Relation to the Claude Code skills
 
 | Before `v0.1.0` (incubator) | Since `v0.1.0` (canonical) |
 |---|---|
 | Logic lived in `~/.claude/skills/quarto-manuscript-sci/scripts/` and `~/.claude/skills/quarto-manuscript-<slug>/` (verbatim `legacy/` in the repo) | Logic lives in `src/wongo/` (shipped as wheel data); `legacy/` removed (`f1e4e54`) |
-| `~/.claude/skills/quarto-manuscript-*` were authoritative for the reference manuscript until `ms-r0-sent` | `~/.claude/skills/quarto-manuscript-*` are thin wrappers calling `wongo` CLI; judgment content (`SKILL.md` S4 disposition rules, `references/submission-checklist.md`, `references/editorial-framing.md`) retained, machine-readable `profile.yml`/`assets/` now pointers to `wongo` |
+| `~/.claude/skills/quarto-manuscript-*` were authoritative for the live manuscript until `ms-r0-sent` | `~/.claude/skills/quarto-manuscript-*` are thin wrappers calling `wongo` CLI; judgment content (`SKILL.md` S4 disposition rules, `references/submission-checklist.md`, `references/editorial-framing.md`) retained, machine-readable `profile.yml`/`assets/` now pointers to `wongo` |
 | `references/quarto-docx-quirks.md` in the skill was the quirks memory | `docs/docx-quirks.md` is canonical; skill's file is a pointer |
 
 ## Consequences for contributors

@@ -28,35 +28,39 @@ publishing their work," led by "clean water experts," and part of the npj
 Series' mandate to "foster global partnerships with the research community
 and other Springer Nature journals."
 
-## Fit argument for an LLM benchmark on a water-treatment application
+## Fit-argument template for computational/AI-methods studies
 
-Two of the journal's explicitly named scope items line up directly with
-this manuscript: "Desalination of seawater, groundwater, and non-traditional
-wastes" (electrochemical water treatment is a desalination technology) and "Software and hardware
-innovations related to reliable and efficient clean water distribution" —
-an computational benchmark for a water-treatment application sits at the software/AI-for-water-technology
-intersection of those two.
+> **Note (sanitized for public release):** the manuscript-specific version of
+> this argument named an unpublished submission and was removed before
+> publishing. Template kept; re-derive privately.
+
+Two of the journal's explicitly named scope items are natural anchors for an
+AI/computational study aimed at a water-treatment application: "Desalination
+of seawater, groundwater, and non-traditional wastes" (or whichever named
+topic matches the application domain) and "Software and hardware innovations
+related to reliable and efficient clean water distribution" — such work sits
+at the software/AI-for-water-technology intersection.
 
 **Precedent paper**: "Towards domain-adapted large language models for water
 and wastewater management: methods, datasets and benchmarking," npj Clean
 Water **8**, 82 (2025), DOI
 [10.1038/s41545-025-00509-8](https://doi.org/10.1038/s41545-025-00509-8),
 published 2025-08-26 (confirmed via Crossref: title, volume 8, article
-number 82, container-title "npj Clean Water"). This is a directly
-on-topic LLM/benchmarking-for-the-water-domain paper already published in
-this exact journal — strong evidence the editorial board has appetite for,
-and existing precedent to cite against, LLM-benchmark submissions. Cite it
-in the cover letter as the nearest prior art and differentiate this
-manuscript's electrochemical water treatment-specific benchmark from it explicitly (methods/dataset/
-domain scope), rather than merely gesturing at "AI for water" generally.
+number 82, container-title "npj Clean Water"). This is a directly on-topic
+LLM/benchmarking-for-the-water-domain paper already published in this exact
+journal — strong evidence the editorial board has appetite for, and existing
+precedent to cite against, LLM-benchmark submissions. Cite it in the cover
+letter as the nearest prior art and differentiate your benchmark from it
+explicitly (methods/dataset/domain scope), rather than merely gesturing at
+"AI for water" generally.
 
 ## Desk-screen considerations (inferred from journal structure, not stated
 explicitly as desk-rejection criteria — treat as judgment, not a rule)
 
 - The journal explicitly separates "Articles" (substantial original primary
   research, including systematic reviews/meta-analyses) from "Reviews"
-  (narrative summaries not dominated by a single lab's own work) — an LLM
-  benchmark study with original evaluation data belongs in Article, not
+  (narrative summaries not dominated by a single lab's own work) — a
+  benchmark or evaluation study with original data belongs in Article, not
   Review, regardless of length.
 - No stated novelty/significance rubric was found in the fetched Aims &
   Scope or Content types pages (unlike ES&T's explicit desk-screen
@@ -65,11 +69,10 @@ explicitly as desk-rejection criteria — treat as judgment, not a rule)
   npj-Clean-Water-specific desk-rejection patterns were not found and
   should be treated as an open item, not fabricated.
 - The AI editorial policy explicitly distinguishes AI-as-authorship-tool
-  (restricted, must be disclosed) from AI-as-subject-of-study (this
-  manuscript's actual topic — benchmarking LLMs against a water-treatment application
-  tasks) — the fit argument should make this distinction explicit in the
-  cover letter so editors don't conflate "a paper about LLMs" with "a paper
-  written by an LLM."
+  (restricted, must be disclosed) from AI-as-subject-of-study (a paper
+  *about* AI methods). If your manuscript studies AI systems, make that
+  distinction explicit in the cover letter so editors don't conflate "a
+  paper about LLMs" with "a paper written by an LLM."
 
 ## Open item
 
