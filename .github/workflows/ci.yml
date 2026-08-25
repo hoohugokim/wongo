@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Test
+        run: pytest -q
+      - name: CLI smoke
+        run: |
+          wongo --version
+          wongo profile list
+          wongo profile verify est --offline
+
+  build:
+    name: wheel + sdist build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Wheel carries package data
+        run: |
+          python - <<'PY'
+          import zipfile, pathlib
+          whl = next(pathlib.Path("dist").glob("*.whl"))
+          names = zipfile.ZipFile(whl).namelist()
+          required = [
+              "wongo/assets/scaffold/_journal.yml",
+              "wongo/styles/kist-wcr.yml",
+              "wongo/profiles/est/profile.yml",
+              "wongo/profiles/est/assets/reference.docx",
+              "wongo/profiles/wr/assets/elsevier-harvard.csl",
+          ]
+          missing = [n for n in required if n not in names]
+          assert not missing, f"missing from wheel: {missing}"
+          print(f"OK: {whl.name} carries all package data ({len(names)} files)")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

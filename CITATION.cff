@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use wongo in your research, please cite it using this metadata."
+title: wongo (원고)
+abstract: >-
+  A Python package and CLI for a verified Quarto-to-journal manuscript
+  pipeline: machine-readable journal profiles with source-traced,
+  staleness-audited requirements; submission-grade DOCX rendering with
+  OOXML correctness fixes and data-driven house styles; and tracked-changes
+  round-tripping that keeps Word-native coauthors in the loop while the
+  .qmd stays the single source of truth.
+authors:
+  - family-names: Kim
+    given-names: Hoo Hugo
+    email: hookim@kist.re.kr
+    affiliation: "Center for Water Cycle Research, Korea Institute of Science and Technology (KIST)"
+    orcid: "https://orcid.org/0000-0002-7205-0870"
+version: 0.1.0
+date-released: "2026-08-24"
+license: MIT
+repository-code: "https://github.com/hoohugokim/wongo"
+url: "https://github.com/hoohugokim/wongo"
+keywords:
+  - quarto
+  - manuscript
+  - docx
+  - journal
+  - publishing
+  - reproducible-research
+  - research-software
+type: software

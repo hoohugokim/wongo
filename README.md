@@ -1,5 +1,8 @@
 # wongo (원고)
 
+[![CI](https://github.com/hoohugokim/wongo/actions/workflows/ci.yml/badge.svg)](https://github.com/hoohugokim/wongo/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/hoohugokim/wongo/actions/workflows/codeql.yml/badge.svg)](https://github.com/hoohugokim/wongo/actions/workflows/codeql.yml)
+
 *Wongo* is Korean for **manuscript** — and this is a manuscript pipeline:
 
 > **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.1.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `check` / `render` / `roundtrip` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
