@@ -5,6 +5,7 @@ All notable changes to wongo are documented here. Format based on [Keep a Change
 ## [Unreleased]
 
 ### Added
+- `wongo diff <original.docx> <revised.docx>` — S6 revision engine: stamps real Word track changes (`w:ins`/`w:del`, attributed author/date) into a copy of the revised render, word-level within replaced paragraphs and whole-paragraph insertions/deletions; tables intentionally untouched but reported via `tables_differ`. Output is pandoc-`--track-changes`-parseable, so `wongo roundtrip` can re-extract it. Seven new tests in `tests/test_diff.py`.
 - CI: GitHub Actions workflow running pytest on Python 3.11–3.13, CLI smoke checks, wheel+sdist build with a package-data assertion; CodeQL analysis weekly and on pushes.
 - `CITATION.cff` (cff 1.2.0, schema-validated) — cite the repo as software.
 - README CI/CodeQL badges.

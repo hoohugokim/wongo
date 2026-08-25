@@ -207,6 +207,28 @@ def _all_roots():
     return out
 
 
+def _cmd_diff(args: argparse.Namespace) -> int:
+    from wongo.engine.diff import diff_documents
+
+    original, revised = Path(args.original), Path(args.revised)
+    for label, path in (("original", original), ("revised", revised)):
+        if not path.exists():
+            raise SystemExit(f"{label} DOCX not found: {path}")
+    out = (Path(args.out) if args.out
+           else revised.with_name(revised.stem + "-tracked.docx"))
+    report = diff_documents(original, revised, out,
+                            author=args.author, date=args.date)
+    print(f"wrote {out}")
+    print(f"  words: +{report['inserted_words']} inserted, "
+          f"-{report['deleted_words']} deleted")
+    print(f"  paragraphs: +{report['inserted_paragraphs']}, "
+          f"-{report['deleted_paragraphs']}")
+    if report["tables_differ"]:
+        print("  NOTE: tables differ between the two documents and are NOT "
+              "tracked by this tool — run Word Compare for table pages.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     parser = argparse.ArgumentParser(
@@ -238,6 +260,19 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("scaffold", help="Scaffold a new manuscript project")
     p.add_argument("dest", nargs="?", default=".")
     p.set_defaults(fn=_cmd_scaffold)
+
+    p = sub.add_parser("diff",
+                       help="Stamp tracked changes into a revised DOCX vs the "
+                            "original submission (S6 marked-up revision)")
+    p.add_argument("original", help="originally submitted DOCX")
+    p.add_argument("revised", help="revised DOCX (never modified)")
+    p.add_argument("-o", "--out", default=None,
+                   help="output path (default: <revised-stem>-tracked.docx)")
+    p.add_argument("--author", default="Revised manuscript",
+                   help="attribution for stamped changes")
+    p.add_argument("--date", default=None,
+                   help="ISO timestamp for stamped changes (default: now UTC)")
+    p.set_defaults(fn=_cmd_diff)
 
     p = sub.add_parser("profile", help="Journal profile tools")
     psub = p.add_subparsers(dest="profile_cmd", required=True)
