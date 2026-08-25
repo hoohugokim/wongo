@@ -4,7 +4,10 @@ All notable changes to wongo are documented here. Format based on [Keep a Change
 
 ## [Unreleased]
 
-(nothing yet — `v0.1.0` is current)
+### Added
+- CI: GitHub Actions workflow running pytest on Python 3.11–3.13, CLI smoke checks, wheel+sdist build with a package-data assertion; CodeQL analysis weekly and on pushes.
+- `CITATION.cff` (cff 1.2.0, schema-validated) — cite the repo as software.
+- README CI/CodeQL badges.
 
 ## [0.1.0] — 2026-08-24
 

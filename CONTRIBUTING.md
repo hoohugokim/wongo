@@ -14,6 +14,8 @@ See `HANDOFF-wongo-uplift.md` for the full migration map and `docs/docx-quirks.m
 
 - Python ≥3.11, [uv](https://docs.astral.sh/uv/) (runner of choice), `pytest`, `python-docx`, `PyYAML`
 - Quarto ≥1.10 (currently 1.10.18, pandoc 3.10) and R ≥4.6 with `knitr`/`rmarkdown` (and `jsonlite` if inline numbers read JSON)
+
+CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: pytest on Python 3.11–3.13, a CLI smoke (`wongo --version`, `profile list`, `profile verify est --offline`), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
 - Fish for shell snippets; private repo `hoohugokim/wongo`, MIT
 
 ```sh
