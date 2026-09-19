@@ -269,14 +269,14 @@ title-page section).
   `quarto-manuscript-natwater`. Re-run the builder script when requirements
   change; never hand-edit the `.docx`.
 - No TOC-art logic applies to this profile: `toc_graphic.required: false`
-  means `render.py`'s TOC-art gate and `insert_toc_art()` step are both
-  skipped entirely for `--target submission`.
+  means `wongo render`'s TOC-art gate and `wongo.engine.insert_toc_art` step
+  are both skipped entirely for `--target submission`.
 - Word count: every manuscript type in this profile has `word_limit: null`
-  for the main text — `validate.py`'s word-limit check is advisory-only
+  for the main text — `wongo check`'s word-limit check is advisory-only
   for all 8 types (unlike Nature Water, where every type carries a real
   numeric cap). Only the ABSTRACT word caps (350 words for 6 of 8 types,
   250 for Meeting Report, unstated for Correspondence) are real numbers;
-  these live in `manuscript_types[].abstract_rule`, which `validate.py`
+  these live in `manuscript_types[].abstract_rule`, which `wongo check`
   does not currently gate on (same limitation noted in the sibling
   profiles) — flag abstract length at S5 by human/agent judgment until
   that check is wired up.
@@ -291,7 +291,7 @@ title-page section).
 - SI: `si.separate_file: true` and `si.pdf_only: false` (BMC accepts
   multiple additional-file formats, NOT a single-merged-PDF convention —
   the opposite default from the Nature-family profiles in this library) are
-  wired for `render.py`/`validate.py`; `si.page_prefix` and
+  wired for `wongo render`/`wongo check`; `si.page_prefix` and
   `si.needs_own_toc` stay `null` pending the TO VERIFY items above.
 - `figures.placement: end` is INFERRED from the official section-order list
   itself (Figures/tables/additional files is the last section in the

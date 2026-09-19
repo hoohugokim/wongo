@@ -336,11 +336,11 @@ the generic scope-fit description any prospective author can use.
   applied to the reference doc. Re-run the builder script when requirements
   change; never hand-edit the `.docx`.
 - No TOC-art logic applies to this profile: `toc_graphic.required: false`
-  means `render.py`'s TOC-art gate and `insert_toc_art()` step are both
-  skipped entirely for `--target submission`.
+  means `wongo render`'s TOC-art gate and `wongo.engine.insert_toc_art` step
+  are both skipped entirely for `--target submission`.
 - Word count: since npj Biofilms and Microbiomes sets no hard main-text
   limit for Articles or Editorials (the two open-ended types),
-  `validate.py`'s word-limit check against `manuscript_types[].word_limit:
+  `wongo check`'s word-limit check against `manuscript_types[].word_limit:
   null` is effectively advisory only for those two types — it becomes a
   real hard gate for Brief Communication/Comment/Matters Arising/Meeting
   Report/Perspective/Review, whose `word_limit` values ARE verified
@@ -348,12 +348,12 @@ the generic scope-fit description any prospective author can use.
   distinction for human review at S5.
 - SI: `si.separate_file: true` and `si.pdf_only: false` (oversized tables
   go out as separate "Supplementary Data XX" files) are wired for
-  `render.py`/`validate.py`; `si.page_prefix` and `si.needs_own_toc` stay
-  `null` pending the TO VERIFY items above — `postprocess_si` will not
-  apply page-prefix renumbering or generate an internal SI table of
+  `wongo render`/`wongo check`; `si.page_prefix` and `si.needs_own_toc` stay
+  `null` pending the TO VERIFY items above — `wongo.engine.postprocess_si`
+  will not apply page-prefix renumbering or generate an internal SI table of
   contents for this profile until those are confirmed.
 - `manuscript_types` includes a `meeting-report` entry not present in
-  `quarto-manuscript-npjcw`'s profile — `render.py`/`validate.py` callers
+  `quarto-manuscript-npjcw`'s profile — `wongo render`/`wongo check` callers
   should not assume the two npj-Series profiles' `manuscript_types` lists
   are interchangeable.
 

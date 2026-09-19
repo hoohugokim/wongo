@@ -137,8 +137,8 @@ with the explicit dpi tiers given for regular manuscript figures — see
 below). Uploaded as a **separate file** in the online submission system —
 the GfA never describes it being inserted into the manuscript document
 itself, so neither of the contract's `manuscript_placement` options
-(`last-page`/`after-abstract`) applies; `render.py`'s `insert_toc_art()`
-should not run for this profile.
+(`last-page`/`after-abstract`) applies; `wongo render`
+(`wongo.engine.insert_toc_art`) should not run for this profile.
 
 **Peer review / blinding**: "This journal follows a single anonymized review
 process" — reviewers know author identities, authors do not know reviewers'.
@@ -154,8 +154,8 @@ the GfA page, appeal window 1 month from the decision).
 
 **Line numbering**: verbatim — "Please do not include line numbering in the
 manuscript file, as it will be added automatically." This is a real but
-unusual result: the profile's `line_numbers: false` means **render.py must
-not bake line numbers into the submitted docx**, because Elsevier's own
+unusual result: the profile's `line_numbers: false` means **`wongo render`
+must not bake line numbers into the submitted docx**, because Elsevier's own
 submission-processing pipeline adds them when generating the peer-review PDF.
 It is not a claim that the reviewed PDF has no line numbers.
 
@@ -302,17 +302,17 @@ this public profile.
   VERIFY) — this is the same standard, portal-safe serif default used by
   `quarto-manuscript-est` and `quarto-manuscript-npjcw`. Re-run the builder
   script when requirements change; never hand-edit the `.docx`.
-- Line numbers: `line_numbers: false` here means render.py must NOT insert
-  line numbers into the `--target submission` docx — Water Research's own
-  submission-processing system adds them automatically. Do not treat this
-  the same as ES&T's "not required at all."
+- Line numbers: `line_numbers: false` here means `wongo render` must NOT
+  insert line numbers into the `--target submission` docx — Water
+  Research's own submission-processing system adds them automatically. Do
+  not treat this the same as ES&T's "not required at all."
 - No TOC-art insertion logic applies to this profile even though
   `toc_graphic` is optional-not-required: the graphical abstract, when
   produced, is uploaded as a separate file to Editorial Manager, never
-  inserted into the manuscript document — `render.py`'s `insert_toc_art()`
-  should not run for `--target submission` under this profile regardless of
-  whether a graphic file is present.
-- Word count: `validate.py`'s word-limit check should be aware that the
+  inserted into the manuscript document — `wongo render`
+  (`wongo.engine.insert_toc_art`) should not run for `--target submission`
+  under this profile regardless of whether a graphic file is present.
+- Word count: `wongo check`'s word-limit check should be aware that the
   Research Paper and Review Paper limits (8,000 / ~12,000 words) INCLUDE the
   reference list — a materially different counting rule from ES&T/ACS (which
   excludes references). `references/submission-checklist.md` flags this

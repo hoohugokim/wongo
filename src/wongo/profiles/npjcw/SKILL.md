@@ -265,10 +265,10 @@ cover letter around it.
   Re-run the builder script when requirements change; never hand-edit the
   `.docx`.
 - No TOC-art logic applies to this profile: `toc_graphic.required: false`
-  means `render.py`'s TOC-art gate and `insert_toc_art()` step are both
-  skipped entirely for `--target submission`.
+  means `wongo render`'s TOC-art gate and `wongo.engine.insert_toc_art` step
+  are both skipped entirely for `--target submission`.
 - Word count: since npj Clean Water sets no hard main-text limit for
-  Articles (the primary type this manuscript will use), `validate.py`'s
+  Articles (the primary type this manuscript will use), `wongo check`'s
   word-limit check against `manuscript_types[].word_limit: null` is
   effectively advisory only for Articles — it becomes a real hard gate only
   for Brief Communication/Comment/Matters Arising/Perspective/Review, whose
@@ -277,10 +277,11 @@ cover letter around it.
   human review at S5.
 - SI: `si.separate_file: true` and `si.pdf_only: false` (oversized
   tables/spreadsheets go out as separate "Supplementary Data XX" files) are
-  wired for `render.py`/`validate.py`; `si.page_prefix` and
+  wired for `wongo render`/`wongo check`; `si.page_prefix` and
   `si.needs_cover_sheet` stay `null`/`false` pending the TO VERIFY items
-  above — `postprocess_si` will not apply page-prefix renumbering or
-  prepend a cover sheet for this profile until those are confirmed.
+  above — `wongo.engine.postprocess_si` will not apply page-prefix
+  renumbering or prepend a cover sheet for this profile until those are
+  confirmed.
 
 ## Files in this profile
 

@@ -12,18 +12,26 @@ See `HANDOFF-wongo-uplift.md` for the full migration map and `docs/docx-quirks.m
 
 ## Dev setup
 
-- Python ≥3.11, [uv](https://docs.astral.sh/uv/) (runner of choice), `pytest`, `python-docx`, `PyYAML`
+- Python ≥3.11, [uv](https://docs.astral.sh/uv/) (runner of choice)
 - Quarto ≥1.10 (currently 1.10.18, pandoc 3.10) and R ≥4.6 with `knitr`/`rmarkdown` (and `jsonlite` if inline numbers read JSON)
 
 CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: pytest on Python 3.11–3.13, a CLI smoke (`wongo --version`, `profile list`, `profile verify est --offline`), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
-- Fish for shell snippets; private repo `hoohugokim/wongo`, MIT
+- Fish for shell snippets; public repo `hoohugokim/wongo` on GitHub, MIT
 
 ```sh
-uv run --with pytest --with python-docx --with pyyaml pytest -q   # 12 tests currently
+uv sync --all-extras
+uv run pytest -q
+uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools
+uv build
+uv run wongo --version && uv run wongo profile verify est --offline
 uv run tools/bytecompare.py selftest --target collab   # noise floor must be zero
 uv run tools/bytecompare.py baseline --target both     # 63 XML parts across 4 docs
 uv run tools/bytecompare.py check --target both        # allowlist: tools/bytecompare-allow.txt
 ```
+
+`WONGO_REF_PROJECT` must point at the reference manuscript repo's root for
+the bytecompare commands above; the harness only reads from that project —
+it never writes into it.
 
 ## How to add a journal profile
 
@@ -50,6 +58,7 @@ src/wongo/profiles/<slug>/
 - `verified_date` is the ISO date the numbers were last checked against the **live** guideline. `wongo profile verify <slug>` does a `HEAD` against each `sources` URL and flags `Last-Modified` newer than `verified_date` (this caught the ES&T July-30-2026 revision: SI paragraph moved before Acknowledgment, `reviewers_min: 4`, `keywords_count: [5,8]`).
 - Servers that block bots (ACS returns 403) are reported as `[blocked]` — verify manually; `docs/docx-quirks.md` and the profile's `SKILL.md` record the manual audit.
 - `wongo check` warns if `verified_date` is >183 days old; `wongo render --target submission` gates on `HARD` failures.
+- `line_numbers` is tri-state: `true` (engine adds them on submission), `false` (not required; the house style may add them), `forbidden` (journal adds its own — the submission render strips them even if the house style enables them; Water Research uses this).
 - Set `style:` in the manuscript's `_journal.yml` to select a house look (`kist-wcr`/`default`); `src/wongo/styles/*.yml` is the sole home for taste (see `wongo.styles`).
 
 ### Verification checklist for a new profile
@@ -57,7 +66,7 @@ src/wongo/profiles/<slug>/
 1. Fill `profile.yml` from the official Author Guidelines/PDF, recording every `sources` URL and `verified_date`.
 2. Generate `assets/reference.docx` via `scripts/build_reference_docx.py` (re-run, never hand-edit).
 3. Fetch the official `.csl` from the CSL repo and record the fetch URL.
-4. `wongo profile verify <slug>` → clean (or `[blocked]` with manual diff).
+4. `wongo profile verify <slug>` → clean: the contract lint (`wongo.profiles.validate_profile`, also run over every shipped profile by `tests/test_profile_schema.py`) plus the live drift audit (or `[blocked]` with manual diff).
 5. `wongo scaffold /tmp/demo-<slug> && wongo render --target submission --project /tmp/demo-<slug>` → produces `main-*/si-*` DOCX (if `toc_graphic.required`, add `figures/toc-art.png`).
 6. Add a smoke test if the journal needs special logic; otherwise the harness byte-compare against a fixture manuscript is the gate.
 7. Document the profile in `SKILL.md` (editorial framing, TO-VERIFY) and `references/submission-checklist.md`.
@@ -74,7 +83,9 @@ When you solve a new Quarto/pandoc/Word pathology, **append** it to `docs/docx-q
 
 - Keep `tests/` green and `tools/bytecompare.py check --target both` clean (or allowlisted with justification in `tools/bytecompare-allow.txt` and `OVERNIGHT-LOG.md`).
 - Commit per verified phase (one logical change + its tests). The overnight uplift used `f0a50a4` (docxpatch) → `eb6eec7` (styles) → `81e8be4` (profiles) → `626886b` (engine+SI cover fixes tests-first) → `b0a6f86` (CLI) as the template; `ms-r0-sent` unblocking was `b1a8084` (style fallback flip) + skill thinning + `legacy/` removal.
-- `CHANGELOG.md` follows Keep a Changelog; tag `v0.1.0` after HANDOFF steps 6–7 (thin skills, docs/polish) are done and the wheel e2e (`uv tool install` + `wongo render --target both` on a fresh copy of the reference manuscript) passes.
+- `CHANGELOG.md` is frozen historical context after Statutor adoption. Record
+  future history with conventional commits and release tags; keep
+  `CITATION.cff` version/date synchronized when cutting a release.
 
 ## Getting help
 

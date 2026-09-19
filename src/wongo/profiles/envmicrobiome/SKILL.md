@@ -96,7 +96,7 @@ structured/unstructured split per type (Research/Methodology/Brief
 report/Software require Background/Results/Conclusions subheadings;
 Perspective/Comment require a background/main-body/conclusion prose
 paragraph; Review/Correspondence/Meeting report are unstructured).
-`validate.py`'s word-limit check is therefore advisory-only for main text
+`wongo check`'s word-limit check is therefore advisory-only for main text
 on every type in this profile — there is no verified hard main-text number
 to gate on for any of the nine types. The abstract limits ARE hard numbers
 and should be checked.

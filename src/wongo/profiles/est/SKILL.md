@@ -63,7 +63,7 @@ Table of Contents/Abstract Graphics" PDF, dated 2024-02-28).
 - **Typography**: sans serif (e.g., Helvetica); preferred size 8 pt, minimum
   6 pt.
 - **Content rules** (authoring guidance — enforce by judgment, not by
-  render.py):
+  `wongo render`):
   - Must be entirely original, unpublished artwork created by a coauthor.
   - No photographs, drawings, or caricatures of people.
   - No stamps, currency, trademarks, or logos.
@@ -76,8 +76,8 @@ Table of Contents/Abstract Graphics" PDF, dated 2024-02-28).
   Only"** and place it on the **LAST PAGE** of the submitted manuscript. It
   may ALSO be uploaded separately to the submission portal as "Graphics for
   manuscript". → `profile.yml` `toc_graphic.label` / `manuscript_placement`;
-  `render.py`'s `insert_toc_art()` appends the labeled graphic at the end of
-  the document accordingly.
+  `wongo render` (`wongo.engine.insert_toc_art`) appends the labeled graphic
+  at the end of the document accordingly.
 - **Synopsis requirement — RESOLVED, does not exist**: the current official
   guidance (2024-02-28 PDF) contains no mention of a synopsis, abstract
   blurb, or word count anywhere in the TOC/Abstract Graphics rules. The
@@ -118,7 +118,7 @@ figures, tables, reference list, SI file-list, acknowledgments, notes) is
 excluded. **Figures and tables carry no separate per-graphic word-count
 equivalent** — the "figures/tables have word-count penalties" secondary claim
 is false for ES&T. Exception: Correspondence/Rebuttal's 1,000-word limit
-explicitly *includes* citations, unlike the general rule. `validate.py`'s
+explicitly *includes* citations, unlike the general rule. `wongo check`'s
 word-limit check only counts `index.qmd` (main text) against this rule; SI
 content in `si.qmd` is never included, matching this journal's own rule.
 
@@ -204,31 +204,33 @@ both "(PDF)" and "(DOC)" as acceptable file-type labels.
   from a fresh `quarto pandoc --print-default-data-file reference.docx`,
   restyled to Times New Roman — 12pt for body/heading styles, 10pt for
   caption styles (no ES&T-specific font/size requirement was found during
-  verification, so this uses a standard, portal-safe serif default). Line numbers and spacing are
-  NOT baked into this file (line numbers confirmed NOT required; spacing
-  still pending verification above) — they, plus the collab-vs-submission
-  font swap (Pretendard for internal drafts, Times New Roman for submission),
-  are `--target`-dependent choices already implemented in `render.py` (see
-  `quarto-manuscript-sci` §3), not in the reference doc itself. Re-run the
+  verification, so this uses a standard, portal-safe serif default). Line numbers are
+  NOT baked into this file (confirmed NOT required; spacing is still
+  pending verification above) — line numbers are a `--target`-dependent
+  choice implemented in `wongo render`, not in the reference doc itself.
+  Fonts are not `--target`-dependent: they come from the selected house
+  style in `src/wongo/styles/*.yml` (`kist-wcr` uses Cambria for both collab
+  and submission targets; `default` keeps this profile's reference-doc
+  fonts), applied via `wongo.styles.apply_style()`. Re-run the
   builder script when requirements change; never hand-edit the `.docx`.
 - TOC art is generated OUTSIDE the manuscript render: drop the finished
   graphic at `figures/toc-art.{png,tiff,tif,jpg,jpeg}` in the project —
-  `render.py`'s `find_toc_art()` discovers it there and `insert_toc_art()`
-  appends it at the END of the document (a page break, the "For Table of
+  `wongo render` (`wongo.engine.find_toc_art`) discovers it there and
+  `wongo.engine.insert_toc_art` appends it at the END of the document (a page break, the "For Table of
   Contents Only" label, then the centered image, per this profile's
   `toc_graphic.label` and `manuscript_placement: last-page`) for `--target
   submission` (hard error if this profile's `toc_graphic.required` is true
   and no file is found). Producing the graphic itself at the verified
   dimensions (3.25 in × 1.75 in / 82.55 mm × 44.45 mm; see the full
   specification above) is not part of the manuscript render.
-- Word count: `validate.py` counts body prose + the front-matter `abstract` +
+- Word count: `wongo check` counts body prose + the front-matter `abstract` +
   figure/table caption text in `index.qmd`, excluding headings, code, and the
   references-section-as-rendered. This is an approximation of this profile's
   `manuscript_types[].counting_rule`, not an exact reimplementation of the
   ES&T Author Guidelines derivation — ACS's own submission-system checker is
   authoritative; `references/submission-checklist.md` paraphrases the same
   rule with a link, for human review at S5.
-- SI pagination (S1…): `render.py`'s `postprocess_si` handles this — it
+- SI pagination (S1…): `wongo render` (`wongo.engine.postprocess_si`) handles this — it
   restarts page numbering at 1 with the profile's `si.page_prefix`, and
   prepends a cover sheet (from `_journal.yml` metadata plus figure/table
   counts read off the rendered SI docx) when `si.needs_cover_sheet` is true.

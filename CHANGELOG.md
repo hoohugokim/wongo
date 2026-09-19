@@ -1,5 +1,9 @@
 # Changelog
 
+> Historical release record, frozen after the current quality patch under
+> Statutor decision D-0003. Future history comes from conventional commits and
+> release tags; do not add entries here.
+
 All notable changes to wongo are documented here. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
@@ -9,6 +13,13 @@ All notable changes to wongo are documented here. Format based on [Keep a Change
 - CI: GitHub Actions workflow running pytest on Python 3.11–3.13, CLI smoke checks, wheel+sdist build with a package-data assertion; CodeQL analysis weekly and on pushes.
 - `CITATION.cff` (cff 1.2.0, schema-validated) — cite the repo as software.
 - README CI/CodeQL badges.
+
+### Fixed
+- `wongo diff` no longer duplicates or reorders hyperlink text when a changed paragraph contains rich OOXML. Such paragraphs are preserved, counted in `rich_paragraphs_skipped`, and surfaced as requiring Word Compare; output paths may no longer overwrite either input DOCX.
+- `wongo render --style` now takes precedence over `_journal.yml` for that render without leaking the override through process-global environment state.
+- `wongo profile list` deduplicates profiles that appear in both an override root and packaged data.
+- Repeated `wongo roundtrip` runs for the same DOCX and date now choose `-2`, `-3`, … worksheet suffixes instead of overwriting an earlier worksheet and its human dispositions.
+- Profile verification now rejects future-dated `verified_date` values, handles malformed `Last-Modified` response headers without a traceback, and recognizes trailing-dot localhost names as local.
 
 ## [0.1.0] — 2026-08-24
 

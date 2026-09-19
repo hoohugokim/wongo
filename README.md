@@ -5,7 +5,7 @@
 
 *Wongo* is Korean for **manuscript** — and this is a manuscript pipeline:
 
-> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.1.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `check` / `render` / `roundtrip` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
+> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.2.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `check` / `render` / `roundtrip` / `diff` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
 
 Write a journal article as a Quarto `.qmd` with every inferential number wired
 to committed analysis artifacts, render **submission-grade DOCX** against
@@ -13,7 +13,7 @@ to committed analysis artifacts, render **submission-grade DOCX** against
 tracked-changes round-tripping, and never let a hand-typed number or a stale
 journal rule reach a submission portal.
 
-> **Status: v0.1.0.** The engine is battle-tested — it produced a real ES&T
+> **Status: v0.2.0** (diff v2 for cited prose, profile contract lint, `default`-style and SI-cover fixes; v0.1.0 was the first shareable release). The engine is battle-tested — it produced a real ES&T
 > submission — and has been migrated into `src/wongo/`
 > (`docxpatch`/`styles`/`profiles`/`engine`) per `HANDOFF-wongo-uplift.md`.
 > `legacy/` shims were removed in v0.1.0; the lab's reference manuscript pins
@@ -62,6 +62,14 @@ wongo scaffold my-paper && cd my-paper       # new manuscript from template
 wongo profile list && wongo profile verify est  # journal profile drift audit
 ```
 
+`wongo diff` tracks word-level changes in body paragraphs, keeping each
+word's run formatting and rebuilding Quarto's crossref/citation hyperlinks
+around the tracked runs. Changed paragraphs containing fields, drawings,
+footnotes, or other rich OOXML are left intact and reported, as are table
+differences (nested data tables included); use Word Compare for those
+reported locations. `wongo roundtrip --qmd si.qmd` aligns a coauthor-edited
+SI render against `si.qmd` instead of `index.qmd`.
+
 External requirements: [Quarto](https://quarto.org) ≥1.10, R with knitr (for
 R-engine manuscripts), and the fonts your style profile names.
 
@@ -69,9 +77,9 @@ R-engine manuscripts), and the fonts your style profile names.
 
 | Path | What |
 |---|---|
-| `src/wongo/` | The package and library: `cli`, `engine`/`checks`/`roundtrip`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
+| `src/wongo/` | The package and library: `cli`, `engine`/`checks`/`roundtrip`/`diff`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
 | `docs/` | Product definition (`docs/product-definition.md`), profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), legacy spine docs |
-| `tests/` | Regression tests pinning every shipped OOXML fix |
+| `tests/` | Regression tests pinning every shipped OOXML fix, the diff/roundtrip engines, and the validation checks |
 | `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs baseline |
 
 ## Provenance

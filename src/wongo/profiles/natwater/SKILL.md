@@ -467,12 +467,12 @@ it privately when targeting this journal.
   text, so it is NOT applied to the reference doc. Re-run the builder script
   when requirements change; never hand-edit the `.docx`.
 - No TOC-art logic applies to this profile: `toc_graphic.required: false`
-  means `render.py`'s TOC-art gate and `insert_toc_art()` step are both
-  skipped entirely for `--target submission`.
+  means `wongo render`'s TOC-art gate and `wongo.engine.insert_toc_art` step
+  are both skipped entirely for `--target submission`.
 - Word count: Article word_limit 3000, Analysis 4000, Perspective 4000,
   Review 6000, Comment 2000, Correspondence 300-800 (both bounds live),
   Matters Arising 1200 — ALL excluding abstract/Methods/references/figure
-  legends per each type's own counting_rule. `validate.py`'s word-limit
+  legends per each type's own counting_rule. `wongo check`'s word-limit
   check is a real hard gate for every type in this profile (unlike npj
   Clean Water, where Article had no stated cap at all).
 - Extended Data (max 10 items) and the Data-Availability-before-Tables
@@ -484,7 +484,7 @@ it privately when targeting this journal.
   of "Tables"/"Figure legends" per the AIP-and-formatting reference sequence.
 - SI: `si.separate_file: true`, `si.pdf_only: false` (oversized
   tables/spreadsheets go out as separate Excel/.csv files) are wired for
-  `render.py`/`validate.py`; `si.page_prefix` and `si.needs_cover_sheet`
+  `wongo render`/`wongo check`; `si.page_prefix` and `si.needs_cover_sheet`
   stay `null`/`false` pending the TO VERIFY items above.
 - `blinding: optional` is a live, actionable value for this profile (unlike
   npj Clean Water's unresolved case) — `quarto-manuscript-sci` should
