@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from wongo.engine.diff import diff_documents
@@ -26,6 +29,28 @@ def _make_doc(tmp_path: Path, name: str, paragraphs: list[str]) -> Path:
 
 def _body_paras(doc_path: Path) -> list:
     return Document(str(doc_path)).paragraphs
+
+
+def _add_hyperlink(paragraph, text: str, url: str = "https://example.com") -> None:
+    rel_id = paragraph.part.relate_to(
+        url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), rel_id)
+    run = OxmlElement("w:r")
+    node = OxmlElement("w:t")
+    node.text = text
+    run.append(node)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+
+
+def _text_run(text: str):
+    run = OxmlElement("w:r")
+    node = OxmlElement("w:t")
+    node.text = text
+    run.append(node)
+    return run
 
 
 def _ins_texts(p) -> list[str]:
@@ -124,12 +149,140 @@ def test_author_and_date_stamped_on_tracking_elements(tmp_path):
 
 
 def test_tables_are_left_untouched_but_reported(tmp_path):
-    orig = Document(); orig.add_paragraph("Intro."); orig.add_table(rows=1, cols=2)
-    orig.tables[0].cell(0, 0).text = "old"; orig.save(str(tmp_path / "a.docx"))
-    rev = Document(); rev.add_paragraph("Intro."); rev.add_table(rows=1, cols=2)
-    rev.tables[0].cell(0, 0).text = "new"; rev.save(str(tmp_path / "b.docx"))
+    for name, value in (("a.docx", "old"), ("b.docx", "new")):
+        doc = Document()
+        doc.add_paragraph("Intro.")
+        doc.add_table(rows=1, cols=2).cell(0, 0).text = value
+        doc.save(str(tmp_path / name))
     report = diff_documents(tmp_path / "a.docx", tmp_path / "b.docx",
                             tmp_path / "out.docx")
     assert report["tables_differ"] is True
     out = Document(str(tmp_path / "out.docx"))
     assert out.tables[0].cell(0, 0).text == "new"  # untouched, no crash
+
+
+def test_changed_hyperlink_paragraph_is_tracked_with_link_preserved(tmp_path):
+    """Quarto emits every crossref and linked citation as w:hyperlink, so a
+    real manuscript's body paragraphs are almost all 'hyperlink paragraphs';
+    they must be diffed, and the link must survive exactly once, in order."""
+    orig = _make_doc(tmp_path, "a.docx", ["See old source."])
+    revised = Document()
+    paragraph = revised.add_paragraph()
+    paragraph.add_run("See ")
+    _add_hyperlink(paragraph, "new")
+    paragraph.add_run(" source.")
+    revised.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(orig, tmp_path / "b.docx", tmp_path / "out.docx")
+
+    assert report["rich_paragraphs_skipped"] == 0
+    output = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    links = output._p.findall(qn("w:hyperlink"))
+    assert len(links) == 1
+    # python-docx's Hyperlink.text ignores runs wrapped in w:ins — read the XML
+    assert "".join(t.text or "" for t in links[0].iter(qn("w:t"))) == "new"
+    # visible reading order: equal + inserted text, deletions excluded
+    visible = "".join(
+        t.text or "" for t in output._p.iter(qn("w:t"))
+    )
+    assert visible == "See new source."
+    assert "old" in "".join(dt.text or "" for dt in output._p.iter(qn("w:delText")))
+    assert "new" in "".join(
+        t.text or "" for ins in output._p.iter(qn("w:ins")) for t in ins.iter(qn("w:t"))
+    )
+
+
+def test_inserted_paragraph_with_internal_crossref_link_keeps_the_link(tmp_path):
+    orig = _make_doc(tmp_path, "a.docx", ["First."])
+    revised = Document()
+    revised.add_paragraph("First.")
+    p = revised.add_paragraph()
+    p.add_run("As shown in ")
+    anchor = OxmlElement("w:hyperlink")
+    anchor.set(qn("w:anchor"), "fig-main")
+    anchor.append(_text_run("Figure 1"))
+    p._p.append(anchor)
+    p.add_run(".")
+    revised.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(orig, tmp_path / "b.docx", tmp_path / "out.docx")
+
+    assert report["inserted_paragraphs"] == 1
+    out = Document(str(tmp_path / "out.docx")).paragraphs[1]
+    links = out._p.findall(qn("w:hyperlink"))
+    assert len(links) == 1
+    assert links[0].get(qn("w:anchor")) == "fig-main"
+    assert "".join(t.text or "" for t in links[0].iter(qn("w:t"))) == "Figure 1"
+    ins_text = "".join(t.text or "" for ins in out._p.iter(qn("w:ins")) for t in ins.iter(qn("w:t")))
+    assert ins_text == "As shown in Figure 1."
+
+
+def test_word_edit_preserves_per_run_formatting_of_untouched_words(tmp_path):
+    def make(name, verb):
+        d = Document()
+        p = d.add_paragraph()
+        p.add_run("The strain ")
+        italic = p.add_run("Geobacter sulfurreducens")
+        italic.italic = True
+        p.add_run(f" {verb} acetate.")
+        path = tmp_path / name
+        d.save(str(path))
+        return path
+
+    diff_documents(make("a.docx", "oxidized"), make("b.docx", "consumed"), tmp_path / "out.docx")
+    out = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    formatting = {}
+    for r in out._p.iter(qn("w:r")):
+        rpr = r.find(qn("w:rPr"))
+        italic = rpr is not None and rpr.find(qn("w:i")) is not None
+        for node in r:
+            if node.tag in (qn("w:t"), qn("w:delText")) and (node.text or "").strip():
+                formatting[node.text] = italic
+    assert formatting["Geobacter"] is True and formatting["sulfurreducens"] is True
+    assert formatting["strain"] is False
+    assert formatting["oxidized"] is False and formatting["consumed"] is False
+
+
+def test_nested_table_cell_change_is_reported(tmp_path):
+    """Quarto wraps every crossref table in a 1x1 outer table, so data cells
+    live in NESTED tables — those must count toward tables_differ."""
+    def make(name, val):
+        d = Document()
+        d.add_paragraph("Intro.")
+        wrapper = d.add_table(rows=1, cols=1)
+        wrapper.cell(0, 0).paragraphs[0].text = "Table 1: caption"
+        inner = wrapper.cell(0, 0).add_table(rows=1, cols=2)
+        inner.cell(0, 0).text = val
+        path = tmp_path / name
+        d.save(str(path))
+        return path
+
+    report = diff_documents(make("a.docx", "old"), make("b.docx", "new"), tmp_path / "out.docx")
+    assert report["tables_differ"] is True
+
+
+def test_revision_ids_do_not_collide_with_existing_tracked_changes(tmp_path):
+    orig = _make_doc(tmp_path, "a.docx", ["Same.", "Old line."])
+    rev = Document()
+    p = rev.add_paragraph()
+    ins = OxmlElement("w:ins")
+    for key, value in (("w:id", "9000"), ("w:author", "X"), ("w:date", "2026-01-01T00:00:00Z")):
+        ins.set(qn(key), value)
+    ins.append(_text_run("Same."))
+    p._p.append(ins)
+    rev.add_paragraph("New line.")
+    rev.save(str(tmp_path / "b.docx"))
+
+    diff_documents(orig, tmp_path / "b.docx", tmp_path / "out.docx")
+    out = Document(str(tmp_path / "out.docx"))
+    ids = [el.get(qn("w:id")) for el in out.element.body.iter() if el.tag in (qn("w:ins"), qn("w:del"))]
+    assert len(ids) == len(set(ids)), ids
+
+
+@pytest.mark.parametrize("output_name", ["a.docx", "b.docx"])
+def test_output_cannot_overwrite_either_input(tmp_path, output_name):
+    orig = _make_doc(tmp_path, "a.docx", ["Original."])
+    revised = _make_doc(tmp_path, "b.docx", ["Revised."])
+
+    with pytest.raises(ValueError, match="output DOCX must differ"):
+        diff_documents(orig, revised, tmp_path / output_name)
