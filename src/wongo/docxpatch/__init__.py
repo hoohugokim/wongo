@@ -18,7 +18,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-
 # Styles whose font wongo controls directly. pandoc's reference-doc machinery
 # leaves several of these resolving through the document theme (see
 # patch_theme_fonts), so literal fonts AND theme attributes must both be set.
@@ -50,6 +49,17 @@ def add_line_numbers(doc: Document) -> None:
             sect_pr.insert_element_before(ln, *(("w:pgNumType",) + _SECT_PR_TAIL))
         ln.set(qn("w:countBy"), "1")
         ln.set(qn("w:restart"), "continuous")
+
+
+def remove_line_numbers(doc: Document) -> None:
+    """Strip w:lnNumType from every section. Journals such as Water Research
+    instruct authors NOT to bake line numbers into the submitted file (their
+    system adds them); a house style that turns them on must yield to that
+    profile directive (`line_numbers: forbidden`) on the submission target."""
+    for section in doc.sections:
+        sect_pr = section._sectPr
+        for ln in sect_pr.findall(qn("w:lnNumType")):
+            sect_pr.remove(ln)
 
 
 def _style_by_name(doc: Document, style_name: str):
@@ -89,6 +99,16 @@ def set_fonts(doc: Document, name: str) -> None:
         for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
             if rfonts.get(qn(attr)) is not None:
                 del rfonts.attrib[qn(attr)]
+        # pandoc re-serializes the reference doc's styles.xml with attributes
+        # sorted alphabetically, so the inherited order depends on what the
+        # reference doc carried; byte-pinned renders need one canonical order.
+        remaining = dict(rfonts.attrib)
+        for attr in list(remaining):
+            del rfonts.attrib[attr]
+        for attr in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"):
+            rfonts.set(qn(attr), remaining.pop(qn(attr)))
+        for attr, value in remaining.items():
+            rfonts.set(attr, value)
 
 
 # Safety valve against hostile/degenerate .docx inputs: refuse to load a

@@ -8,3 +8,11 @@
 # matter. Gap 2: page-count literal placeholder replaced by a live NUMPAGES
 # field Word resolves on open. Affects only si-<target>/word/document.xml.
 ^si-(collab|submission)/word/document\.xml$
+
+# 2026-09-19: si-<target>/word/document.xml also changes through the SI cover
+# count fix (figure wrappers no longer counted as tables — see
+# docs/docx-quirks.md "SI cover counted Quarto figure wrappers as tables" and
+# docs/bugs/si-cover-table-count.md). main-<target> stays byte-identical for
+# the reference manuscript: its TOC art already has the ACS 3.25:1.75 ratio,
+# style kist-wcr sets page geometry and Cambria, and ES&T's line_numbers is
+# `false`, so none of the 2026-09-19 engine fixes alter its main render.

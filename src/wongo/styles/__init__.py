@@ -6,7 +6,8 @@ document LOOKS and is selected by a style profile YAML under styles/
 house look). Unconditional OOXML correctness lives in wongo.docxpatch and
 runs regardless of the chosen profile.
 
-Resolution order: _journal.yml `style:` key -> $WONGO_STYLE -> `default`.
+Resolution order: explicit CLI `--style` override -> _journal.yml `style:` key
+-> $WONGO_STYLE -> `default`.
 (Historical note: during the pre-v0.1.0 transition the final fallback was
 temporarily `kist-wcr` because the live manuscript could not gain a style
 key before ms-r0-sent; that wart was resolved in v0.1.0.)
@@ -37,7 +38,6 @@ from wongo.docxpatch import (
     dedupe_ppr,
     normalize_ppr_order,
 )
-
 
 DEFAULT_STYLE = "default"
 
@@ -209,6 +209,9 @@ def rebuild_title_block(doc: Document, meta: dict, opts: dict) -> None:
         if k < len(authors) - 1:
             first.add_run(", ")
 
+    if idx[-1] + 1 >= len(paras):  # authors are the last paragraphs
+        doc.add_paragraph()
+        paras = doc.paragraphs
     anchor = paras[idx[-1] + 1]
     for i in idx[1:]:
         paras[i]._p.getparent().remove(paras[i]._p)
@@ -250,9 +253,11 @@ def inject_keywords(doc: Document, meta: dict, enabled: bool = True) -> None:
     abstract_idx = [i for i, p in enumerate(doc.paragraphs) if p.style.name == "Abstract"]
     if not abstract_idx:
         return
-    anchor = doc.paragraphs[abstract_idx[-1] + 1]
     style = _style_by_name(doc, "Body Text") or doc.paragraphs[abstract_idx[-1]].style
-    p = anchor.insert_paragraph_before(text, style=style)
+    if abstract_idx[-1] + 1 < len(doc.paragraphs):
+        p = doc.paragraphs[abstract_idx[-1] + 1].insert_paragraph_before(text, style=style)
+    else:  # abstract is the last paragraph
+        p = doc.add_paragraph(text, style=style)
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
 
@@ -265,8 +270,12 @@ def inject_keywords(doc: Document, meta: dict, enabled: bool = True) -> None:
 # "Normal" with an NBSP between the word and the number ("Figure\xa01: ...").
 # Body-level "Image Caption"/"Table Caption" styles only appear on unlabeled
 # floats. Both shapes are handled below. See docx-quirks.
-_CAPTION_LEAD = re.compile(r"^((?:Figure|Table)[\s ]+S?[\s ]?\d+)([.:])[\s ]*(.*)$", re.S)
-_CAPTION_LEAD_LOOSE = re.compile(r"^((?:Figure|Table)[\s ]+S?[\s ]?\d+)[.:]?[\s ]*(.*)$", re.S)
+_CAPTION_LEAD = re.compile(
+    r"^((?:Figure|Table)[\s ]+S?[\s ]?\d+)([.:])[\s ]*(.*)$", re.DOTALL
+)
+_CAPTION_LEAD_LOOSE = re.compile(
+    r"^((?:Figure|Table)[\s ]+S?[\s ]?\d+)[.:]?[\s ]*(.*)$", re.DOTALL
+)
 
 
 def _restyle_caption(p, lead: str, rest: str, opts: dict) -> None:
@@ -341,7 +350,15 @@ def fix_tables(doc: Document, style: dict) -> None:
     rules (the style's header midrule stays), no vertical/inner rules, bold
     header row and bold first (label) column."""
     sec = doc.sections[0]
-    text_w = (int(sec.page_width) - int(sec.left_margin) - int(sec.right_margin)) // 635
+    geometry = (sec.page_width, sec.left_margin, sec.right_margin)
+    # pandoc 3.10's default reference.docx carries NO pgSz/pgMar, so a style
+    # without `page:` geometry (e.g. `default`) sees None here. Word then
+    # falls back to its own defaults; we cannot know the text width, so the
+    # grid is left as pandoc emitted it and only the pct width is set.
+    text_w = (
+        (int(geometry[0]) - int(geometry[1]) - int(geometry[2])) // 635
+        if all(g is not None for g in geometry) else None
+    )
     tbl = style.get("tables") or {}
 
     def walk(tables, width_dxa, top=False):
@@ -349,7 +366,8 @@ def fix_tables(doc: Document, style: dict) -> None:
             is_wrapper = len(t.rows) == 1 and len(t.columns) == 1
             if tbl.get("width", "full") == "full":
                 _tbl_set_width_pct(t)
-                _tbl_rescale_grid(t, width_dxa)
+                if width_dxa is not None:
+                    _tbl_rescale_grid(t, width_dxa)
             if is_wrapper:
                 if tbl.get("rules") == "booktabs":
                     _tbl_set_borders(t, top=None, bottom=None)
@@ -358,7 +376,8 @@ def fix_tables(doc: Document, style: dict) -> None:
                     for cell in row.cells:
                         if cell.tables:
                             holds_table = True
-                        walk(cell.tables, width_dxa - 216)  # minus cell margins
+                        inner_w = width_dxa - 216 if width_dxa is not None else None
+                        walk(cell.tables, inner_w)  # minus cell margins
                 if top and holds_table and tbl.get("spacer_after"):
                     _spacer_after(t)  # table floats only; figure floats keep their flow
             elif tbl.get("rules") == "booktabs":

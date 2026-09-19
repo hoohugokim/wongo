@@ -35,7 +35,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -170,8 +169,7 @@ def main() -> int:
         return 1
 
     if args.mode == "selftest":
-        first = render_and_extract(engine, args.target, "baseline")
-        second_dir = SCRATCH / "second"
+        render_and_extract(engine, args.target, "baseline")
         # rerun without wiping baseline: prepare_project() wipes all of SCRATCH,
         # so stash the first tree first
         stash = SCRATCH / "baseline"

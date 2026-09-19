@@ -2,25 +2,19 @@
 
 These pin the behaviors documented in docs/docx-quirks.md — each test exists
 because the corresponding bug shipped a wrong-looking manuscript at least once.
-Scaffold phase: tests import the functions from legacy/render.py; when the
-engine migrates into wongo.docxpatch, only the import below should change.
+The tests import the migrated engine from wongo.docxpatch and the taste layer
+from wongo.styles.
 
 Run: uv run --with pytest --with python-docx --with pyyaml pytest
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "legacy"))
-
-from docx import Document  # noqa: E402
-from docx.oxml import OxmlElement  # noqa: E402
-from docx.oxml.ns import qn  # noqa: E402
-
-import wongo.docxpatch as render  # noqa: E402  (migrated engine module)
-import wongo.styles as wstyles  # noqa: E402  (caption parsing moved here, step 2)
+import wongo.docxpatch as render
+import wongo.styles as wstyles
 
 
 def _para_with_duplicate_ppr(doc):
@@ -206,3 +200,39 @@ def test_table_spacer_after_table_floats_only():
     nxt = body[ti + 1]
     assert nxt.tag == qn("w:p")
     assert not "".join(x.text or "" for x in nxt.iter(qn("w:t")))  # empty spacer
+
+
+def test_fix_tables_tolerates_reference_doc_without_page_size():
+    """pandoc 3.10's default reference.docx sectPr carries no pgSz/pgMar, so a
+    style without `page:` geometry (the shipped `default`) must not crash
+    the render; grid rescaling is skipped and the table keeps pct width."""
+    from wongo.styles import fix_tables
+
+    doc = Document()
+    sect_pr = doc.sections[0]._sectPr
+    for tag in ("w:pgSz", "w:pgMar"):
+        el = sect_pr.find(qn(tag))
+        if el is not None:
+            sect_pr.remove(el)
+    assert doc.sections[0].page_width is None
+    t = doc.add_table(rows=1, cols=2)
+    fix_tables(doc, {"tables": {"width": "full", "rules": "keep"}})
+    tblW = t._tbl.tblPr.find(qn("w:tblW"))
+    assert tblW is not None and tblW.get(qn("w:type")) == "pct"
+
+
+def test_set_fonts_emits_rfonts_attributes_in_canonical_order():
+    """pandoc re-serializes the reference doc's styles.xml with attributes
+    sorted alphabetically, so the order set_fonts inherits depends on what the
+    reference doc carried. Byte-pinned renders need one canonical order
+    (ascii, hAnsi, eastAsia, cs) whatever the input order was."""
+    doc = Document()
+    rfonts = doc.styles["Normal"].element.get_or_add_rPr().get_or_add_rFonts()
+    for attr in list(rfonts.attrib):
+        del rfonts.attrib[attr]
+    for attr in ("w:cs", "w:eastAsia", "w:ascii", "w:hAnsi"):  # pandoc-sorted-ish
+        rfonts.set(qn(attr), "Times New Roman")
+    render.set_fonts(doc, "Cambria")
+    rfonts = doc.styles["Normal"].element.rPr.rFonts
+    assert list(rfonts.attrib) == [qn(a) for a in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs")]
+    assert set(rfonts.attrib.values()) == {"Cambria"}

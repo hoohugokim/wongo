@@ -248,3 +248,124 @@ schema-aware, but they find-and-edit an existing element IN PLACE, so they
 never fix an element that is already mispositioned. Fix: sort every pPr's
 children into the canonical sequence as the FINAL post-processing pass
 (render.py `normalize_ppr_order()`). Verify with raw XML, not python-docx.
+
+## Tracked-diff run rebuilding corrupts rich paragraphs
+
+2026-08-30 / A changed paragraph containing a `w:hyperlink` was corrupted by
+the first `wongo diff` implementation: the linked word moved to the start of
+the paragraph and also appeared again inside `w:ins`. Cause: `Paragraph.text`
+includes hyperlink text in python-docx 1.2, but `_strip_runs()` removed only
+direct `w:r`/`w:ins`/`w:del` children. The nested hyperlink element survived,
+then the flattened paragraph text was appended again as new runs. The same
+rebuild could silently drop fields, drawings, footnote references, tabs, or
+breaks nested inside a run. Fix: only rebuild paragraphs whose children are
+plain `w:pPr`/`w:r` and whose runs contain only `w:rPr`/`w:t`; changed rich
+paragraphs are not rewritten, are counted as `rich_paragraphs_skipped`, and
+the CLI directs the author to Word Compare. Verification: inspect raw
+`word/document.xml` and assert the output retains exactly one `w:hyperlink`
+with the original visible order and no duplicate `w:ins`/`w:del`; pinned by
+`test_changed_hyperlink_paragraph_is_preserved_and_reported`. Versions:
+python-docx 1.2.0.
+
+## pandoc 3.10's default reference.docx has NO page size — styles without `page:` crashed the render
+
+2026-09-19 / `wongo render` with `style: default` died in `fix_tables` with
+`TypeError: int() argument must be ... not 'NoneType'` after quarto had
+already written `output/main-*.docx`, leaving a half-processed deliverable.
+Cause: the profile reference docs are generated from `quarto pandoc
+--print-default-data-file reference.docx`, whose `w:sectPr` at pandoc 3.10
+carries only `w:footnotePr` — no `w:pgSz`/`w:pgMar` (the 2026-07-03 entry
+above recorded `pgSz/pgMar/cols/docGrid` at pandoc 3.8.3; that changed). The
+rendered document inherits that sectPr, so `section.page_width` and the
+margins are None unless a style's `page:` block sets them, and `kist-wcr`
+always did, which is why the reference manuscript never hit it. Fix:
+`fix_tables` computes the text width only when all three values exist;
+otherwise it sets `tblW` pct and leaves pandoc's grid alone (Word applies its
+locale default page size). Verification: `unzip -p main.docx
+word/document.xml | grep -o '<w:sectPr.*</w:sectPr>'` on a `default`-style
+render shows no `w:pgSz`; pinned by
+`test_fix_tables_tolerates_reference_doc_without_page_size` and
+`test_default_style_renders_without_page_geometry_and_keeps_reference_fonts`.
+Versions: quarto 1.10.18, pandoc 3.10, python-docx 1.2.0.
+
+## Quarto emits every crossref and linked citation as `w:hyperlink` — the v1 diff skipped almost every body paragraph
+
+2026-09-19 / On a real render, `wongo diff` reported the only changed body
+paragraph as "rich OOXML … run Word Compare" although it contained just a
+crossref. Cause: Quarto writes `@fig-x` as `<w:hyperlink w:anchor="fig-x">`
+(and `link-citations` the same way), and the 2026-08-30 fix treated any
+`w:hyperlink` as unrebuildable. In a manuscript nearly every paragraph cites
+or cross-references something, so the S6 tool covered almost nothing. Fix:
+the diff now reads paragraphs as run segments that remember their `w:rPr`
+AND their hyperlink container; changed paragraphs are rebuilt token by token
+inside a shell copy of each hyperlink (attributes only), with `w:ins`/`w:del`
+placed INSIDE the hyperlink (CT_Hyperlink accepts EG_PContent, which includes
+run-level tracked changes). Deleted tokens adopt the container of the
+preceding revised token so a link whose text changed is not split in two.
+Hyperlinks copied from the ORIGINAL document (deleted paragraphs) are kept
+only when anchor-only — an `r:id` would dangle in the revised package.
+Verified: `quarto pandoc --track-changes=all` parses the result as
+`[Figure [2]{.insertion …}[1]{.deletion …}](#fig-x)`, so `wongo roundtrip`
+still re-extracts our own output. Fields, drawings, footnote references,
+tabs, breaks, math, and pre-existing `w:ins`/`w:del` remain "rich" and are
+reported. Same pass fixed two silent losses: (1) per-run formatting — the v1
+rebuild copied the FIRST run's `w:rPr` onto every token, so one word edit
+turned a paragraph containing an italic species name entirely italic
+(`python-docx` `Run` has no rPr until formatted, so the italic run was the
+first WITH an rPr); (2) `tables_differ` compared `doc.tables` cell text, but
+Quarto nests data tables inside 1x1 wrappers and `_Cell.text` ignores nested
+tables, so data-cell edits were never reported — now every `w:t` under every
+`w:tbl` (recursive `body.iter`) is compared. Also revision ids now start above
+the highest existing `w:id` instead of a fixed 9000. Pinned by
+`test_changed_hyperlink_paragraph_is_tracked_with_link_preserved`,
+`test_inserted_paragraph_with_internal_crossref_link_keeps_the_link`,
+`test_word_edit_preserves_per_run_formatting_of_untouched_words`,
+`test_nested_table_cell_change_is_reported`,
+`test_revision_ids_do_not_collide_with_existing_tracked_changes`.
+Versions: quarto 1.10.18, pandoc 3.10, python-docx 1.2.0, lxml 6.1.2.
+
+## SI cover counted Quarto figure wrappers as tables
+
+2026-09-19 / `docs/bugs/si-cover-table-count.md`: an SI with 14 figures and
+11 tables printed "25 tables". Cause: `len(doc.tables)` counts the 1x1 float
+wrapper of every figure. Fix: `wongo.engine.si_item_counts` classifies each
+top-level table by its caption lead ("Figure S1" / "Table S1" — the semantic
+identifier Quarto writes inside the wrapper cell), falling back to nested
+table → table, drawing → figure; a multi-cell data table that merely
+contains an image is a table, and unwrapped body-level pictures are
+figures. Verification: count `w:tbl` children of `w:body` whose first cell
+paragraph starts with "Table" vs "Figure" in raw `word/document.xml`; pinned
+by `test_si_item_counts_exclude_figure_wrappers_but_keep_nested_and_image_tables`.
+This changes `si-<target>/word/document.xml` (the cover line only) for the
+reference manuscript — the file is already allowlisted in
+`tools/bytecompare-allow.txt`; re-baseline after confirming the count.
+Versions: quarto 1.10.18, pandoc 3.10.
+
+## Correction to the 2026-07-03 sectPr and roundtrip entries: the named tests did not exist in this repo
+
+2026-09-19 / Those entries cite `tests/test_render.py` and
+`tests/test_roundtrip.py::test_unparsed_nested_bracket_span_surfaces_not_drops`
+from the skill-era suite; neither was migrated into `wongo`. Recreated as
+`tests/test_sectpr_order.py` and `tests/test_roundtrip_parser.py`
+(2026-09-19); the behaviors they pin were re-verified against the current
+engine and hold.
+
+## pandoc sorts rFonts attributes alphabetically when copying reference-doc styles
+
+2026-09-19 / Regenerating the profile reference docs with theme-linked font
+attributes stripped from the heading styles (T-0015: a `w:asciiTheme` on the
+same `w:rFonts` outranks the literal `w:ascii`, so `default`-style headings
+rendered in Aptos) changed the kist-wcr render's `word/styles.xml` although
+every attribute VALUE was identical. Cause: pandoc re-serializes the reference
+doc's styles part with attributes in alphabetical order, so the order
+`set_fonts` inherits depends on which attributes the reference doc carried
+(`ascii, cs, eastAsia, hAnsi` vs the historical `ascii, hAnsi, eastAsia, cs`).
+Fix: `set_fonts` now rebuilds the four rFonts attributes in one canonical order
+after stripping the theme links, making the output independent of the
+reference doc's attribute order; verified by rendering the same project with
+the HEAD and regenerated ES&T reference docs — `main-*` and `si-*` are
+byte-identical under kist-wcr. The builders also stop using `doc.styles[name]`
+(deprecated style-id fallback, see the 2026-07-03 entry). Pinned by
+`tests/test_reference_docs.py` and
+`test_set_fonts_emits_rfonts_attributes_in_canonical_order`. Versions: quarto
+1.10.18, pandoc 3.10, python-docx 1.2.0.
