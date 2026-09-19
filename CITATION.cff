@@ -14,8 +14,8 @@ authors:
     email: hookim@kist.re.kr
     affiliation: "Center for Water Cycle Research, Korea Institute of Science and Technology (KIST)"
     orcid: "https://orcid.org/0000-0002-7205-0870"
-version: 0.1.0
-date-released: "2026-08-24"
+version: 0.2.0
+date-released: "2026-09-19"
 license: MIT
 repository-code: "https://github.com/hoohugokim/wongo"
 url: "https://github.com/hoohugokim/wongo"
