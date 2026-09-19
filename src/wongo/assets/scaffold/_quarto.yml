@@ -5,7 +5,7 @@ engine: knitr
 format:
   docx:
     number-sections: false
-    # reference-doc and csl are injected at render time by render.py
+    # reference-doc and csl are injected at render time by wongo
     # from the journal profile — do not hard-code them here.
 bibliography: refs.bib
 execute:

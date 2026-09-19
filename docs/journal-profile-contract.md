@@ -14,7 +14,7 @@ Every `quarto-manuscript-<slug>` skill MUST provide the following so
 ```
 quarto-manuscript-<slug>/
 ├── SKILL.md                      # human/agent-readable requirements + judgment notes
-├── profile.yml                   # machine-readable keys consumed by render.py/validate.py
+├── profile.yml                   # machine-readable keys consumed by `wongo render` / `wongo check`
 ├── assets/
 │   ├── reference.docx            # Quarto/pandoc reference-doc with journal styles
 │   └── <csl-file>.csl            # citation style
@@ -45,13 +45,16 @@ manuscript_types:      # word limits are MAIN TEXT unless counting_rule says oth
 csl: ""
 reference_doc: ""
 section_headings: []   # ordered; journal-specific — check this profile's list, don't assume any generic heading set applies
-line_numbers: true|false
+line_numbers: true|false|forbidden  # true: engine adds them on the submission render; false: not
+                       # required (house style may add them); forbidden: the journal says do NOT
+                       # include them (e.g. Water Research adds its own) — the submission render
+                       # strips line numbers even if the house style enables them
 spacing: single|double
-blinding: single|double-anonymous|optional  # informational in v1 (consumed by agent judgment, not render.py)
+blinding: single|double-anonymous|optional  # informational in v1 (consumed by agent judgment, not wongo render)
 toc_graphic:           # the whole block may be null if the journal has no TOC/graphical-abstract concept at all
   required: true|false  # REQUIRED key whenever the block itself is present — render.py dispatches on this
-  width_mm: 0
-  height_mm: 0
+  width_mm: 0          # width_mm/height_mm are the MAXIMUM box; the render scales the
+  height_mm: 0         # image to fit inside it with its aspect ratio preserved
   min_dpi: 0
   formats: []
   synopsis_words: [0, 0]   # min,max; null if no synopsis
@@ -59,7 +62,7 @@ toc_graphic:           # the whole block may be null if the journal has no TOC/g
                           # "For Table of Contents Only"); render.py falls back to that same
                           # default string when this key is absent
   manuscript_placement: last-page|after-abstract  # OPTIONAL: where the graphic goes in the
-                          # rendered manuscript; render.py's insert_toc_art() currently only
+                          # rendered manuscript; wongo.engine.insert_toc_art() currently only
                           # implements the ACS last-page pattern (page break, label, centered
                           # image, appended at document end) — treat other values as documentation
                           # until a journal actually needs different placement logic
@@ -69,7 +72,7 @@ si:
   needs_own_toc: true|false
   needs_cover_sheet: true|false
 figures:
-  placement: inline|end  # informational in v1 (consumed by agent judgment, not render.py)
+  placement: inline|end  # informational in v1 (consumed by agent judgment, not wongo render)
   color_policy: ""
 tables:
   style_notes: ""
@@ -82,5 +85,5 @@ verified_date: ""      # ISO date the numbers were last checked against the jour
 - Every hard number in `profile.yml` must trace to an entry in `sources`.
 - Unverified or secondary-source claims go in SKILL.md under "TO VERIFY",
   never into `profile.yml`.
-- `verified_date` older than 6 months ⇒ validate.py emits a staleness warning;
+- `verified_date` older than 6 months ⇒ `wongo check` emits a staleness warning;
   re-check the journal's author guidelines before a real submission.

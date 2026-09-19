@@ -6,7 +6,7 @@ crossref:
 ---
 
 <!-- SI policy: content a specialist needs but a reader doesn't.
-     Rendered separately; S-page numbering applied by render.py. -->
+     Rendered separately; S-page numbering applied by wongo. -->
 
 # Supplementary Methods
 

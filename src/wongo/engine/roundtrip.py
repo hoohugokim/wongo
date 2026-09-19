@@ -5,11 +5,11 @@
 # ///
 """Extract coauthor tracked changes/comments from a DOCX into a merge worksheet.
 
-Usage: roundtrip.py <coauthor.docx> [--project DIR]
+Usage: roundtrip.py <coauthor.docx> [--project DIR] [--qmd index.qmd]
 
 Runs pandoc (via quarto) with --track-changes=all, parses insertion/deletion/
 comment spans with author attribution, aligns each change to a line of the
-current index.qmd (one-sentence-per-line invariant), and writes
+source .qmd (default index.qmd; one-sentence-per-line invariant), and writes
 decisions/merge-<date>-<stem>.md. NEVER applies changes: every worksheet row
 starts as 'disposition: PENDING' for interactive review (SKILL.md S4 rules).
 """
@@ -203,7 +203,9 @@ def locate(change: Change, qmd_lines: list[str]) -> int | None:
     return best_line if best_score >= 0.3 else None
 
 
-def write_worksheet(changes, locations, out_path: Path, source_name: str) -> None:
+def write_worksheet(
+    changes, locations, out_path: Path, source_name: str, qmd_name: str = "index.qmd"
+) -> None:
     lines = [
         f"# Merge worksheet — {source_name} — {date.today().isoformat()}",
         "",
@@ -219,9 +221,11 @@ def write_worksheet(changes, locations, out_path: Path, source_name: str) -> Non
         if c.kind == "unparsed":
             lines += [
                 f"## {n}. unparsed — {c.author}",
-                "- PARSER COULD NOT EXTRACT THIS CHANGE — open the DOCX and "
-                "review this location manually.",
-                f"- location: index.qmd:{loc if loc else 'UNMATCHED — find manually'}",
+                (
+                    "- PARSER COULD NOT EXTRACT THIS CHANGE — open the DOCX and "
+                    "review this location manually."
+                ),
+                f"- location: {qmd_name}:{loc if loc else 'UNMATCHED — find manually'}",
                 f"- context: …{c.context.strip()}…",
                 "- disposition: PENDING",
                 "",
@@ -229,7 +233,7 @@ def write_worksheet(changes, locations, out_path: Path, source_name: str) -> Non
             continue
         lines += [
             f"## {n}. {c.kind} — {c.author}",
-            f"- location: index.qmd:{loc if loc else 'UNMATCHED — find manually'}",
+            f"- location: {qmd_name}:{loc if loc else 'UNMATCHED — find manually'}",
             f"- old: {c.old or '—'}",
             f"- new: {c.new or '—'}",
             f"- context: …{c.context.strip()}…",
@@ -240,19 +244,43 @@ def write_worksheet(changes, locations, out_path: Path, source_name: str) -> Non
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def available_worksheet_path(
+    project: Path, source_stem: str, day: date | None = None
+) -> Path:
+    """Choose a worksheet path without overwriting an earlier review.
+
+    A worksheet may already contain human dispositions, so repeated
+    extraction of the same DOCX creates ``-2``, ``-3``, ... rather than
+    silently replacing the first file.
+    """
+    day = day or date.today()
+    directory = Path(project) / "decisions"
+    base = directory / f"merge-{day:%Y%m%d}-{source_stem}.md"
+    if not base.exists():
+        return base
+    suffix = 2
+    while True:
+        candidate = base.with_name(f"{base.stem}-{suffix}{base.suffix}")
+        if not candidate.exists():
+            return candidate
+        suffix += 1
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("docx")
     ap.add_argument("--project", default=".")
+    ap.add_argument("--qmd", default="index.qmd",
+                    help="source .qmd the DOCX was rendered from (e.g. si.qmd)")
     args = ap.parse_args(argv)
     project = Path(args.project).resolve()
     docx_path = Path(args.docx).resolve()
 
     if not docx_path.exists():
         raise SystemExit(f"coauthor docx not found: {docx_path}")
-    index_qmd = project / "index.qmd"
+    index_qmd = project / args.qmd
     if not index_qmd.exists():
-        raise SystemExit(f"project index.qmd not found: {index_qmd}")
+        raise SystemExit(f"project source not found: {index_qmd}")
 
     # --wrap=none: with the default auto-wrap, pandoc can break a long
     # insertion/deletion span's text (or its attribute list) across a hard
@@ -265,14 +293,14 @@ def main(argv: list[str] | None = None) -> int:
             capture_output=True, text=True, check=True,
         ).stdout
     except subprocess.CalledProcessError as e:
-        raise SystemExit(f"pandoc extraction failed: {e.stderr.strip()[-500:]}")
+        raise SystemExit(f"pandoc extraction failed: {e.stderr.strip()[-500:]}") from e
 
     changes = extract_changes(md)
     qmd_lines = index_qmd.read_text(encoding="utf-8").splitlines()
     locations = [locate(c, qmd_lines) for c in changes]
 
-    out = project / "decisions" / f"merge-{date.today():%Y%m%d}-{docx_path.stem}.md"
-    write_worksheet(changes, locations, out, docx_path.name)
+    out = available_worksheet_path(project, docx_path.stem)
+    write_worksheet(changes, locations, out, docx_path.name, qmd_name=args.qmd)
     print(f"wrote {out} ({len(changes)} changes; NONE applied — review dispositions first)")
     return 0
 

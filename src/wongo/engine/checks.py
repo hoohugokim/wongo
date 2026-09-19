@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 
 import yaml
 
-from wongo.profiles import load_journal_config, load_profile, manuscript_type, profile_staleness_days  # noqa: F401
+from wongo.profiles import (
+    load_journal_config,
+    load_profile,
+    manuscript_type,
+    profile_staleness_days,
+)
 
 STALE_DAYS = 183
 
@@ -32,6 +36,10 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?")
 # 6,739 while its rendered count, captions included, was 7,349).
 CHUNK_CAPTION_RE = re.compile(r"^#\|\s*(?:tbl|fig)-cap:\s*[\"']?(.*?)[\"']?\s*$", re.MULTILINE)
 HEADING_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
+# pandoc fenced-div delimiters (`::: {#refs}` / `:::`) and Quarto shortcodes
+# (`{{< pagebreak >}}`) are markup, not prose; they must not count as words.
+DIV_FENCE_RE = re.compile(r"^:{3,}.*$", re.MULTILINE)
+SHORTCODE_RE = re.compile(r"\{\{<.*?>\}\}", re.DOTALL)
 REF_USE_RE = re.compile(r"@((?:fig|tbl|eq|sec|lst|thm)-[\w.-]+)")
 LABEL_DEF_RE = re.compile(
     r"#\|\s*label:\s*\"?((?:fig|tbl|lst)-[\w.-]+)\"?"
@@ -65,6 +73,8 @@ def prose(body: str) -> str:
     captions = CHUNK_CAPTION_RE.findall(body)
     body = FENCE_RE.sub("", body)
     body = COMMENT_RE.sub("", body)
+    body = DIV_FENCE_RE.sub("", body)
+    body = SHORTCODE_RE.sub("", body)
     body = IMAGE_RE.sub(lambda m: m.group(1), body)
     if captions:
         body = body + "\n" + "\n".join(captions) + "\n"
@@ -114,8 +124,34 @@ def bib_keys(bib_text: str) -> set[str]:
     return set(BIB_KEY_RE.findall(bib_text))
 
 
+def bibliography_paths(project: Path, index_text: str) -> list[Path]:
+    """The .bib files Quarto will resolve citations against: `bibliography`
+    in the .qmd front matter, then in `_quarto.yml` (string or list), with
+    `refs.bib` as the scaffold default when neither names one."""
+    project = Path(project)
+    names: list[str] = []
+
+    def collect(value) -> None:
+        if isinstance(value, str):
+            names.append(value)
+        elif isinstance(value, list):
+            names.extend(str(v) for v in value)
+
+    meta, _ = split_front_matter(index_text)
+    collect(meta.get("bibliography"))
+    quarto_yml = project / "_quarto.yml"
+    if quarto_yml.exists():
+        cfg = yaml.safe_load(quarto_yml.read_text(encoding="utf-8")) or {}
+        collect(cfg.get("bibliography"))
+    if not names:
+        names = ["refs.bib"]
+    return [project / n for n in names]
+
+
 def image_paths(text: str) -> list[str]:
-    body = FENCE_RE.sub("", split_front_matter(text)[1])
+    """Markdown image targets in prose — fenced code and HTML comments are
+    not rendered, so a commented-out figure is not a missing figure."""
+    body = COMMENT_RE.sub("", FENCE_RE.sub("", split_front_matter(text)[1]))
     return [m.group(2) for m in IMAGE_RE.finditer(body)]
 
 
@@ -154,8 +190,10 @@ def run_checks(project: Path) -> list[Check]:
         f"(rule: {mtype.get('counting_rule', 'unspecified')})",
     ))
 
-    bib_path = project / "refs.bib"
-    bib = bib_keys(bib_path.read_text(encoding="utf-8")) if bib_path.exists() else set()
+    bib: set[str] = set()
+    for bib_path in bibliography_paths(project, texts["index.qmd"]):
+        if bib_path.exists():
+            bib |= bib_keys(bib_path.read_text(encoding="utf-8"))
     used = set().union(*(citekeys_used(t) for t in texts.values()))
     missing = sorted(used - bib)
     checks.append(Check(
@@ -181,10 +219,15 @@ def run_checks(project: Path) -> list[Check]:
     ))
 
     days = profile_staleness_days(profile)
+    profile_date_ok = days is not None and 0 <= days <= STALE_DAYS
+    if days is None:
+        profile_detail = "profile has no verified_date"
+    elif days < 0:
+        profile_detail = f"profile verified_date is {-days} days in the future"
+    else:
+        profile_detail = f"profile verified {days} days ago"
     checks.append(Check(
-        "profile-staleness", "WARN", days is not None and days <= STALE_DAYS,
-        f"profile verified {days} days ago" if days is not None
-        else "profile has no verified_date",
+        "profile-staleness", "WARN", profile_date_ok, profile_detail,
     ))
 
     si_expected = (profile.get("si") or {}).get("separate_file")

@@ -6,9 +6,8 @@ Migrated from legacy/mslib.py. Resolution order for a profile slug:
    unverified drafts)
 2. ``$WONGO_PROFILES`` directory (user/site installs)
 3. packaged profiles (this package's data dir — ships in the wheel)
-4. repo-root ``profiles/`` fallback (development checkouts)
-5. legacy name compat: any root also tried as ``quarto-manuscript-<slug>``
-   until the Claude skills are thinned (HANDOFF step 6)
+4. legacy name compat: any root also tried as ``quarto-manuscript-<slug>``
+   (the thinned Claude skills still carry that directory name)
 
 A profile dir must contain profile.yml; sibling assets (reference.docx, CSL)
 resolve relative to the profile dir via the ``_dir`` key.
@@ -28,13 +27,6 @@ def _packaged_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _repo_root() -> Path | None:
-    for parent in _packaged_dir().parents:
-        if (parent / "pyproject.toml").exists() and (parent / "profiles").is_dir():
-            return parent
-    return None
-
-
 def candidate_dirs(project: Path | None = None) -> list[Path]:
     roots: list[Path] = []
     if project is not None:
@@ -43,9 +35,6 @@ def candidate_dirs(project: Path | None = None) -> list[Path]:
     if env:
         roots.append(Path(env))
     roots.append(_packaged_dir())
-    repo = _repo_root()
-    if repo is not None:
-        roots.append(repo / "profiles")
     # dedupe, preserve order
     seen: set[Path] = set()
     out = []
@@ -113,3 +102,51 @@ def profile_staleness_days(profile: dict) -> int | None:
     if isinstance(vd, str):
         vd = date.fromisoformat(vd)
     return (date.today() - vd).days
+
+
+# ---------------------------------------------------------------------------
+# Contract enforcement (docs/journal-profile-contract.md)
+
+REQUIRED_KEYS = ("journal", "slug", "manuscript_types", "sources", "verified_date")
+LINE_NUMBER_VALUES = (True, False, None, "forbidden")
+
+
+def validate_profile(profile: dict) -> list[str]:
+    """Lint a loaded profile.yml against the journal-profile contract.
+
+    Returns human-readable problems (empty when clean). Only structural
+    guarantees the engine relies on are checked — the numbers themselves are
+    the human's audit against the cited sources.
+    """
+    problems: list[str] = []
+    for key in REQUIRED_KEYS:
+        if not profile.get(key):
+            problems.append(f"missing required key: {key}")
+    types = profile.get("manuscript_types")
+    if types and not isinstance(types, list):
+        problems.append("manuscript_types must be a list")
+    for i, t in enumerate(types or []):
+        if not isinstance(t, dict) or not t.get("type"):
+            problems.append(f"manuscript_types[{i}] has no type")
+        if isinstance(t, dict) and "word_limit" not in t:
+            problems.append(f"manuscript_types[{i}] has no word_limit (use null when unlimited)")
+    vd = profile.get("verified_date")
+    if vd is not None and not isinstance(vd, date):
+        try:
+            date.fromisoformat(str(vd))
+        except ValueError:
+            problems.append(f"verified_date is not an ISO date: {vd!r}")
+    toc = profile.get("toc_graphic")
+    if toc is not None:
+        if not isinstance(toc, dict):
+            problems.append("toc_graphic must be a mapping or null")
+        elif "required" not in toc:
+            problems.append("toc_graphic.required is missing (REQUIRED whenever the block is present)")
+    if profile.get("line_numbers") not in LINE_NUMBER_VALUES:
+        problems.append(
+            f"line_numbers must be true, false, or 'forbidden' (got {profile.get('line_numbers')!r})"
+        )
+    sources = profile.get("sources")
+    if sources is not None and not isinstance(sources, list):
+        problems.append("sources must be a list of URLs/paths")
+    return problems

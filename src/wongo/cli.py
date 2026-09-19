@@ -13,7 +13,8 @@ import shutil
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from wongo import __version__
@@ -22,12 +23,9 @@ from wongo.engine.checks import print_report, run_checks
 
 
 def _cmd_render(args: argparse.Namespace) -> int:
-    if args.style:
-        # thread the --style override through resolve_style's chain
-        import os
-
-        os.environ["WONGO_STYLE"] = args.style
-    return render_project(Path(args.project).resolve(), args.target)
+    return render_project(
+        Path(args.project).resolve(), args.target, style_override=args.style
+    )
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
@@ -41,7 +39,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
 def _cmd_roundtrip(args: argparse.Namespace) -> int:
     from wongo.engine.roundtrip import main as rt_main
 
-    argv = [args.docx, "--project", args.project]
+    argv = [args.docx, "--project", args.project, "--qmd", args.qmd]
     return rt_main(argv)
 
 
@@ -75,12 +73,12 @@ def _url_allowed(url: str) -> str | None:
     u = urlparse(url)
     if u.scheme not in ("http", "https"):
         return f"scheme {u.scheme!r} not allowed (http/https only)"
-    host = (u.hostname or "").lower()
+    host = (u.hostname or "").lower().rstrip(".")
     if not host:
         return "no hostname"
     import ipaddress
 
-    if host in ("localhost",) or host.endswith(".local") or host.endswith(".internal"):
+    if host == "localhost" or host.endswith((".local", ".internal")):
         return f"host {host!r} is local"
     try:
         ip = ipaddress.ip_address(host)
@@ -123,14 +121,24 @@ def _head(url: str, timeout: float = 20.0) -> dict[str, str] | None:
 
 
 def _cmd_profile(args: argparse.Namespace) -> int:
-    from wongo.profiles import find_profile_dir, load_profile, profile_staleness_days
+    from wongo.profiles import (
+        find_profile_dir,
+        load_profile,
+        profile_staleness_days,
+        validate_profile,
+    )
 
     if args.profile_cmd == "list":
+        seen_slugs: set[str] = set()
         for root in _all_roots():
             for pdir in sorted(root.glob("*")):
                 if (pdir / "profile.yml").exists():
                     p = load_profile(pdir.name)
-                    print(f"{p.get('slug', pdir.name):16} {p.get('journal', '?'):44} "
+                    slug = str(p.get("slug", pdir.name))
+                    if slug in seen_slugs:
+                        continue
+                    seen_slugs.add(slug)
+                    print(f"{slug:16} {p.get('journal', '?'):44} "
                           f"verified: {p.get('verified_date', 'NEVER')}")
         return 0
 
@@ -144,7 +152,20 @@ def _cmd_profile(args: argparse.Namespace) -> int:
           f"({days}d ago)" if days is not None else "verified:  NEVER")
 
     problems = 0
-    if days is None or days > 183:
+    for problem in validate_profile(profile):
+        print(f"CONTRACT: {problem} (docs/journal-profile-contract.md)")
+        problems += 1
+    if days is None:
+        print("WARN: profile has no verified_date — audit it against the live "
+              "guidelines and record the date")
+        problems += 1
+    elif days < 0:
+        print(
+            f"WARN: profile verified_date is {-days} day(s) in the future — "
+            "fix the date or system clock"
+        )
+        problems += 1
+    elif days > 183:
         print("WARN: profile older than 6 months — re-verify against live guidelines")
         problems += 1
 
@@ -158,7 +179,7 @@ def _cmd_profile(args: argparse.Namespace) -> int:
 
     print("live sources:")
     vd = profile.get("verified_date")
-    vd_dt = datetime.fromisoformat(str(vd)).replace(tzinfo=timezone.utc) if vd else None
+    vd_dt = datetime.fromisoformat(str(vd)).replace(tzinfo=UTC) if vd else None
     for url in profile.get("sources") or []:
         if not str(url).startswith("http"):
             print(f"  [local] {url}")
@@ -179,7 +200,16 @@ def _cmd_profile(args: argparse.Namespace) -> int:
         size = h.get("Content-Length", "?")
         note = ""
         if lm and vd_dt:
-            lmdt = datetime.strptime(lm, "%a, %d %b %Y %H:%M:%S GMT").replace(tzinfo=timezone.utc)
+            try:
+                lmdt = parsedate_to_datetime(lm)
+                if lmdt is None:
+                    raise ValueError("empty parsed date")
+            except (TypeError, ValueError):
+                print(f"  [invalid Last-Modified: {lm!r}] {url}")
+                problems += 1
+                continue
+            if lmdt.tzinfo is None:
+                lmdt = lmdt.replace(tzinfo=UTC)
             if lmdt.date().isoformat() > str(vd):
                 note = f"  << GUIDELINES REVISED ({lmdt.date()}) AFTER VERIFY DATE — RE-AUDIT CONTENT"
                 problems += 1
@@ -195,7 +225,7 @@ def _cmd_profile(args: argparse.Namespace) -> int:
 
 
 def _all_roots():
-    from wongo.profiles import _packaged_dir, _repo_root, candidate_dirs
+    from wongo.profiles import candidate_dirs
 
     seen = set()
     out = []
@@ -216,8 +246,12 @@ def _cmd_diff(args: argparse.Namespace) -> int:
             raise SystemExit(f"{label} DOCX not found: {path}")
     out = (Path(args.out) if args.out
            else revised.with_name(revised.stem + "-tracked.docx"))
-    report = diff_documents(original, revised, out,
-                            author=args.author, date=args.date)
+    try:
+        report = diff_documents(
+            original, revised, out, author=args.author, date=args.date
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     print(f"wrote {out}")
     print(f"  words: +{report['inserted_words']} inserted, "
           f"-{report['deleted_words']} deleted")
@@ -226,6 +260,13 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     if report["tables_differ"]:
         print("  NOTE: tables differ between the two documents and are NOT "
               "tracked by this tool — run Word Compare for table pages.")
+    if report["rich_paragraphs_skipped"]:
+        print(
+            "  NOTE: "
+            f"{report['rich_paragraphs_skipped']} changed paragraph(s) contain "
+            "hyperlinks, fields, drawings, or other rich OOXML and were not "
+            "rewritten — run Word Compare for those paragraphs."
+        )
     return 0
 
 
@@ -255,6 +296,9 @@ def main(argv: list[str] | None = None) -> int:
                        help="Extract a coauthor DOCX's tracked changes into a merge worksheet")
     p.add_argument("docx")
     p.add_argument("--project", default=".")
+    p.add_argument("--qmd", default="index.qmd",
+                   help="source .qmd the DOCX was rendered from (use si.qmd "
+                        "for a coauthor-edited SI render)")
     p.set_defaults(fn=_cmd_roundtrip)
 
     p = sub.add_parser("scaffold", help="Scaffold a new manuscript project")
