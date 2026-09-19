@@ -16,7 +16,8 @@ Usage:
         Render with the current engine and diff against the baseline.
         Exits 1 on any unexplained diff. --allow lists regex patterns (one per
         line, FILE:regex-line format matched against the unified-diff header +
-        changed lines) for diffs already justified in OVERNIGHT-LOG.md.
+        changed lines) for diffs already justified in the allowlist's own comments
+        (historical context: plans/archive/OVERNIGHT-LOG.md).
 
 Scratch layout under /tmp/wongo-bc/:
     manuscript/   fresh copy of the reference manuscript each invocation

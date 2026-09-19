@@ -1,4 +1,5 @@
-# Byte-compare allowlist — every pattern must be justified in OVERNIGHT-LOG.md.
+# Byte-compare allowlist — every pattern must be justified in a comment here
+# (and, for engine changes, in docs/docx-quirks.md).
 # Format: one Python regex per line, matched against unified-diff lines.
 
 # 2026-08-24, engine step 4: SI cover-sheet gap fixes (pinned by

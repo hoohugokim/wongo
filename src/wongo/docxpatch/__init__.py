@@ -1,6 +1,6 @@
 """wongo.docxpatch — unconditional OOXML correctness fixes.
 
-Migrated verbatim from legacy/render.py per HANDOFF-wongo-uplift.md step 1.
+Migrated verbatim from legacy/render.py per plans/archive/HANDOFF-wongo-uplift.md step 1.
 Everything in this module is ENGINE behavior (ground rule 3): it fixes
 Quarto 1.10 / pandoc 3.x output pathologies that would otherwise ship a
 wrong-looking manuscript. None of it is house taste — the KIST-WCR look

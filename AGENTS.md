@@ -3,7 +3,7 @@
 
 wongo (원고, “manuscript”) is a Python ≥3.11 package and CLI for verified
 Quarto-to-journal DOCX pipelines. The engine is post-v0.1.0 and behavior-pinned
-against a private reference manuscript; `HANDOFF-wongo-uplift.md` is historical.
+against a private reference manuscript; the uplift records live in `plans/archive/`.
 
 ## Session start
 
@@ -57,5 +57,5 @@ against a private reference manuscript; `HANDOFF-wongo-uplift.md` is historical.
 - `TASKS.md` has one orchestrator writer and stable T-NNNN IDs.
 - `DECISIONS.md` is append-only; supersede a choice with a new D-record.
 - Subagents write task notes under `notes/`, not shared ledger files.
-- `CHANGELOG.md` is frozen historical context; use conventional commits and tags
+- `docs/CHANGELOG.md` is frozen historical context; use conventional commits and tags
   for future change history.

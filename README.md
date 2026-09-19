@@ -15,7 +15,7 @@ journal rule reach a submission portal.
 
 > **Status: v0.2.0** (diff v2 for cited prose, profile contract lint, `default`-style and SI-cover fixes; v0.1.0 was the first shareable release). The engine is battle-tested — it produced a real ES&T
 > submission — and has been migrated into `src/wongo/`
-> (`docxpatch`/`styles`/`profiles`/`engine`) per `HANDOFF-wongo-uplift.md`.
+> (`docxpatch`/`styles`/`profiles`/`engine`) per `plans/archive/HANDOFF-wongo-uplift.md`.
 > `legacy/` shims were removed in v0.1.0; the lab's reference manuscript pins
 > `style: kist-wcr` and renders through `wongo`. The CLI `wongo` is installed
 > as a wheel/editable package.
@@ -78,7 +78,9 @@ R-engine manuscripts), and the fonts your style profile names.
 | Path | What |
 |---|---|
 | `src/wongo/` | The package and library: `cli`, `engine`/`checks`/`roundtrip`/`diff`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
-| `docs/` | Product definition (`docs/product-definition.md`), profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), legacy spine docs |
+| `docs/` | Product definition (`docs/product-definition.md`), profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), contributing guide (`docs/CONTRIBUTING.md`), frozen changelog (`docs/CHANGELOG.md`), legacy spine docs |
+| `AGENTS.md`, `HANDOFF.md`, `TASKS.md`, `DECISIONS.md`, `ROADMAP.md` | Statutor ledger for agent sessions (`CLAUDE.md` imports `AGENTS.md`) |
+| `plans/archive/` | Frozen historical records of the 2026-08 skill→package uplift |
 | `tests/` | Regression tests pinning every shipped OOXML fix, the diff/roundtrip engines, and the validation checks |
 | `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs baseline |
 

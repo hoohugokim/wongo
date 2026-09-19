@@ -35,5 +35,5 @@ reference-manuscript byte comparison and the tag/push remain (T-0002, D-0007).
 - pandoc sorts rFonts attributes when copying reference styles; `set_fonts` canonicalizes.
 
 ## Do not touch
-- `plans/archive/`, `HANDOFF-wongo-uplift.md`, `OVERNIGHT-LOG.md`, frozen `CHANGELOG.md`,
-  existing `docs/docx-quirks.md` entries (append only), `_local/`, the reference repo.
+- `plans/archive/` (uplift records), frozen `docs/CHANGELOG.md`, existing
+  `docs/docx-quirks.md` entries (append only), `_local/`, the reference repo.

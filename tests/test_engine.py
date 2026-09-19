@@ -1,7 +1,7 @@
 """Tests for the migrated render engine (HANDOFF step 4).
 
 The SI cover sheet had TWO known gaps pinned here tests-first (see
-HANDOFF-wongo-uplift.md): it printed journal+ms_type where the profile wants
+plans/archive/HANDOFF-wongo-uplift.md): it printed journal+ms_type where the profile wants
 AUTHORS (ES&T: cover sheet carries authors, title, page/figure/table counts),
 and the page-count line shipped a literal placeholder string.
 """

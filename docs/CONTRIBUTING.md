@@ -4,11 +4,11 @@ This is the uplift of `~/.claude/skills/quarto-manuscript-*` into a shareable pa
 
 ## Ground rules (non-negotiable)
 
-1. **Behavior is pinned.** The ES&T submission engine formerly in `legacy/` now lives in `src/wongo/` (`legacy/` removed in v0.1.0). Every fix must end with `tests/` green **and** a byte-relevant comparison against the reference manuscript's renders (set `WONGO_REF_PROJECT` to its repo root; it pins `style: kist-wcr`): render baseline, render with changed code, diff unzipped `word/document.xml` / `word/styles.xml` / `word/settings.xml`. Cosmetic-identical or allowlisted explainable diff only. Use `tools/bytecompare.py` (see `OVERNIGHT-LOG.md`).
+1. **Behavior is pinned.** The ES&T submission engine formerly in `legacy/` now lives in `src/wongo/` (`legacy/` removed in v0.1.0). Every fix must end with `tests/` green **and** a byte-relevant comparison against the reference manuscript's renders (set `WONGO_REF_PROJECT` to its repo root; it pins `style: kist-wcr`): render baseline, render with changed code, diff unzipped `word/document.xml` / `word/styles.xml` / `word/settings.xml`. Cosmetic-identical or allowlisted explainable diff only. Use `tools/bytecompare.py` (baseline story: `plans/archive/OVERNIGHT-LOG.md`).
 2. **The lab's reference manuscript now uses `wongo` directly** (`style: kist-wcr` pinned). The `~/.claude/skills/quarto-manuscript-*` skills are thin wrappers that call the installed `wongo` CLI and keep only judgment content; canonical quirks memory is `docs/docx-quirks.md`.
 3. **Correctness vs taste.** OOXML fixes (`wongo.docxpatch`: `dedupe_ppr`, `normalize_ppr_order`, `patch_theme_fonts`/`patch_compat_mode`, grid rescaling, `set_fonts`) are **unconditional** engine behavior. House taste (`src/wongo/styles/*.yml`: `kist-wcr`, `default`, title-block, caption/table look) lives behind `wongo.styles.apply_style()` and never leaks into `docxpatch`.
 
-See `HANDOFF-wongo-uplift.md` for the full migration map and `docs/docx-quirks.md` for the append-only pathology log (root cause + fix + verification via raw XML, never `python-docx` alone).
+See `plans/archive/HANDOFF-wongo-uplift.md` for the full migration map and `docs/docx-quirks.md` for the append-only pathology log (root cause + fix + verification via raw XML, never `python-docx` alone).
 
 ## Dev setup
 
@@ -81,9 +81,9 @@ When you solve a new Quarto/pandoc/Word pathology, **append** it to `docs/docx-q
 
 ## Commits and releases
 
-- Keep `tests/` green and `tools/bytecompare.py check --target both` clean (or allowlisted with justification in `tools/bytecompare-allow.txt` and `OVERNIGHT-LOG.md`).
+- Keep `tests/` green and `tools/bytecompare.py check --target both` clean (or allowlisted with justification in `tools/bytecompare-allow.txt`; the 2026-08-24 baseline story is in `plans/archive/OVERNIGHT-LOG.md`).
 - Commit per verified phase (one logical change + its tests). The overnight uplift used `f0a50a4` (docxpatch) → `eb6eec7` (styles) → `81e8be4` (profiles) → `626886b` (engine+SI cover fixes tests-first) → `b0a6f86` (CLI) as the template; `ms-r0-sent` unblocking was `b1a8084` (style fallback flip) + skill thinning + `legacy/` removal.
-- `CHANGELOG.md` is frozen historical context after Statutor adoption. Record
+- `docs/CHANGELOG.md` is frozen historical context after Statutor adoption. Record
   future history with conventional commits and release tags; keep
   `CITATION.cff` version/date synchronized when cutting a release.
 
