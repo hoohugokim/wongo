@@ -30,29 +30,55 @@ import tempfile
 from pathlib import Path
 
 from docx import Document
+from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 
 OUT = Path(__file__).resolve().parent.parent / "assets" / "reference.docx"
 BODY_FONT = "Times New Roman"
 
 
+def _style_by_name(doc: Document, style_name: str):
+    """Exact UI-name lookup; `doc.styles[name]` round-trips through
+    python-docx's alias table and hits a deprecated style-id fallback on
+    pandoc's capitalized "Caption" (see wongo docs/docx-quirks.md)."""
+    for style in doc.styles:
+        if style.name == style_name:
+            return style
+    return None
+
+
+def _set_font(style, name: str) -> None:
+    """Literal font on all four rFonts slots with the theme links removed.
+
+    A w:asciiTheme/w:hAnsiTheme attribute outranks the literal w:ascii/w:hAnsi
+    on the same rFonts, so pandoc's theme-linked heading styles would keep
+    rendering in Word's theme font (Aptos) under a house style that leaves
+    reference-doc fonts alone (see wongo docs/docx-quirks.md)."""
+    style.font.name = name
+    rfonts = style.element.get_or_add_rPr().get_or_add_rFonts()
+    rfonts.set(qn("w:eastAsia"), name)
+    rfonts.set(qn("w:cs"), name)
+    for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+        if rfonts.get(qn(attr)) is not None:
+            del rfonts.attrib[qn(attr)]
+
+
 def restyle(doc: Document) -> None:
     body = doc.styles["Normal"]
-    body.font.name = BODY_FONT
+    _set_font(body, BODY_FONT)
     body.font.size = Pt(12)
     for name, italic in (("Heading 1", False), ("Heading 2", False), ("Heading 3", True)):
         s = doc.styles[name]
-        s.font.name = BODY_FONT
+        _set_font(s, BODY_FONT)
         s.font.size = Pt(12)
         s.font.bold = not italic
         s.font.italic = italic
         s.font.color.rgb = RGBColor(0, 0, 0)
     for name in ("Caption", "Image Caption", "Table Caption"):
-        try:
-            s = doc.styles[name]
-        except KeyError:
+        s = _style_by_name(doc, name)
+        if s is None:
             continue
-        s.font.name = BODY_FONT
+        _set_font(s, BODY_FONT)
         s.font.size = Pt(10)
         s.font.color.rgb = RGBColor(0, 0, 0)
         s.font.italic = False
