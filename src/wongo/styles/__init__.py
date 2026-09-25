@@ -38,6 +38,8 @@ from wongo.docxpatch import (
     dedupe_ppr,
     normalize_ppr_order,
 )
+from wongo.errors import ConfigError
+from wongo.textio import read_text
 
 DEFAULT_STYLE = "default"
 
@@ -51,7 +53,7 @@ def styles_dir() -> Path:
     here = Path(__file__).resolve().parent
     if (here / "default.yml").exists():
         return here
-    raise SystemExit("packaged style profiles missing; set WONGO_STYLES_DIR")
+    raise ConfigError("packaged style profiles missing; reinstall wongo or set WONGO_STYLES_DIR")
 
 
 def load_style(name: str | None) -> dict:
@@ -60,10 +62,23 @@ def load_style(name: str | None) -> dict:
     path = styles_dir() / f"{fname}.yml"
     if not path.exists():
         known = sorted(p.stem for p in styles_dir().glob("*.yml"))
-        raise SystemExit(f"style profile '{fname}' not found: {path}. Known: {', '.join(known)}")
-    style = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        raise ConfigError(f"style profile '{fname}' not found: {path}. Known: {', '.join(known)}")
+    try:
+        style = yaml.safe_load(read_text(path)) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"{path} is not valid YAML: {exc}") from exc
     style["_name"] = fname
     return style
+
+
+def list_styles() -> list[dict]:
+    """Name and description of every packaged house style."""
+    listed = []
+    for path in sorted(styles_dir().glob("*.yml")):
+        style = load_style(path.stem)
+        listed.append({"name": path.stem,
+                       "description": " ".join(str(style.get("description", "")).split())})
+    return listed
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +89,7 @@ def read_front_matter(project: Path, qmd: str = "index.qmd") -> dict:
     """Parse the leading YAML block of a .qmd (pandoc drops author
     affiliations from the docx entirely, so the title-page rebuild needs the
     source metadata)."""
-    lines = (project / qmd).read_text(encoding="utf-8").splitlines()
+    lines = read_text(project / qmd).splitlines()
     if not lines or lines[0].strip() != "---":
         return {}
     try:

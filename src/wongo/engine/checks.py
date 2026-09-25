@@ -9,17 +9,19 @@ record why in docs/docx-quirks.md.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from wongo.errors import InputError
 from wongo.profiles import (
     load_journal_config,
     load_profile,
     manuscript_type,
     profile_staleness_days,
 )
+from wongo.textio import read_text
 
 STALE_DAYS = 183
 
@@ -141,7 +143,10 @@ def bibliography_paths(project: Path, index_text: str) -> list[Path]:
     collect(meta.get("bibliography"))
     quarto_yml = project / "_quarto.yml"
     if quarto_yml.exists():
-        cfg = yaml.safe_load(quarto_yml.read_text(encoding="utf-8")) or {}
+        try:
+            cfg = yaml.safe_load(read_text(quarto_yml)) or {}
+        except yaml.YAMLError:
+            cfg = {}
         collect(cfg.get("bibliography"))
     if not names:
         names = ["refs.bib"]
@@ -165,6 +170,22 @@ class Check:
     level: str  # "HARD" | "WARN"
     ok: bool
     detail: str
+    locations: list[str] = field(default_factory=list)  # "index.qmd:12: @key"
+
+
+def _locations(texts: dict[str, str], items: list[str], pattern) -> list[str]:
+    """file:line hints for each item, in file then line order."""
+    found = []
+    for name, text in texts.items():
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for item in items:
+                if pattern(item).search(line):
+                    found.append(f"{name}:{lineno}: {item}")
+    return found
+
+
+def _at_ref(item: str):
+    return re.compile(r"(?<![\w@.\\])-?@" + re.escape(item) + r"(?![\w:.#$%&+?<>~/-]*[\w])")
 
 
 def run_checks(project: Path) -> list[Check]:
@@ -178,9 +199,10 @@ def run_checks(project: Path) -> list[Check]:
     for name in ("index.qmd", "si.qmd"):
         p = project / name
         if p.exists():
-            texts[name] = p.read_text(encoding="utf-8")
+            texts[name] = read_text(p)
     if "index.qmd" not in texts:
-        raise SystemExit(f"index.qmd not found in {project}")
+        raise InputError(f"index.qmd not found in {project} (is this a wongo project? "
+                         "`wongo scaffold` creates one)")
 
     wc = word_count(texts["index.qmd"])
     limit = mtype.get("word_limit")
@@ -202,12 +224,13 @@ def run_checks(project: Path) -> list[Check]:
     bib: set[str] = set()
     for bib_path in bibliography_paths(project, texts["index.qmd"]):
         if bib_path.exists():
-            bib |= bib_keys(bib_path.read_text(encoding="utf-8"))
+            bib |= bib_keys(read_text(bib_path))
     used = set().union(*(citekeys_used(t) for t in texts.values()))
     missing = sorted(used - bib)
     checks.append(Check(
         "citekeys", "HARD", not missing,
         "all citekeys resolve" if not missing else f"missing from refs.bib: {', '.join(missing)}",
+        _locations(texts, [f"@{k}" for k in missing], lambda item: _at_ref(item[1:])),
     ))
 
     defined = set().union(*(labels_defined(t) for t in texts.values()))
@@ -215,16 +238,20 @@ def run_checks(project: Path) -> list[Check]:
     checks.append(Check(
         "crossrefs", "HARD", not orphans,
         "all cross-references resolve" if not orphans else f"orphaned: {', '.join(orphans)}",
+        _locations(texts, [f"@{o}" for o in orphans], lambda item: _at_ref(item[1:])),
     ))
 
-    missing_figs = []
+    missing_figs, missing_paths = [], []
     for name, text in texts.items():
         for rel in image_paths(text):
             if not (project / rel).exists():
                 missing_figs.append(f"{name} -> {rel}")
+                missing_paths.append(rel)
     checks.append(Check(
         "figures", "HARD", not missing_figs,
         "all referenced figures exist" if not missing_figs else "; ".join(missing_figs),
+        _locations(texts, sorted(set(missing_paths)),
+                   lambda item: re.compile(r"\(" + re.escape(item) + r"[)\s]")),
     ))
 
     days = profile_staleness_days(profile)
@@ -251,3 +278,6 @@ def print_report(checks: list[Check]) -> None:
     for c in checks:
         mark = "PASS" if c.ok else ("FAIL" if c.level == "HARD" else "WARN")
         print(f"[{mark}] {c.level:4} {c.name}: {c.detail}")
+        if not c.ok:
+            for location in c.locations:
+                print(f"      {location}")
