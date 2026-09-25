@@ -828,8 +828,10 @@ def load(path: Path | str) -> Worksheet:
 
 
 def shell_arg(path: Path | str) -> str:
-    """A path as a user would type it in a command line (quoted if it has spaces)."""
-    text = str(path)
+    """A path as a user would type it in a command line: forward slashes (which
+    cmd, PowerShell and Git Bash all accept; a backslash is an escape in Git
+    Bash, the shell Claude Code uses on Windows), quoted if it has spaces."""
+    text = Path(path).as_posix()
     return f'"{text}"' if any(ch.isspace() for ch in text) else text
 
 

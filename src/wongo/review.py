@@ -43,6 +43,11 @@ HELP = """\
 _LABEL = 10  # width of the "old:", "new:", ... column
 
 
+def _same_text(a: str, b: str) -> bool:
+    """Equal apart from line endings."""
+    return a.replace("\r\n", "\n") == b.replace("\r\n", "\n")
+
+
 @dataclass(frozen=True)
 class Decision:
     row: int
@@ -278,7 +283,9 @@ class _Session:
         """Save the decision into the file as it is now; False if the row changed."""
         fresh = Worksheet.load(self.path)
         current = fresh.find(row.number)
-        if current is None or fresh.raw_row(row.number) != shown:
+        # line endings alone do not count as a change: a Windows editor saving
+        # the worksheet turns every LF into CRLF without touching any row
+        if current is None or _same_text(fresh.raw_row(row.number), shown) is False:
             self.out(f"  Row {row.number} changed in the file while you were deciding; "
                      "here it is again.")
             return False

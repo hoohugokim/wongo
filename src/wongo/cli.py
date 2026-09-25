@@ -15,6 +15,7 @@ from pathlib import Path
 
 from wongo import __version__, worksheet_cli
 from wongo.clitools import emit_json, is_interactive
+from wongo.engine.worksheet import shell_arg
 from wongo.errors import WongoError
 from wongo.textio import configure_stdio
 
@@ -91,7 +92,7 @@ def _cmd_roundtrip(args: argparse.Namespace) -> int:
     print(f"wrote {result.worksheet} ({result.changes} changes; NONE applied — "
           "review dispositions first)")
     if result.changes:
-        print(f"next: wongo review {result.worksheet}")
+        print(f"next: wongo review {shell_arg(result.worksheet)}")
     return 0
 
 
@@ -184,7 +185,7 @@ def _cmd_scaffold(args: argparse.Namespace) -> int:
     print("next steps:")
     step = 1
     if Path.cwd().resolve() != result.dest:
-        print(f"  {step}. cd {result.dest}")
+        print(f"  {step}. cd {shell_arg(result.dest)}")
         step += 1
     if not result.journal or not result.ms_type:
         print(f"  {step}. fill in _journal.yml (journal slug + ms_type): "

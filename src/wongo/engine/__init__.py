@@ -555,6 +555,9 @@ def render_project(
         )
 
     quarto = toolchain.quarto_command()
+    unrenderable = toolchain.unrenderable_path_reason(project)
+    if unrenderable:
+        raise ToolchainError(unrenderable)
     out_dir = project / "output"
     stage = out_dir / f".stage-{target}"
     if stage.exists():

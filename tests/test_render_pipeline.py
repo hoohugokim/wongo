@@ -268,3 +268,48 @@ def test_no_command_waits_for_input_without_a_terminal(tmp_path):
 
     assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
     assert (tmp_path / "new" / "_journal.yml").is_file()
+
+
+# ---------------------------------------------------------------------------
+# Quarto on Windows converts file paths to the ANSI code page in its Lua
+# filters; a folder name outside that code page crashes the render.
+
+
+def _windows_codepage(monkeypatch, codepage: str) -> None:
+    monkeypatch.setattr(toolchain, "platform_name", lambda: "windows")
+    monkeypatch.setattr(toolchain.locale, "getencoding", lambda: codepage)
+
+
+def test_windows_render_refuses_a_folder_outside_the_code_page(stub_quarto, project_factory, monkeypatch):
+    project = project_factory(name="원고 예제")
+    _windows_codepage(monkeypatch, "cp1252")
+
+    with pytest.raises(ToolchainError) as excinfo:
+        render_project(project, "collab")
+
+    message = str(excinfo.value)
+    assert "code page (cp1252)" in message
+    assert "(here: '원고')" in message
+    assert stub_quarto.renders() == []
+
+
+@pytest.mark.parametrize("codepage", ["cp949", "utf-8", "cp65001"])
+def test_windows_render_accepts_hangul_where_the_code_page_has_it(stub_quarto, project_factory, monkeypatch, codepage):
+    project = project_factory(name="원고 예제")
+    _windows_codepage(monkeypatch, codepage)
+
+    result = render_project(project, "collab")
+
+    assert [p.name for p in result.outputs] == ["main-collab.docx", "si-collab.docx"]
+
+
+def test_doctor_flags_a_project_folder_quarto_cannot_render_in(stub_quarto, project_factory, monkeypatch):
+    from wongo import doctor
+
+    project = project_factory(name="원고 예제")
+    _windows_codepage(monkeypatch, "cp1252")
+    monkeypatch.setattr(toolchain, "find_rscript", lambda: None)
+
+    checks = {c.name: c for c in doctor.run_doctor(project)}
+
+    assert checks["project-path"].level == "HARD" and not checks["project-path"].ok

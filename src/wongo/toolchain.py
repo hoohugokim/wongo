@@ -14,6 +14,7 @@ that the shell would find.
 """
 from __future__ import annotations
 
+import locale
 import os
 import re
 import shutil
@@ -153,6 +154,43 @@ def tool_version(cmd: list[str], args: tuple[str, ...] = ("--version",),
         return None
     match = re.search(r"\d+\.\d+(?:\.\d+)?", done.stdout + done.stderr)
     return match.group(0) if match else None
+
+
+def windows_codepage() -> str | None:
+    """The ANSI code page Windows programs use for file names (Quarto's Lua
+    filters convert paths to it), or None off Windows."""
+    if platform_name() != "windows":
+        return None
+    return locale.getencoding()
+
+
+def unrenderable_path_reason(path: Path) -> str | None:
+    """Why Quarto cannot render in `path` on this Windows machine, or None.
+
+    Quarto 1.10's Lua filters convert paths to the ANSI code page before
+    opening files; a character outside it (e.g. Hangul on a Western-locale
+    Windows, where the code page is cp1252) crashes the render with a Lua
+    traceback. Korean Windows (cp949) and the system-wide UTF-8 option are
+    fine."""
+    codepage = windows_codepage()
+    if not codepage or codepage.lower().replace("-", "") in ("utf8", "cp65001"):
+        return None
+    text = str(path)
+    try:
+        text.encode(codepage)
+    except UnicodeEncodeError as exc:
+        return (
+            f"Quarto on Windows cannot render inside a folder whose path has characters "
+            f"your system code page ({codepage}) cannot represent (here: {text[exc.start:exc.end]!r}):\n"
+            f"  {text}\n"
+            "  Move or rename the project folder to use only English letters, digits, '-' and '_'\n"
+            "  (e.g. C:\\papers\\wetland-study), or turn on 'Beta: Use Unicode UTF-8 for worldwide\n"
+            "  language support' in Windows Settings > Time & language > Language & region >\n"
+            "  Administrative language settings, then restart."
+        )
+    except LookupError:
+        return None
+    return None
 
 
 def quarto_version_tested(version: str | None) -> bool:

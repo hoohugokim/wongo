@@ -139,7 +139,7 @@ def test_patch_compat_mode_standalone(tmp_path):
 
     for initial in (None, 'w:val="14"'):
         doc = Document()
-        path = tmp_path / f"compat-{initial}.docx"
+        path = tmp_path / f"compat-{'absent' if initial is None else 'v14'}.docx"
         doc.save(str(path))
         if initial is not None:
             with zipfile.ZipFile(str(path)) as z:

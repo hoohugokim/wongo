@@ -262,7 +262,7 @@ def test_status_points_to_review_while_worksheet_rows_are_open(cli, stub_quarto,
     body = json.loads(out)["status"]
     assert code == 0, err
     assert body["worksheet_open"] == 1
-    assert body["next_command"] == f"wongo review {Path('decisions') / worksheet.name}"
+    assert body["next_command"] == f"wongo review decisions/{worksheet.name}"
 
     assert cli("worksheet", "set", str(worksheet), "1", "PROPOSED apply — plain prose")[0] == 0
     assert cli("worksheet", "lint", str(worksheet))[0] == 1  # a proposal is not a decision

@@ -137,6 +137,10 @@ def system_checks(project: Path | None) -> list[Check]:
                 f"the project path is {len(str(project))} characters; Windows tools can fail "
                 "beyond 260, so prefer a shorter folder such as C:\\papers\\<name>",
             ))
+    if project is not None and toolchain.platform_name() == "windows":
+        reason = toolchain.unrenderable_path_reason(project)
+        checks.append(Check("project-path", "HARD", reason is None,
+                            "Quarto can render in this folder" if reason is None else reason))
     if project is not None and any(part.lower().startswith("onedrive") for part in project.parts):
         checks.append(Check(
             "sync-folder", "WARN", False,

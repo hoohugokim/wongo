@@ -440,3 +440,22 @@ fatal). Pinned by `test_roundtrip_and_report_work_under_a_korean_legacy_locale`,
 2026-09-25 / The scaffold now sets this `_quarto.yml` key so visual editors keep
 one sentence per line. Verified with real Quarto that renders with and without
 it are identical in every compared part. Versions: quarto 1.10.18.
+
+## Quarto on Windows cannot render in a folder outside the system code page
+
+2026-09-25 / Windows CI: rendering `wongo scaffold --example` inside a folder
+named "원고 예제" failed in Quarto's own filter with `recoverEncode: invalid
+argument (cannot encode character '\50896')` from `convert_from_utf8`, called
+by `io.open` in `writeFullIndex` (quarto share/filters/main.lua). Cause: on
+Windows (`pandoc.system.os == "mingw32"`) Quarto's Lua layer converts file
+paths from UTF-8 to the ANSI code page before opening them; GitHub's Windows
+runners use cp1252, which has no Hangul. Korean Windows uses cp949, which does,
+and the system-wide "Beta: Use Unicode UTF-8" option (code page 65001) avoids it
+entirely. wongo cannot fix Quarto, so `toolchain.unrenderable_path_reason()`
+checks the project path against `locale.getencoding()` before Quarto runs:
+`wongo render` stops with the fix (rename or move the folder, or enable the
+UTF-8 option) and `wongo doctor` reports a HARD `project-path` finding. The
+Windows e2e job asserts both. Also from the same runs: Posit's binary R
+mirror must not be overridden with `repos=` on Linux CI, or rmarkdown's
+dependency `fs` compiles from source and fails without libuv headers.
+Versions: quarto 1.10.18, Windows Server 2022 runner (cp1252).

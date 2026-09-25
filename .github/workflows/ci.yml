@@ -52,7 +52,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            folder: 원고 예제
+          - os: macos-latest
+            folder: 원고 예제
+          # Windows runners use code page cp1252, which has no Hangul; Quarto
+          # cannot render there (see the next step), so the full flow runs in
+          # an ASCII folder with a space in its name.
+          - os: windows-latest
+            folder: wongo example
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,7 +74,8 @@ jobs:
         with:
           use-public-rspm: true
       - name: R packages
-        run: Rscript -e "install.packages(c('knitr', 'rmarkdown', 'jsonlite'), repos = 'https://cloud.r-project.org')"
+        # no repos= override: setup-r points Linux at Posit's binary mirror
+        run: Rscript -e "install.packages(c('knitr', 'rmarkdown', 'jsonlite'))"
       - name: Install wongo
         run: |
           python -m pip install --upgrade pip
@@ -75,8 +85,8 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          wongo scaffold "원고 예제" --example
-          cd "원고 예제"
+          wongo scaffold "${{ matrix.folder }}" --example
+          cd "${{ matrix.folder }}"
           wongo doctor
           wongo check --strict
           wongo render --target collab
@@ -99,6 +109,24 @@ jobs:
               assert "Contents: 1 figures, 1 tables" in z.read("word/document.xml").decode()
           print("e2e OK")
           PY
+      - name: A Hangul folder on a cp1252 Windows is refused with the fix, not a Quarto crash
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "$RUNNER_TEMP"
+          wongo scaffold "원고 예제" --example
+          cd "원고 예제"
+          if wongo render --target collab 2> render-err.txt; then
+            echo "render should have been refused"; exit 1
+          fi
+          grep -q "system code page (cp1252)" render-err.txt
+          grep -q "Move or rename the project folder" render-err.txt
+          if wongo doctor > doctor.txt; then
+            echo "doctor should report the folder"; exit 1
+          fi
+          grep -q "\[FAIL\] HARD project-path" doctor.txt
+          echo "refusal OK"
 
   build:
     name: wheel + sdist build

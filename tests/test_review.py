@@ -376,3 +376,16 @@ def test_repeated_row_numbers_and_missing_project_are_refused(project):
         review(sheet_of(project), project / "nope", input_fn=Script(), print_fn=Output())
     with pytest.raises(InputError, match="not a merge worksheet"):
         review(project / "index.qmd", project, input_fn=Script(), print_fn=Output())
+
+
+def test_an_editor_resaving_with_crlf_does_not_block_a_decision(project):
+    """Windows editors rewrite every line ending; the row on screen is the same."""
+
+    def editor_saves_as_crlf():
+        raw = sheet_of(project).read_bytes().replace(b"\r\n", b"\n")
+        sheet_of(project).write_bytes(raw.replace(b"\n", b"\r\n"))
+        return "3"
+
+    run(project, editor_saves_as_crlf, "0")
+    ws = Worksheet.load(sheet_of(project))
+    assert ws.row(1).disposition.text == f"fix-code — was {PROPOSE_APPLY}"

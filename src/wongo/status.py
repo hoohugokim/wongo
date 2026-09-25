@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from wongo import toolchain
-from wongo.engine.worksheet import Worksheet
+from wongo.engine.worksheet import Worksheet, shell_arg
 from wongo.errors import WongoError
 
 WORKSHEET_GLOB = "merge-*.md"
@@ -86,14 +86,14 @@ def project_status(project: Path) -> Status:
         status.outputs[target] = output_freshness(project, target)
     sheet = _latest_worksheet(project)
     if sheet is not None:
-        status.worksheet = str(sheet.relative_to(project))
+        status.worksheet = sheet.relative_to(project).as_posix()
         status.worksheet_open = _open_rows(sheet) or 0
 
     collab = status.outputs["collab"]["state"]
     if status.quarto is None:
         status.next_command, status.next_reason = "wongo doctor", "Quarto was not found"
     elif status.worksheet and status.worksheet_open:
-        status.next_command = f"wongo review {status.worksheet}"
+        status.next_command = f"wongo review {shell_arg(status.worksheet)}"
         status.next_reason = f"{status.worksheet_open} coauthor edit(s) still need a decision"
     elif status.hard_failures:
         status.next_command = "wongo check"

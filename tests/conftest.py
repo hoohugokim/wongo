@@ -34,7 +34,8 @@ def stub_quarto(tmp_path, monkeypatch) -> StubQuarto:
     bindir.mkdir()
     if os.name == "nt":
         wrapper = bindir / "quarto.bat"
-        wrapper.write_text(f'@echo off\r\n"{sys.executable}" "{STUB}" %*\r\n', encoding="utf-8")
+        # text mode writes CRLF on Windows, which is what cmd.exe expects
+        wrapper.write_text(f'@echo off\n"{sys.executable}" "{STUB}" %*\n', encoding="utf-8")
     else:
         wrapper = bindir / "quarto"
         wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{STUB}" "$@"\n', encoding="utf-8")
