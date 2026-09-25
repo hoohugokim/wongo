@@ -2,7 +2,7 @@
 # TASKS
 
 - [x] T-0001 Review and commit the current quality fixes plus Statutor conversion with all local gates green (committed 2026-09-19 as `ce35ad9`..`62e0d07` plus the ledger commit; see notes/overnight-2026-09-19.md).
-- [ ] T-0002 Set `WONGO_REF_PROJECT` and pass byte comparison for collab and submission targets (baseline from `ad6019d` first; expect `si-*/document.xml` cover-count diff only, allowlisted). Then tag `v0.2.0` and push (D-0007).
+- [ ] T-0002 Set `WONGO_REF_PROJECT` and pass byte comparison for collab and submission targets (baseline from `ad6019d` first; expect `si-*/document.xml` cover-count diff only, allowlisted). Then tag `v0.2.0` and push (D-0007). BLOCKED by T-0017.
 - [ ] T-0003 Design a reference-inclusive word-count gate for profiles such as Water Research without false precision.
 - [x] T-0004 Decide whether to formalize Ruff/Pyright configuration and python-docx factory type aliases (D-0004: ruff+pytest config in pyproject, CI lint step; Pyright/type aliases deferred).
 - [x] T-0005 Fix `wongo render` crash for styles without `page:` geometry (pandoc 3.10 reference doc has no pgSz) — `default` style was unusable.
@@ -17,3 +17,8 @@
 - [x] T-0014 `wongo roundtrip --qmd` for SI renders; robustness guards (empty SI body, abstract/authors as last paragraph).
 - [x] T-0015 Profile reference-doc builders: strip theme font attributes from heading styles so the `default` style does not fall back to Aptos (`eac0f96`; all seven reference.docx regenerated; kist-wcr renders verified byte-identical via canonical rFonts order in `set_fonts`).
 - [x] T-0016 Decide the next release boundary (v0.2.0: diff v2, contract lint, default-style fix) and bump `pyproject`/`CITATION.cff`/`__init__` together (`62e0d07`, D-0007; tag/push after T-0002).
+- [ ] T-0017 `tools/bytecompare.py` renders into the LIVE reference project since `a02eac4` (`prepare_project` returns `root_src/"manuscript"`, not the scratch copy) and can pass on stale `output/*.docx` and stale `candidate/` trees; fix before any T-0002 run.
+- [ ] T-0018 Collab DOCX writes `<w:trackChanges/>`, which is not an OOXML CT_Settings element (correct: `<w:trackRevisions/>`); tracking is likely not on when coauthors open it. Fix, re-pin tests, allowlist collab `settings.xml`, verify in Word.
+- [ ] T-0019 Renders are not all-or-nothing: raw DOCX lands in `output/` before post-processing and main is finalized before SI renders, so a later failure leaves a partial deliverable (stage into `output/.stage-<target>/`, move on success).
+- [ ] T-0020 Environment floor: `wongo doctor`, a quarto-missing preflight instead of a raw FileNotFoundError, and UTF-8 decoding in roundtrip (Hangul crashes and °C→째C mojibake under a CP949 locale).
+- [ ] T-0021 Decide the TUI proposal per notes/tui-feasibility-2026-09-25.md (recommendation: no full TUI now; fix T-0017..T-0020 first; S4 review loop only on real demand).

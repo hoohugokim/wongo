@@ -1,15 +1,15 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-09-19 by `uv run pytest -q` (111 passed) + ruff (AGENTS command) + `uv build` (wongo-0.2.0)
+last_verified: 2026-09-25 by `uv run pytest -q` (111 passed) + ruff (AGENTS command) + CLI smoke (wongo 0.2.0)
 last_worker: claude
 last_machine: unknown
-handoff_id: 83a7660b3041a9eaf5d44ca432de4769
-supersedes: none
+handoff_id: 321bd04f1c682ff460837104e62e8290
+supersedes: 83a7660b3041a9eaf5d44ca432de4769
 
 ## Goal
-Cut v0.2.0: everything is committed (`ce35ad9`..`62e0d07` + ledger); only the
-reference-manuscript byte comparison and the tag/push remain (T-0002, D-0007).
+Cut v0.2.0: `main` is pushed to origin at `99ae645` with CI and CodeQL green; only the
+reference-manuscript byte comparison and the tag remain (T-0002, D-0007).
 
 ## Last verified state
 - 111 tests green (Python 3.13 and 3.11); ruff clean; wheel 0.2.0 carries package data;
@@ -31,7 +31,7 @@ reference-manuscript byte comparison and the tag/push remain (T-0002, D-0007).
    Release with `dist/wongo-0.2.0-*` from `uv build`. On FAIL: fix, never allowlist blind.
 
 ## Gotchas
-- pandoc 3.10's default reference.docx has no pgSz/pgMar; styles without `page:` must work.
+- DO NOT run step 1 before T-0017: bytecompare writes into the LIVE reference output/.
 - pandoc sorts rFonts attributes when copying reference styles; `set_fonts` canonicalizes.
 
 ## Do not touch
