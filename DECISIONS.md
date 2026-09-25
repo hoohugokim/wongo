@@ -42,3 +42,27 @@
 **Context:** v0.1.0 was the first shareable package. Since then the engine gained a materially different `wongo diff`, a profile contract lint, regenerated reference docs, and fixes that change the `default` style's output — more than a patch release, no breaking CLI changes.
 **Decision:** Bump `pyproject.toml`, `wongo.__version__`, and `CITATION.cff` together to 0.2.0 (a test pins their agreement). The annotated tag `v0.2.0`, the push, and the GitHub Release wheel are cut only after `tools/bytecompare.py check --target both` passes against the reference manuscript (T-0002); PyPI publication stays deferred.
 **Consequences:** Version bumps are one commit touching three files; a release without a clean byte comparison is not allowed; the frozen CHANGELOG is not updated (D-0003) — the tag message and commit history carry the notes.
+
+## D-0008 — The engine speaks WongoError and results; the CLI owns all output; renders are all-or-nothing
+**Status:** accepted (2026-09-25, T-0019, T-0020)
+**Context:** Errors travelled as SystemExit (silently lost in worker threads, fatal to asyncio loops, invisible to `except Exception`), results as print() calls, and a failure after Quarto left a half-processed DOCX in output/ — a breach of the no-partial-deliverable rule that a Word lock on Windows triggers routinely.
+**Decision:** User-fixable errors are `wongo.errors.WongoError` subclasses whose message states the fix; keyword details (e.g. the failing checks of a refused render) travel with them. Engine functions return dataclasses and print nothing. Every command accepts `--json` and then prints exactly one object `{command, wongo, ok, ...}`, errors included, with exit code 1 on failure. Renders stage Quarto output under `.wongo-stage-*` and post-process in `output/.stage-<target>/`; `promote()` backs up existing outputs, restores them on any failure, and reports a Word lock as OutputLockedError. `output/.wongo-manifest.json` records versions, config and source hashes for freshness checks.
+**Consequences:** The Claude skill reads JSON instead of parsing prose; a render either replaces all outputs or none; the staging file name was verified not to change any compared DOCX part, and the byte comparison against v0.2.0 differs only in the intended collab `trackRevisions` fix.
+
+## D-0009 — Worksheet decisions: the agent proposes, a person decides, wongo never edits the .qmd
+**Status:** accepted (2026-09-25)
+**Context:** `wongo roundtrip` wrote a worksheet of PENDING rows that nothing read back; decisions lived in free-form Markdown edits, with no check that every row was decided before edits reached the manuscript.
+**Decision:** The worksheet grammar is PENDING, `PROPOSED <final> — <rationale>`, and the finals `apply`, `fix-code`, `needs-PI`, `reject: <reason>`. The agent writes proposals with `wongo worksheet set`; a person confirms with `wongo review` (digits only, saved after each row) or by explicit per-row approval in chat. `wongo worksheet lint` must pass before any approved row is applied, and `apply` is refused on UNMATCHED locations and unparsed rows. Overriding a proposal keeps it as `was PROPOSED ...`. wongo itself never writes a .qmd (the roundtrip rule stands).
+**Consequences:** Every coauthor edit has an auditable decision; the Markdown file stays the single record and round-trips byte-for-byte; applying edits remains a deliberate human or agent step outside wongo.
+
+## D-0010 — The Claude front door ships with wongo: a plugin marketplace in this repo and agent files in every scaffold
+**Status:** accepted (2026-09-25; KIST allows Claude with this skill as the front door)
+**Context:** Non-technical lab members, on Windows as well as macOS, should use wongo by talking to Claude. The spine skill lived only in the maintainer's ~/.claude/skills, so nobody else could install it.
+**Decision:** The repository is a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) whose plugin (`integrations/claude-code/`) carries the wongo skill; journal judgment stays in the profiles and is reached through `wongo profile show <slug> --json`. `wongo scaffold` writes agent instruction files and editor tasks into each new project; the templates ship with a `.tmpl` suffix so this repo's own agents never read them as instructions. Installing wongo needs no git: uv installs from the GitHub source archive.
+**Consequences:** One install path for Claude users on both platforms; the maintainer's personal skills become optional; PyPI publication (T-0022) would shorten the install further.
+
+## D-0011 — The TUI is deferred; interactive surfaces are line-oriented and digit-driven
+**Status:** accepted (2026-09-25, resolves T-0021; notes/tui-feasibility-2026-09-25.md)
+**Context:** A full terminal UI was judged feasible but low-value now: the hard parts of wongo (toolchain setup, .qmd authoring, S4 judgment) sit where no screen reaches, and Textual carries Korean input-method and maintenance risks.
+**Decision:** No full-screen TUI. Interaction happens through standard-library prompts that appear only at a real terminal (`clitools.is_interactive()`), choose with digits, and never block CI, the byte-compare harness or the agent. Revisit only if a pilot with real labmates shows screens, not setup or writing, are the bottleneck.
+**Consequences:** No new runtime dependencies; prompts work with a Korean input method on; the CLI plus the Claude front door is the interface.

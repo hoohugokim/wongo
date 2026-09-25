@@ -18,7 +18,12 @@
 - [x] T-0015 Profile reference-doc builders: strip theme font attributes from heading styles so the `default` style does not fall back to Aptos (`eac0f96`; all seven reference.docx regenerated; kist-wcr renders verified byte-identical via canonical rFonts order in `set_fonts`).
 - [x] T-0016 Decide the next release boundary (v0.2.0: diff v2, contract lint, default-style fix) and bump `pyproject`/`CITATION.cff`/`__init__` together (`62e0d07`, D-0007; tag/push after T-0002).
 - [x] T-0017 `tools/bytecompare.py` renders into the LIVE reference project since `a02eac4` and can pass on stale outputs (fixed in `37e030c` and `34e8150`: renders a scratch copy, fails on missing outputs, `--repo` for release baselines).
-- [ ] T-0018 Collab DOCX writes `<w:trackChanges/>`, which is not an OOXML CT_Settings element (correct: `<w:trackRevisions/>`); tracking is likely not on when coauthors open it. Fix, re-pin tests, allowlist collab `settings.xml`, verify in Word.
-- [ ] T-0019 Renders are not all-or-nothing: raw DOCX lands in `output/` before post-processing and main is finalized before SI renders, so a later failure leaves a partial deliverable (stage into `output/.stage-<target>/`, move on success).
-- [ ] T-0020 Environment floor: `wongo doctor`, a quarto-missing preflight instead of a raw FileNotFoundError, and UTF-8 decoding in roundtrip (Hangul crashes and °C→째C mojibake under a CP949 locale).
-- [ ] T-0021 Decide the TUI proposal per notes/tui-feasibility-2026-09-25.md (recommendation: no full TUI now; fix T-0017..T-0020 first; S4 review loop only on real demand).
+- [x] T-0018 Collab DOCX wrote the non-schema `<w:trackChanges/>`; now `<w:trackRevisions/>` (Word confirms tracking on; byte comparison vs v0.2.0 differs only in this element).
+- [x] T-0019 Renders are all-or-nothing: staged Quarto output, post-processing in `output/.stage-<target>/`, backup-and-promote, Word locks reported (D-0008).
+- [x] T-0020 Environment floor: `wongo doctor`, `wongo status`, Quarto/R discovery with per-OS install hints, UTF-8 everywhere (CP949 roundtrip crash, BOM sources, redirected output).
+- [x] T-0021 TUI deferred by the maintainer (D-0011); the S4 review loop was built as a line-oriented `wongo review` instead (D-0009).
+- [ ] T-0022 Publish wongo to PyPI (trusted publishing from GitHub Actions) so the install becomes `uv tool install wongo`; needs the maintainer's PyPI account setup.
+- [ ] T-0023 Nature-family counting rules exclude the abstract, Methods and figure legends, but `wongo check` counts them, so natwater/npj manuscripts can FAIL the word limit falsely; add per-type exclusions.
+- [ ] T-0024 After `feat/windows-front-door` merges: bump to v0.3.0, tag and release (parity vs v0.2.0 already verified on 2026-09-25: only the collab trackRevisions rename differs).
+- [ ] T-0025 Smoke-test on a real Windows PC with a Korean user account: Claude desktop + plugin setup, Korean IME in `wongo review`, rendering while Word has a file open.
+- [ ] T-0026 With the maintainer's OK, retire the legacy `scripts/` and `*.bak-pre-wongo*` files in ~/.claude/skills/quarto-manuscript-* and point the personal skills at the wongo plugin.
