@@ -14,7 +14,7 @@ import textwrap
 from pathlib import Path
 
 from wongo import __version__, worksheet_cli
-from wongo.clitools import emit_json, is_interactive
+from wongo.clitools import display_path, emit_json, is_interactive
 from wongo.engine.worksheet import shell_arg
 from wongo.errors import WongoError
 from wongo.textio import configure_stdio
@@ -92,7 +92,7 @@ def _cmd_roundtrip(args: argparse.Namespace) -> int:
     print(f"wrote {result.worksheet} ({result.changes} changes; NONE applied — "
           "review dispositions first)")
     if result.changes:
-        print(f"next: wongo review {shell_arg(result.worksheet)}")
+        print(f"next: wongo review {shell_arg(display_path(result.worksheet))}")
     return 0
 
 

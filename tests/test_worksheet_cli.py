@@ -9,7 +9,7 @@ import unicodedata
 import pytest
 
 from wongo import clitools
-from wongo.engine.worksheet import Worksheet
+from wongo.engine.worksheet import Worksheet, shell_arg
 from wongo.errors import InputError
 from wongo.worksheet_cli import (
     add_parsers,
@@ -138,7 +138,7 @@ def test_status_text(project, capsys):
     assert table[3].split()[-2:] == ["index.qmd:UNMATCHED", "PENDING"]
     # Hangul takes two terminal columns: the location column still lines up.
     assert columns(table[1], "index.qmd:5") == columns(table[2], "index.qmd:6")
-    assert lines[-1] == f"next: wongo review {path}"
+    assert lines[-1] == f"next: wongo review {shell_arg(path)}"
 
 
 def test_status_json(project, capsys):
@@ -151,13 +151,13 @@ def test_status_json(project, capsys):
     assert body["rows"][1]["author"] == "김민수"
     assert body["rows"][1]["state"] == "proposed" and body["rows"][1]["proposal"] == "fix-code"
     assert body["rows"][2]["unmatched"] is True and body["rows"][2]["line"] is None
-    assert body["next"] == f"wongo review {path}"
+    assert body["next"] == f"wongo review {shell_arg(path)}"
 
 
 def test_status_points_to_lint_when_everything_is_decided(project, capsys):
     path = write_sheet(project, DECIDED)
     run("worksheet", "status", path)
-    assert capsys.readouterr().out.splitlines()[-1] == f"next: wongo worksheet lint {path}"
+    assert capsys.readouterr().out.splitlines()[-1] == f"next: wongo worksheet lint {shell_arg(path)}"
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ def test_lint_fails_while_rows_need_decisions(project, capsys):
     assert out[0].startswith("row 2: error: PROPOSED fix-code is not confirmed")
     assert out[1].startswith("row 3: error: still PENDING")
     assert out[-2] == "lint: 2 errors, 0 warnings — not ready to apply"
-    assert out[-1] == f"next: wongo review {path}"
+    assert out[-1] == f"next: wongo review {shell_arg(path)}"
 
 
 def test_lint_json(project, capsys):
@@ -333,3 +333,20 @@ def test_resolve_worksheet_and_default_project(project, tmp_path_factory, monkey
     loose = tmp_path_factory.mktemp("loose") / "merge.md"
     loose.write_text(SHEET, encoding="utf-8")
     assert default_project(loose) == project.resolve()  # the current folder
+
+
+def test_set_confirming_a_proposal_keeps_the_rationale(project):
+    path = write_sheet(project, SHEET)
+
+    assert run("worksheet", "set", path, "2", "fix-code") == 0
+
+    assert Worksheet.load(path).row(2).disposition.text == "fix-code — inline R value"
+
+
+def test_set_overriding_a_proposal_keeps_it_on_record(project):
+    path = write_sheet(project, SHEET)
+
+    assert run("worksheet", "set", path, "2", "apply") == 0
+
+    assert (Worksheet.load(path).row(2).disposition.text
+            == "apply — was PROPOSED fix-code — inline R value")

@@ -48,3 +48,13 @@ def is_interactive() -> bool:
         return sys.stdin.isatty() and sys.stdout.isatty()
     except (AttributeError, ValueError):
         return False
+
+
+def display_path(path: Path) -> Path:
+    """`path` relative to the current folder when it lies inside it: shorter to
+    read and to paste into the next command."""
+    path = Path(path)
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        return path

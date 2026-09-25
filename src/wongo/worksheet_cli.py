@@ -187,8 +187,13 @@ def cmd_set(args: argparse.Namespace) -> int:
         before = ws.row(args.row).location
         changes["location"] = {"old": before, "new": ws.set_location(args.row, args.location).location}
     if value is not None:
-        before = ws.row(args.row).disposition.text
-        after = ws.set_disposition(args.row, value).disposition.text
+        current = ws.row(args.row).disposition
+        before = current.text
+        if check_disposition(value).state == "final" and current.state in ("proposed", "final"):
+            # recording a decision: keep the agent's rationale ("was PROPOSED ...")
+            after = ws.decide(args.row, value).disposition.text
+        else:
+            after = ws.set_disposition(args.row, value).disposition.text
         changes["disposition"] = {"old": before, "new": after}
     changed = any(c["old"] != c["new"] for c in changes.values())
     if changed:

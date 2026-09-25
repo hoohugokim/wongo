@@ -154,3 +154,19 @@ def test_scaffold_output_text(cli, tmp_path):
     assert code == 0
     assert (dest / "_journal.yml").is_file()
     assert out.splitlines()[0] == f"scaffolded {dest.resolve()}"
+
+
+def test_roundtrip_next_step_is_relative_when_run_inside_the_project(cli, stub_quarto, wongo_project,
+                                                                     tmp_path, monkeypatch):
+    markdown = tmp_path / "pandoc.md"
+    markdown.write_text('Body [now]{.insertion author="A" date="2026-09-01T00:00:00Z"} ok.\n',
+                        encoding="utf-8")
+    monkeypatch.setenv("WONGO_STUB_PANDOC_MD_FILE", str(markdown))
+    coauthor = _docx(tmp_path / "coauthor.docx", ["Body now ok."])
+    monkeypatch.chdir(wongo_project)
+
+    code, out, err = cli("roundtrip", str(coauthor))
+
+    assert code == 0, err
+    name = next((wongo_project / "decisions").glob("merge-*.md")).name
+    assert out.splitlines()[-1] == f"next: wongo review decisions/{name}"
