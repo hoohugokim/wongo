@@ -13,15 +13,10 @@ import sys
 import textwrap
 from pathlib import Path
 
-from wongo import __version__
+from wongo import __version__, worksheet_cli
 from wongo.clitools import emit_json, is_interactive
 from wongo.errors import WongoError
 from wongo.textio import configure_stdio
-
-try:  # the S4 worksheet commands live in their own module
-    from wongo import worksheet_cli
-except ImportError:  # pragma: no cover - ships with wongo
-    worksheet_cli = None
 
 
 def _json(args: argparse.Namespace) -> bool:
@@ -429,8 +424,7 @@ def build_parser() -> argparse.ArgumentParser:
     sl = ssub.add_parser("list", parents=[common], help="List house styles")
     sl.set_defaults(fn=_cmd_style_list, command="style list")
 
-    if worksheet_cli is not None:
-        worksheet_cli.add_parsers(sub, common)
+    worksheet_cli.add_parsers(sub, common)  # worksheet status|lint|set, review
     return parser
 
 
@@ -442,7 +436,8 @@ def main(argv: list[str] | None = None) -> int:
     except WongoError as exc:
         if _json(args):
             emit_json(getattr(args, "command", "wongo"), False,
-                      error={"kind": exc.kind, "message": str(exc)})
+                      error={"kind": exc.kind, "message": str(exc)},
+                      **getattr(exc, "details", {}))
         else:
             print(str(exc), file=sys.stderr)
         return 1

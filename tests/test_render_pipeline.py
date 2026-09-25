@@ -183,6 +183,8 @@ def test_a_refused_render_in_json_mode_reports_the_gate(cli, stub_quarto, projec
     assert body["ok"] is False
     assert body["error"]["kind"] == "gate"
     assert "submission render refused" in body["error"]["message"]
+    failing = [c["name"] for c in body["checks"] if c["level"] == "HARD" and not c["ok"]]
+    assert failing == ["word-limit"]  # the agent can see what to fix
 
 
 def test_check_json(cli, wongo_project):

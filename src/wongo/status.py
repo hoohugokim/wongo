@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from wongo import toolchain
+from wongo.engine.worksheet import Worksheet
 from wongo.errors import WongoError
 
 WORKSHEET_GLOB = "merge-*.md"
@@ -39,17 +40,12 @@ def _latest_worksheet(project: Path) -> Path | None:
 
 
 def _open_rows(worksheet: Path) -> int | None:
-    """Rows still needing a decision, or None if the worksheet model is unavailable."""
+    """Rows still needing a decision (what `wongo review` would show), or
+    None when the worksheet cannot be read."""
     try:
-        from wongo.engine.worksheet import Worksheet
-    except ImportError:  # pragma: no cover - the model ships with wongo
-        return None
-    try:
-        sheet = Worksheet.load(worksheet)
+        return Worksheet.load(worksheet).counts().needs_decision
     except WongoError:
         return None
-    counts = sheet.counts()
-    return sum(counts.get(key, 0) for key in ("pending", "proposed", "invalid"))
 
 
 def project_status(project: Path) -> Status:

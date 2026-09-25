@@ -539,7 +539,8 @@ def render_project(
     _emit(on_event, "checks", checks=checks)
     hard = [c for c in checks if c.level == "HARD" and not c.ok]
     if hard and target == "submission":
-        raise GateError("HARD checks failed — submission render refused (fix, or render --target collab).")
+        raise GateError("HARD checks failed — submission render refused (fix, or render --target collab).",
+                        checks=checks)
 
     # Gate BEFORE quarto ever runs (backstop kept in postprocess_main).
     if (
@@ -549,7 +550,8 @@ def render_project(
     ):
         raise GateError(
             "Profile requires TOC art but figures/toc-art.{png,tif,tiff,jpg,jpeg} "
-            "is missing — submission render refused."
+            "is missing — submission render refused.",
+            checks=checks,
         )
 
     quarto = toolchain.quarto_command()

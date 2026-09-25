@@ -12,9 +12,17 @@ from __future__ import annotations
 
 
 class WongoError(Exception):
-    """An actionable error for the person running wongo."""
+    """An actionable error for the person running wongo.
+
+    Keyword arguments become `details`, which --json output includes next to
+    the error (e.g. the failing checks behind a refused submission render).
+    """
 
     kind = "error"
+
+    def __init__(self, message: str = "", **details) -> None:
+        super().__init__(message)
+        self.details = details
 
 
 class ConfigError(WongoError):

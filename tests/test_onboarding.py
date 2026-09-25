@@ -245,3 +245,42 @@ def test_style_list(cli):
     assert code == 0
     names = [line.split()[0] for line in out.splitlines()]
     assert names == ["default", "kist-wcr"]
+
+
+def test_status_points_to_review_while_worksheet_rows_are_open(cli, stub_quarto, wongo_project, tmp_path, monkeypatch):
+    markdown = tmp_path / "pandoc.md"
+    markdown.write_text('Body text [now]{.insertion author="Jane Doe" date="2026-09-01T00:00:00Z"} cites.\n',
+                        encoding="utf-8")
+    monkeypatch.setenv("WONGO_STUB_PANDOC_MD_FILE", str(markdown))
+    coauthor = tmp_path / "coauthor.docx"
+    coauthor.write_bytes(b"placeholder")
+    cli("render", "--target", "collab", "--project", str(wongo_project))
+    assert cli("roundtrip", str(coauthor), "--project", str(wongo_project))[0] == 0
+    worksheet = next((wongo_project / "decisions").glob("merge-*.md"))
+
+    code, out, err = cli("status", "--project", str(wongo_project), "--json")
+    body = json.loads(out)["status"]
+    assert code == 0, err
+    assert body["worksheet_open"] == 1
+    assert body["next_command"] == f"wongo review {Path('decisions') / worksheet.name}"
+
+    assert cli("worksheet", "set", str(worksheet), "1", "PROPOSED apply — plain prose")[0] == 0
+    assert cli("worksheet", "lint", str(worksheet))[0] == 1  # a proposal is not a decision
+    assert cli("worksheet", "set", str(worksheet), "1", "apply")[0] == 0
+    code, out, err = cli("worksheet", "lint", str(worksheet))
+    assert code == 0, out + err
+    body = json.loads(cli("status", "--project", str(wongo_project), "--json")[1])["status"]
+    assert body["worksheet_open"] == 0
+
+
+def test_review_refuses_without_a_terminal(cli, wongo_project):
+    decisions = wongo_project / "decisions"
+    decisions.mkdir()
+    sheet = decisions / "merge-20260925-x.md"
+    sheet.write_text("# Merge worksheet\n\n## 1. insertion — A\n- location: index.qmd:1\n"
+                     "- old: —\n- new: x\n- context: …\n- disposition: PENDING\n", encoding="utf-8")
+
+    code, out, err = cli("review", str(sheet))
+
+    assert code == 1
+    assert "wongo worksheet set" in err
