@@ -30,6 +30,7 @@ def _reference_repo(tmp_path: Path) -> Path:
     (proj / "output" / "si-collab.docx").write_bytes(b"stale si")
     (root / ".git").mkdir()
     (root / ".git" / "HEAD").write_text("ref: refs/heads/main", encoding="utf-8")
+    (root / ".pixi" / "envs").mkdir(parents=True)
     (root / "training").mkdir()
     (root / "training" / "data.csv").write_text("1,2", encoding="utf-8")
     return root
@@ -77,6 +78,7 @@ def test_copy_skips_git_history_and_old_renders(env):
     project = bc.prepare_project()
 
     assert not (project.parent / ".git").exists()
+    assert not (project.parent / ".pixi").exists()
     assert not (project / "output").exists()
 
 

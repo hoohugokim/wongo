@@ -27,7 +27,8 @@ Typical release check (fish):
 
 Scratch layout (WONGO_BC_SCRATCH, default <system temp>/wongo-bc):
     ref/          fresh copy of the reference repo for each render pass
-                  (.git and manuscript/output are not copied)
+                  (.git, .pixi, .venv, node_modules, __pycache__ and
+                  manuscript/output are not copied)
     baseline/     unzipped parts of the baseline render
     candidate/    unzipped parts of the render under test
     selftest-a/   selftest renders
@@ -76,14 +77,19 @@ def reference_root() -> Path:
     return root
 
 
+# Version-control history and local environments/caches are never render
+# inputs; skipping them keeps the per-pass copy small.
+SKIPPED_EVERYWHERE = {".git", ".pixi", ".venv", "node_modules", "__pycache__"}
+
+
 def _copy_filter(source_root: Path):
-    """Skip git history everywhere and previous renders in manuscript/output:
+    """Skip SKIPPED_EVERYWHERE and previous renders in manuscript/output:
     stale outputs in the copy could stand in for files a broken render never
     wrote."""
     manuscript = (source_root / "manuscript").resolve()
 
     def ignore(directory: str, names: list[str]) -> set[str]:
-        skipped = {".git"} & set(names)
+        skipped = SKIPPED_EVERYWHERE & set(names)
         if "output" in names and Path(directory).resolve() == manuscript:
             skipped.add("output")
         return skipped
