@@ -7,6 +7,7 @@ import struct
 from pathlib import Path
 
 import pytest
+from docx import Document
 
 from wongo import doctor, toolchain
 from wongo.errors import ConfigError, InputError
@@ -221,6 +222,59 @@ def test_status_flags_an_output_saved_over_in_word(cli, stub_quarto, wongo_proje
     assert "collab:     modified (main-collab.docx)" in out
 
 
+def test_status_never_says_nothing_to_do_while_an_output_was_saved_over(cli, stub_quarto, wongo_project):
+    for target in ("collab", "submission"):
+        assert cli("render", "--target", target, "--project", str(wongo_project))[0] == 0
+    main = wongo_project / "output" / "main-collab.docx"
+    main.write_bytes(main.read_bytes() + b"\0")  # a coauthor's edits saved over the render
+
+    code, out, err = cli("status", "--project", str(wongo_project), "--json")
+    body = json.loads(out)["status"]
+    assert body["outputs"]["submission"]["state"] == "fresh"
+    # rendering now would replace the edited file, so no command is offered
+    assert body["next_command"] == ""
+    assert "main-collab.docx" in body["next_reason"]
+    assert "from-coauthors" in body["next_reason"]
+
+    code, out, err = cli("status", "--project", str(wongo_project))
+    assert "nothing to do" not in out
+    assert "next:       output/main-collab.docx changed after rendering" in out
+
+
+def test_status_shows_the_style_a_render_would_use(monkeypatch, project_factory):
+    from wongo.status import project_status
+
+    project = project_factory()
+    (project / "_journal.yml").write_text("journal: demo\nms_type: article\n", encoding="utf-8")
+    monkeypatch.setenv("WONGO_STYLE", "kist-wcr")
+
+    assert project_status(project).style == "kist-wcr"
+
+
+def test_windows_quarto_lookup_prefers_the_64_bit_program_files(monkeypatch):
+    monkeypatch.setattr(toolchain, "platform_name", lambda: "windows")
+    monkeypatch.setenv("ProgramW6432", r"C:\Program Files")
+    monkeypatch.setenv("ProgramFiles", r"C:\Program Files (x86)")  # as a 32-bit Python sees it
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+
+    cands = toolchain.quarto_candidates()
+
+    assert cands[0] == Path(r"C:\Program Files") / "Quarto" / "bin" / "quarto.exe"
+
+
+def test_windows_quarto_lookup_without_program_files_never_uses_localappdata_as_it(monkeypatch):
+    monkeypatch.setattr(toolchain, "platform_name", lambda: "windows")
+    for name in ("ProgramW6432", "ProgramFiles"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\kim\AppData\Local")
+
+    cands = toolchain.quarto_candidates()
+
+    assert cands[0] == Path(r"C:\Program Files") / "Quarto" / "bin" / "quarto.exe"
+    assert Path(r"C:\Users\kim\AppData\Local") / "Quarto" / "bin" / "quarto.exe" not in cands
+    assert Path(r"C:\Users\kim\AppData\Local") / "Programs" / "Quarto" / "bin" / "quarto.exe" in cands
+
+
 # ---------------------------------------------------------------------------
 # profile show / style list
 
@@ -253,7 +307,7 @@ def test_status_points_to_review_while_worksheet_rows_are_open(cli, stub_quarto,
                         encoding="utf-8")
     monkeypatch.setenv("WONGO_STUB_PANDOC_MD_FILE", str(markdown))
     coauthor = tmp_path / "coauthor.docx"
-    coauthor.write_bytes(b"placeholder")
+    Document().save(str(coauthor))  # pandoc is stubbed; it only has to be a DOCX
     cli("render", "--target", "collab", "--project", str(wongo_project))
     assert cli("roundtrip", str(coauthor), "--project", str(wongo_project))[0] == 0
     worksheet = next((wongo_project / "decisions").glob("merge-*.md"))

@@ -53,3 +53,10 @@ class OutputLockedError(WongoError):
     """An output file is open in another program (Word locks files on Windows)."""
 
     kind = "locked"
+
+
+class OutputError(WongoError):
+    """An output file could not be written or replaced for another reason
+    (a sync client, a full disk, missing permissions)."""
+
+    kind = "output"

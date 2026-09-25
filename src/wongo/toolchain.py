@@ -66,6 +66,16 @@ class Tool:
     source: str  # WONGO_QUARTO | QUARTO_R | PATH | registry | known location
 
 
+def windows_program_files() -> Path:
+    """The 64-bit Program Files folder, where Quarto and R install. A 32-bit
+    Python sees ProgramFiles as "Program Files (x86)"; ProgramW6432 is the
+    64-bit one either way."""
+    for var in ("ProgramW6432", "ProgramFiles"):
+        if os.environ.get(var):
+            return Path(os.environ[var])
+    return Path(r"C:\Program Files")
+
+
 # ---------------------------------------------------------------------------
 # Quarto
 
@@ -74,9 +84,7 @@ def quarto_candidates() -> list[Path]:
     """Known Quarto locations when PATH has none, most specific first."""
     name = platform_name()
     if name == "windows":
-        roots = [Path(os.environ.get(v)) for v in ("ProgramFiles", "LOCALAPPDATA")
-                 if os.environ.get(v)]
-        program_files = roots[0] if roots else Path(r"C:\Program Files")
+        program_files = windows_program_files()
         local = Path(os.environ["LOCALAPPDATA"]) if os.environ.get("LOCALAPPDATA") else None
         cands = [
             program_files / "Quarto" / "bin" / "quarto.exe",
@@ -239,7 +247,7 @@ def rscript_candidates() -> list[Tool]:
         for home in _windows_registry_r_homes():
             for p in (home / "bin" / exe, home / "bin" / "x64" / exe):
                 cands.append(Tool(str(p), "registry"))
-        program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        program_files = windows_program_files()
         for home in sorted((program_files / "R").glob("R-*"), key=_version_key, reverse=True):
             cands.append(Tool(str(home / "bin" / exe), "known location"))
     elif name == "macos":

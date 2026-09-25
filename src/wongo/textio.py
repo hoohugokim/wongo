@@ -7,12 +7,17 @@
 - Console output never crashes on Hangul names or em-dashes, even when a
   Korean Windows machine redirects output through its CP949 code page.
 - Files wongo rewrites are replaced atomically and keep their line endings.
+- A YAML typo or a file that is not really a .docx is reported with its file,
+  line and fix instead of a parser traceback.
 """
 from __future__ import annotations
 
 import os
 import sys
+import zipfile
 from pathlib import Path
+
+import yaml
 
 from wongo.errors import InputError
 
@@ -27,6 +32,34 @@ def read_text(path: Path | str) -> str:
             f"{path} is not UTF-8 text (invalid byte at position {exc.start}). "
             "Re-save it as UTF-8, e.g. in VS Code: 'Save with Encoding' > UTF-8."
         ) from exc
+
+
+def yaml_error_message(source: str, exc: yaml.YAMLError, *, first_line: int = 1) -> str:
+    """Where a YAML parse failed and the usual fix. `first_line` is the file
+    line the YAML text starts on (2 for front matter after the opening ---)."""
+    mark = getattr(exc, "problem_mark", None)
+    where = f"{source} line {mark.line + first_line}" if mark is not None else source
+    problem = getattr(exc, "problem", None) or str(exc).splitlines()[0]
+    return (
+        f"{where}: the YAML is not valid ({problem}). A value that contains ': ' or "
+        'starts with a special character needs quotes, e.g.  title: "Wetlands: a study"'
+    )
+
+
+def require_docx(path: Path | str) -> None:
+    """Raise an InputError unless `path` is a Word .docx (a ZIP package with a
+    main document part), before a parser fails on it with a traceback."""
+    path = Path(path)
+    try:
+        with zipfile.ZipFile(path) as package:
+            ok = "word/document.xml" in package.namelist()
+    except (zipfile.BadZipFile, OSError):
+        ok = False
+    if not ok:
+        raise InputError(
+            f"{path.name} is not a Word .docx file. Open it in Word and use Save As > "
+            "Word Document (.docx), then try again."
+        )
 
 
 def detect_newline(raw: bytes) -> str:

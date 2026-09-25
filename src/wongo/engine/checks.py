@@ -21,7 +21,7 @@ from wongo.profiles import (
     manuscript_type,
     profile_staleness_days,
 )
-from wongo.textio import read_text
+from wongo.textio import read_text, yaml_error_message
 
 STALE_DAYS = 183
 
@@ -58,11 +58,16 @@ BIB_KEY_RE = re.compile(r"^@\w+\{([^,\s]+)\s*,", re.MULTILINE)
 # Text analysis (verbatim from mslib)
 
 
-def split_front_matter(text: str) -> tuple[dict, str]:
+def split_front_matter(text: str, source: str = "the .qmd") -> tuple[dict, str]:
     m = FRONT_MATTER_RE.match(text)
     if not m:
         return {}, text
-    return (yaml.safe_load(m.group(1)) or {}), text[m.end():]
+    try:
+        meta = yaml.safe_load(m.group(1)) or {}
+    except yaml.YAMLError as exc:
+        first_line = text[:m.start(1)].count("\n") + 1
+        raise InputError(yaml_error_message(source, exc, first_line=first_line)) from exc
+    return (meta if isinstance(meta, dict) else {}), text[m.end():]
 
 
 def prose(body: str) -> str:
@@ -203,6 +208,8 @@ def run_checks(project: Path) -> list[Check]:
     if "index.qmd" not in texts:
         raise InputError(f"index.qmd not found in {project} (is this a wongo project? "
                          "`wongo scaffold` creates one)")
+    for name, text in texts.items():  # a front-matter typo names its file and line
+        split_front_matter(text, source=name)
 
     wc = word_count(texts["index.qmd"])
     limit = mtype.get("word_limit")

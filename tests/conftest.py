@@ -44,7 +44,9 @@ def stub_quarto(tmp_path, monkeypatch) -> StubQuarto:
     monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
     monkeypatch.setenv("WONGO_QUARTO", str(wrapper))
     monkeypatch.setenv("WONGO_STUB_QUARTO_LOG", str(log))
-    monkeypatch.delenv("WONGO_STUB_QUARTO_FAIL", raising=False)
+    for name in ("WONGO_STUB_QUARTO_FAIL", "WONGO_STUB_QUARTO_FAIL_AFTER_WRITE",
+                 "WONGO_STUB_QUARTO_EDIT", "WONGO_STUB_QUARTO_STAMP"):
+        monkeypatch.delenv(name, raising=False)
     return StubQuarto(wrapper=wrapper, log=log)
 
 

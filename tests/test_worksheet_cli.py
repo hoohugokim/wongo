@@ -350,3 +350,31 @@ def test_set_overriding_a_proposal_keeps_it_on_record(project):
 
     assert (Worksheet.load(path).row(2).disposition.text
             == "apply — was PROPOSED fix-code — inline R value")
+
+
+@pytest.mark.parametrize("value", ["PROPOSED apply — the agent changed its mind", "PENDING"])
+def test_set_never_replaces_a_persons_decision_without_force(project, value):
+    path = write_sheet(project, SHEET)
+
+    with pytest.raises(InputError, match=r"row 4 already has a decision \(reject: 중복 표현\).*--force"):
+        run("worksheet", "set", path, 4, value)
+    assert path.read_text(encoding="utf-8") == SHEET
+
+    assert run("worksheet", "set", path, 4, value, "--force") == 0
+    assert Worksheet.load(path).row(4).disposition.text == value
+
+
+def test_set_a_proposal_may_replace_a_malformed_proposal(project):
+    path = write_sheet(project, SHEET.replace("PROPOSED fix-code — inline R value", "PROPOSED fixcode"))
+
+    assert run("worksheet", "set", path, 2, "PROPOSED fix-code — inline R value") == 0
+    assert Worksheet.load(path).row(2).disposition.text == "PROPOSED fix-code — inline R value"
+
+
+def test_set_a_decision_over_an_invalid_value_keeps_the_persons_note(project):
+    typo = "aply — typo fix only, checked with Jane"
+    path = write_sheet(project, SHEET.replace("- disposition: PENDING", f"- disposition: {typo}"))
+
+    assert run("worksheet", "set", path, 3, "apply") == 0
+
+    assert Worksheet.load(path).row(3).disposition.text == f"apply — was {typo}"

@@ -44,7 +44,14 @@ from wongo.docxpatch import (
     restart_page_numbering,
     set_fonts,
 )
-from wongo.errors import GateError, InputError, OutputLockedError, ToolchainError, WongoError
+from wongo.errors import (
+    GateError,
+    InputError,
+    OutputError,
+    OutputLockedError,
+    ToolchainError,
+    WongoError,
+)
 from wongo.textio import read_text, write_text_atomic
 
 EventHandler = Callable[[str, dict], None]
@@ -55,17 +62,20 @@ def set_line_spacing(doc: Document, factor: float) -> None:
     doc.styles["Normal"].paragraph_format.line_spacing = factor
 
 
-def resolve_style(cfg: dict, override: str | None = None) -> dict:
-    """Resolve an explicit CLI override, then project/env/default style.
+def style_name(cfg: dict, override: str | None = None) -> str:
+    """The house style a render uses: an explicit CLI override, then the
+    project's, then the environment's, then `default`.
 
     ``--style`` is an actual one-render override and does not mutate process
     state. Without it, an explicit ``style:`` in ``_journal.yml`` remains
     authoritative over the legacy ``$WONGO_STYLE`` environment fallback.
     """
-    name = (
-        override or cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
-    )
-    return wstyles.load_style(name)
+    return override or cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
+
+
+def resolve_style(cfg: dict, override: str | None = None) -> dict:
+    """Load the style `style_name` picks."""
+    return wstyles.load_style(style_name(cfg, override))
 
 
 # ---------------------------------------------------------------------------
@@ -255,16 +265,28 @@ def quarto_render(
     out_dir = quarto_output_dir(project)
     candidates = [d / staged_name for d in (out_dir, project) if d is not None]
     for leftover in candidates:  # never mistake a crashed run's file for this one's
-        leftover.unlink(missing_ok=True)
+        try:
+            leftover.unlink(missing_ok=True)
+        except PermissionError as exc:
+            raise OutputLockedError(
+                f"{leftover.name} in {leftover.parent}, an unfinished file left by an "
+                "interrupted render, is open in another program (probably Word). Close it "
+                "and render again."
+            ) from exc
     cmd = quarto_render_command(quarto, qmd, staged_name, profile)
     try:
         subprocess.run(cmd, cwd=project, check=True, stdout=quarto_stdout)
-    except subprocess.CalledProcessError as exc:
-        raise ToolchainError(
-            f"quarto render failed for {qmd} (see quarto output above)"
-        ) from exc
-    except OSError as exc:
-        raise ToolchainError(f"could not run Quarto ({cmd[0]}): {exc}") from exc
+    except BaseException as exc:
+        # Quarto may have written its file before failing (a post-render hook,
+        # Ctrl-C): never leave an unfinished DOCX next to the deliverables.
+        _discard(candidates)
+        if isinstance(exc, subprocess.CalledProcessError):
+            raise ToolchainError(
+                f"quarto render failed for {qmd} (see quarto output above)"
+            ) from exc
+        if isinstance(exc, OSError):
+            raise ToolchainError(f"could not run Quarto ({cmd[0]}): {exc}") from exc
+        raise
     produced = next((c for c in candidates if c.exists()), None)
     if produced is None:
         looked = ", ".join(str(c.parent) for c in candidates)
@@ -371,20 +393,57 @@ def postprocess_si(
 MANIFEST_NAME = ".wongo-manifest.json"
 
 
-def _restore(backups: list[tuple[Path, Path]]) -> None:
+def _discard(paths: list[Path]) -> None:
+    """Best-effort removal: cleaning up must never hide the original error."""
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _roll_back(placed: list[Path], backups: list[tuple[Path, Path]]) -> list[Path]:
+    """Undo a partial promotion; return the backups that could not be put back."""
+    _discard(placed)
+    stranded = []
     for dest, backup in reversed(backups):
-        os.replace(backup, dest)
+        try:
+            os.replace(backup, dest)
+        except OSError:
+            stranded.append(backup)
+    return stranded
+
+
+def _promotion_error(exc: OSError, stranded: list[Path]) -> WongoError:
+    name = Path(exc.filename).name if exc.filename else "an output file"
+    if stranded:
+        kept = ", ".join(f"output/{p.name}" for p in stranded)
+        outcome = (f"the previous version is kept as {kept}; rename it back by removing the "
+                   "leading dot and the .wongo-bak ending")
+    else:
+        outcome = "output/ was left unchanged"
+    if isinstance(exc, PermissionError):
+        return OutputLockedError(
+            f"{name} is open in another program (probably Word). Close it and render "
+            f"again; {outcome}."
+        )
+    return OutputError(
+        f"could not replace {name} in output/ ({exc.strerror or exc}); {outcome}. If the "
+        "project is in OneDrive or another synced folder, pause syncing and render again."
+    )
 
 
 def promote(staged: list[Path], out_dir: Path) -> list[Path]:
     """Move finished files into out_dir as one unit.
 
     Existing outputs are first renamed to backups; on Windows that rename
-    fails while Word holds the file open, and everything is put back before
-    anything new lands. Then the staged files move in, and the backups go.
+    fails while Word holds the file open. Then the staged files move in, and
+    the backups go. Any failure or interruption before the end, Ctrl-C
+    included, puts the previous files back first.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     backups: list[tuple[Path, Path]] = []
+    placed: list[Path] = []
     try:
         for src in staged:
             dest = out_dir / src.name
@@ -393,29 +452,16 @@ def promote(staged: list[Path], out_dir: Path) -> list[Path]:
                 backup.unlink(missing_ok=True)
                 os.replace(dest, backup)
                 backups.append((dest, backup))
-    except PermissionError as exc:
-        _restore(backups)
-        name = Path(exc.filename).name if exc.filename else "an output file"
-        raise OutputLockedError(
-            f"{name} is open in another program (probably Word). Close it and render "
-            "again; output/ was left unchanged."
-        ) from exc
-    placed: list[Path] = []
-    try:
         for src in staged:
             dest = out_dir / src.name
             os.replace(src, dest)
             placed.append(dest)
-    except OSError:
-        for dest in placed:
-            dest.unlink(missing_ok=True)
-        _restore(backups)
+    except BaseException as exc:
+        stranded = _roll_back(placed, backups)
+        if isinstance(exc, OSError):
+            raise _promotion_error(exc, stranded) from exc
         raise
-    for _, backup in backups:
-        try:
-            backup.unlink()
-        except OSError:
-            pass
+    _discard([backup for _, backup in backups])
     return placed
 
 
@@ -448,7 +494,13 @@ def source_fingerprint(project: Path) -> dict[str, str]:
             key = path.relative_to(project).as_posix()
         except ValueError:
             key = str(path)
-        fingerprint[key] = _sha256(path)
+        try:
+            fingerprint[key] = _sha256(path)
+        except OSError as exc:
+            raise InputError(
+                f"could not read {key} ({exc.strerror or exc}); if another program has it "
+                "open, close it and try again"
+            ) from exc
     return fingerprint
 
 
@@ -462,10 +514,15 @@ def read_manifest(project: Path) -> dict:
 
 
 def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
-                   style_name: str, quarto_version: str | None) -> Path:
+                   style_name: str, quarto_version: str | None, *,
+                   sources: dict[str, str] | None = None, dest: Path | None = None) -> Path:
     """Record what produced each output (versions, config, source hashes) so
-    `wongo status` can tell a fresh output from a stale or hand-edited one."""
-    path = project / "output" / MANIFEST_NAME
+    `wongo status` can tell a fresh output from a stale or hand-edited one.
+
+    `sources` is the fingerprint taken before rendering (default: now); `dest`
+    is where to write (default: output/), e.g. a staging folder whose files
+    are promoted together with the outputs."""
+    path = dest or project / "output" / MANIFEST_NAME
     data = read_manifest(project)
     data["format"] = 1
     data.setdefault("targets", {})[target] = {
@@ -476,7 +533,7 @@ def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
         "ms_type": cfg.get("ms_type"),
         "style": style_name,
         "outputs": {p.name: _sha256(p) for p in outputs},
-        "sources": source_fingerprint(project),
+        "sources": sources if sources is not None else source_fingerprint(project),
     }
     write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return path
@@ -558,6 +615,9 @@ def render_project(
     unrenderable = toolchain.unrenderable_path_reason(project)
     if unrenderable:
         raise ToolchainError(unrenderable)
+    # Before Quarto reads anything: a source saved during the render then
+    # makes the output stale, never falsely fresh.
+    sources = source_fingerprint(project)
     out_dir = project / "output"
     stage = out_dir / f".stage-{target}"
     if stage.exists():
@@ -574,12 +634,16 @@ def render_project(
             postprocess_si(si_docx, profile, cfg, target, project,
                            style_override=style_override)
             staged.append(si_docx)
-        outputs = promote(staged, out_dir)
+        version = toolchain.tool_version(quarto)
+        # the manifest is promoted with the outputs, so the two always agree
+        staged.append(write_manifest(project, target, staged, cfg, style.get("_name", "default"),
+                                     version, sources=sources, dest=stage / MANIFEST_NAME))
+        placed = promote(staged, out_dir)
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
-    version = toolchain.tool_version(quarto)
-    manifest = write_manifest(project, target, outputs, cfg, style.get("_name", "default"), version)
+    outputs = [p for p in placed if p.name != MANIFEST_NAME]
+    manifest = out_dir / MANIFEST_NAME
     _emit(on_event, "wrote", outputs=outputs)
     return RenderResult(project, target, outputs, checks, manifest, version)
 

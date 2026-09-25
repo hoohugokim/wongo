@@ -3,14 +3,17 @@
 Every command prints text by default, or exactly one JSON object with --json
 (see wongo.clitools). User-fixable problems are WongoError: the message goes to
 stderr (or into the JSON error object) with exit code 1, never a traceback.
-Prompts appear only when a person is at a terminal, so CI, the byte-compare
-harness and the Claude agent can never hang on one.
+With --json even a usage error (exit 2), Ctrl-C (exit 130) or a wongo bug
+(error kind "internal") is still one JSON object. Prompts appear only when a
+person is at a terminal, so CI, the byte-compare harness and the Claude agent
+can never hang on one.
 """
 from __future__ import annotations
 
 import argparse
 import sys
 import textwrap
+import traceback
 from pathlib import Path
 
 from wongo import __version__, worksheet_cli
@@ -19,9 +22,36 @@ from wongo.engine.worksheet import shell_arg
 from wongo.errors import WongoError
 from wongo.textio import configure_stdio
 
+ISSUES_URL = "https://github.com/hoohugokim/wongo/issues"
+GROUPS = ("profile", "style", "worksheet")  # commands whose name has two words
+
 
 def _json(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "json", False))
+
+
+class UsageError(Exception):
+    """A command-line usage mistake, raised instead of argparse's exit so that
+    --json can report it as JSON too."""
+
+    def __init__(self, message: str, parser: argparse.ArgumentParser) -> None:
+        super().__init__(message)
+        self.parser = parser
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message: str):  # argparse would print usage and exit 2
+        raise UsageError(message, self)
+
+
+def _command_name(argv: list[str]) -> str:
+    """The command a (possibly unparsable) argv names, e.g. "worksheet set"."""
+    words = [a for a in argv if not a.startswith("-")]
+    if not words:
+        return "wongo"
+    if words[0] in GROUPS and len(words) > 1:
+        return f"{words[0]} {words[1]}"
+    return words[0]
 
 
 # ---------------------------------------------------------------------------
@@ -342,12 +372,14 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--json", action="store_true",
                         help="print one JSON object instead of text")
 
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="wongo",
         description="wongo (원고) — Quarto manuscript pipeline: verified journal "
         "profiles, submission-grade DOCX, Word-coauthor round-tripping.",
     )
     parser.add_argument("--version", action="version", version=f"wongo {__version__}")
+    # `wongo --json status` works like `wongo status --json`
+    parser.add_argument("--json", action="store_true", dest="json_first", help=argparse.SUPPRESS)
     sub = parser.add_subparsers(dest="subcommand", required=True, metavar="<command>")
 
     p = sub.add_parser("render", parents=[common],
@@ -431,20 +463,49 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     configure_stdio()
-    args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
+    argv = list(sys.argv[1:] if argv is None else argv)
+    json_mode = "--json" in argv
+    try:
+        args = build_parser().parse_args(argv)
+    except UsageError as exc:
+        command = _command_name(argv)
+        if json_mode:
+            hint = "wongo --help" if command == "wongo" else f"wongo {command} --help"
+            emit_json(command, False, error={"kind": "usage", "message": f"{exc} (see: {hint})"})
+        else:
+            exc.parser.print_usage(sys.stderr)
+            print(f"{exc.parser.prog}: error: {exc}", file=sys.stderr)
+        return 2
+    if getattr(args, "json_first", False):
+        args.json = True
+    json_mode = _json(args)
+    command = getattr(args, "command", None) or _command_name(argv)
     try:
         return int(args.fn(args) or 0)
     except WongoError as exc:
-        if _json(args):
-            emit_json(getattr(args, "command", "wongo"), False,
-                      error={"kind": exc.kind, "message": str(exc)},
+        if json_mode:
+            emit_json(command, False, error={"kind": exc.kind, "message": str(exc)},
                       **getattr(exc, "details", {}))
         else:
             print(str(exc), file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        print("interrupted", file=sys.stderr)
+        if json_mode:
+            emit_json(command, False, error={"kind": "interrupted",
+                                             "message": "interrupted (Ctrl-C)"})
+        else:
+            print("interrupted", file=sys.stderr)
         return 130
+    except Exception as exc:  # a wongo bug: still one JSON object, and a way to report it
+        message = (f"unexpected {type(exc).__name__}: {exc}. This is a bug in wongo; please "
+                   f"report it at {ISSUES_URL} with this output.")
+        if json_mode:
+            emit_json(command, False, error={"kind": "internal", "message": message,
+                                             "traceback": traceback.format_exc()})
+        else:
+            traceback.print_exc()
+            print(f"\n{message}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

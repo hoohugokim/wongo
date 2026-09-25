@@ -20,7 +20,7 @@ from pathlib import Path
 from wongo import toolchain
 from wongo.engine import checks as mslib
 from wongo.errors import InputError, ToolchainError
-from wongo.textio import read_text
+from wongo.textio import read_text, require_docx
 
 SPAN_RE = re.compile(
     r"\[(?P<text>[^\][]*)\]\{\.(?P<kind>insertion|deletion|comment-start|comment-end)(?P<attrs>[^}]*)\}",
@@ -305,8 +305,11 @@ def extract(docx: Path, project: Path, qmd: str = "index.qmd") -> RoundtripResul
     if not source.exists():
         raise InputError(f"project source not found: {source} (use --qmd si.qmd for an SI render)")
 
+    require_docx(docx_path)
+    qmd_text = read_text(source)
+    mslib.split_front_matter(qmd_text, source=qmd)  # a front-matter typo names its line
     changes = extract_changes(pandoc_markdown(docx_path))
-    qmd_lines = read_text(source).splitlines()
+    qmd_lines = qmd_text.splitlines()
     locations = [locate(c, qmd_lines) for c in changes]
     out = available_worksheet_path(project, docx_path.stem)
     write_worksheet(changes, locations, out, docx_path.name, qmd_name=qmd)

@@ -13,6 +13,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from docx import Document
 
 from wongo import toolchain
 from wongo.engine import render_project
@@ -109,6 +110,123 @@ def test_a_crashed_run_leftover_is_never_taken_for_this_run_output(stub_quarto, 
     assert _outputs(wongo_project) == {}
 
 
+def _manifest_bytes(project: Path) -> bytes | None:
+    path = project / "output" / ".wongo-manifest.json"
+    return path.read_bytes() if path.exists() else None
+
+
+def test_an_interrupt_while_swapping_outputs_puts_the_previous_ones_back(
+        stub_quarto, wongo_project, monkeypatch):
+    import wongo.engine as engine
+
+    render_project(wongo_project, "collab")
+    before, manifest = _outputs(wongo_project), _manifest_bytes(wongo_project)
+    real_replace = os.replace
+
+    def replace(src, dst):
+        if Path(dst).name == ".si-collab.docx.wongo-bak":  # Ctrl-C mid-swap
+            raise KeyboardInterrupt
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(engine.os, "replace", replace)
+    with pytest.raises(KeyboardInterrupt):
+        render_project(wongo_project, "collab")
+    monkeypatch.setattr(engine.os, "replace", real_replace)
+
+    assert _outputs(wongo_project) == before
+    assert _manifest_bytes(wongo_project) == manifest
+    assert _leftovers(wongo_project) == []
+
+
+def test_a_non_lock_os_error_while_moving_outputs_in_is_actionable_and_rolled_back(
+        stub_quarto, wongo_project, monkeypatch):
+    import wongo.engine as engine
+    from wongo.errors import WongoError
+
+    render_project(wongo_project, "collab")
+    before, manifest = _outputs(wongo_project), _manifest_bytes(wongo_project)
+    real_replace = os.replace
+
+    def replace(src, dst):
+        if Path(src).parent.name == ".stage-collab" and Path(dst) == wongo_project.resolve() / "output" / "si-collab.docx":
+            raise OSError(22, "The cloud file provider is not running", str(dst))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(engine.os, "replace", replace)
+    with pytest.raises(WongoError) as excinfo:
+        render_project(wongo_project, "collab")
+    monkeypatch.setattr(engine.os, "replace", real_replace)
+
+    assert "si-collab.docx" in str(excinfo.value)
+    assert "output/ was left unchanged" in str(excinfo.value)
+    assert _outputs(wongo_project) == before
+    assert _manifest_bytes(wongo_project) == manifest
+    assert _leftovers(wongo_project) == []
+
+
+def test_an_edit_saved_while_quarto_runs_leaves_the_output_stale(stub_quarto, wongo_project, monkeypatch):
+    from wongo.engine import output_freshness
+
+    monkeypatch.setenv("WONGO_STUB_QUARTO_EDIT", str(wongo_project / "index.qmd"))
+    render_project(wongo_project, "collab")
+
+    assert output_freshness(wongo_project, "collab")["state"] == "stale"
+
+
+def test_the_manifest_moves_in_with_the_outputs_or_not_at_all(stub_quarto, wongo_project, monkeypatch):
+    import wongo.engine as engine
+    from wongo.engine import output_freshness
+
+    render_project(wongo_project, "collab")
+    before, manifest = _outputs(wongo_project), _manifest_bytes(wongo_project)
+    real_write = engine.write_text_atomic
+
+    def write(path, *args, **kwargs):
+        if Path(path).name == ".wongo-manifest.json":
+            raise PermissionError(13, "Access is denied", str(path))
+        return real_write(path, *args, **kwargs)
+
+    monkeypatch.setattr(engine, "write_text_atomic", write)
+    monkeypatch.setenv("WONGO_STUB_QUARTO_STAMP", "second render")  # new bytes this time
+    with pytest.raises(OSError):
+        render_project(wongo_project, "collab")
+    monkeypatch.setattr(engine, "write_text_atomic", real_write)
+
+    assert _outputs(wongo_project) == before
+    assert _manifest_bytes(wongo_project) == manifest
+    assert output_freshness(wongo_project, "collab")["state"] == "fresh"
+    assert _leftovers(wongo_project) == []
+
+
+def test_a_quarto_failure_after_writing_leaves_no_staged_file(stub_quarto, wongo_project, monkeypatch):
+    monkeypatch.setenv("WONGO_STUB_QUARTO_FAIL_AFTER_WRITE", "index.qmd")
+
+    with pytest.raises(ToolchainError):
+        render_project(wongo_project, "collab")
+
+    assert _leftovers(wongo_project) == []
+    assert _outputs(wongo_project) == {}
+
+
+def test_a_leftover_staged_file_open_in_word_is_reported(stub_quarto, wongo_project, monkeypatch):
+    out = wongo_project / "output"
+    out.mkdir()
+    leftover = out / ".wongo-stage-main-collab.docx"
+    leftover.write_bytes(b"left by an interrupted run, then opened in Word")
+    real_unlink = Path.unlink
+
+    def unlink(self, missing_ok=False):
+        if self.name == leftover.name:
+            raise PermissionError(13, "The process cannot access the file", str(self))
+        return real_unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    with pytest.raises(OutputLockedError) as excinfo:
+        render_project(wongo_project, "collab")
+
+    assert ".wongo-stage-main-collab.docx" in str(excinfo.value)
+
+
 def test_missing_quarto_is_an_actionable_error(wongo_project, monkeypatch):
     monkeypatch.delenv("WONGO_QUARTO", raising=False)
     monkeypatch.setattr(toolchain, "find_quarto", lambda: None)
@@ -196,6 +314,107 @@ def test_check_json(cli, wongo_project):
     assert body["checks"][0]["locations"] == []
 
 
+# ---------------------------------------------------------------------------
+# --json: exactly one object on stdout, whatever goes wrong
+
+
+def test_a_front_matter_typo_is_an_input_error_naming_file_and_line(cli, stub_quarto, project_factory):
+    project = project_factory()
+    index = project / "index.qmd"
+    index.write_text(index.read_text(encoding="utf-8").replace(
+        "title: A Demo Manuscript", "title: Wetlands: a study"), encoding="utf-8")
+
+    for argv in (("check", "--project", str(project), "--json"),
+                 ("render", "--target", "collab", "--project", str(project), "--json")):
+        code, out, err = cli(*argv)
+        body = json.loads(out)
+        assert code == 1 and body["ok"] is False, argv
+        assert body["command"] == argv[0]
+        assert body["error"]["kind"] == "input"
+        assert "index.qmd line 2" in body["error"]["message"]
+        assert 'title: "Wetlands: a study"' in body["error"]["message"]
+
+    code, out, err = cli("status", "--project", str(project), "--json")
+    body = json.loads(out)
+    assert body["ok"] is False
+    assert "index.qmd line 2" in body["status"]["config_error"]
+
+
+def test_usage_errors_in_json_mode_are_json(cli):
+    code, out, err = cli("render", "--json")
+
+    body = json.loads(out)
+    assert code == 2
+    assert body["ok"] is False and body["command"] == "render"
+    assert body["error"]["kind"] == "usage"
+    assert "--target" in body["error"]["message"]
+
+
+def test_json_before_the_command_works_too(cli, wongo_project):
+    code, out, err = cli("--json", "check", "--project", str(wongo_project))
+
+    assert code == 0
+    assert json.loads(out)["command"] == "check"
+
+
+def test_a_file_that_is_not_a_docx_is_an_input_error(cli, stub_quarto, wongo_project, tmp_path):
+    fake = tmp_path / "notes.docx"
+    fake.write_text("a text file renamed to .docx", encoding="utf-8")
+
+    code, out, err = cli("diff", str(fake), str(fake), "-o", str(tmp_path / "out.docx"), "--json")
+    body = json.loads(out)
+    assert code == 1 and body["error"]["kind"] == "input"
+    assert "notes.docx is not a Word .docx file" in body["error"]["message"]
+
+    code, out, err = cli("roundtrip", str(fake), "--project", str(wongo_project), "--json")
+    body = json.loads(out)
+    assert code == 1 and body["error"]["kind"] == "input"
+    assert "notes.docx is not a Word .docx file" in body["error"]["message"]
+
+
+def test_worksheet_and_review_errors_name_their_command(cli, tmp_path):
+    missing = tmp_path / "decisions" / "merge-none.md"
+
+    for argv, command in ((("worksheet", "status", str(missing)), "worksheet status"),
+                          (("worksheet", "lint", str(missing)), "worksheet lint"),
+                          (("worksheet", "set", str(missing), "1", "apply"), "worksheet set"),
+                          (("review", str(missing)), "review")):
+        code, out, err = cli(*argv, "--json")
+        body = json.loads(out)
+        assert code == 1 and body["command"] == command, argv
+
+
+def test_an_interrupt_in_json_mode_still_prints_one_object(cli, wongo_project, monkeypatch):
+    import wongo.engine.checks as checks
+
+    def interrupted(project):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(checks, "run_checks", interrupted)
+    code, out, err = cli("check", "--project", str(wongo_project), "--json")
+
+    body = json.loads(out)
+    assert code == 130
+    assert body["ok"] is False and body["error"]["kind"] == "interrupted"
+
+
+def test_an_unexpected_error_in_json_mode_is_reported_as_internal(cli, wongo_project, monkeypatch):
+    import wongo.engine.checks as checks
+
+    def broken(project):
+        raise RuntimeError("something nobody anticipated")
+
+    monkeypatch.setattr(checks, "run_checks", broken)
+    code, out, err = cli("check", "--project", str(wongo_project), "--json")
+
+    body = json.loads(out)
+    assert code == 1
+    assert body["ok"] is False and body["error"]["kind"] == "internal"
+    assert "something nobody anticipated" in body["error"]["message"]
+    assert "github.com/hoohugokim/wongo/issues" in body["error"]["message"]
+    assert "RuntimeError" in body["error"]["traceback"]
+
+
 def test_roundtrip_keeps_hangul_from_pandoc(cli, stub_quarto, wongo_project, tmp_path, monkeypatch):
     markdown = tmp_path / "pandoc.md"
     markdown.write_text(
@@ -203,7 +422,7 @@ def test_roundtrip_keeps_hangul_from_pandoc(cli, stub_quarto, wongo_project, tmp
         'date="2026-09-01T00:00:00Z"} cites the work.\n', encoding="utf-8")
     monkeypatch.setenv("WONGO_STUB_PANDOC_MD_FILE", str(markdown))
     coauthor = tmp_path / "coauthor.docx"
-    coauthor.write_bytes(b"placeholder")
+    Document().save(str(coauthor))  # pandoc is stubbed; it only has to be a DOCX
 
     code, out, err = cli("roundtrip", str(coauthor), "--project", str(wongo_project))
 
@@ -234,7 +453,7 @@ def test_roundtrip_and_report_work_under_a_korean_legacy_locale(stub_quarto, won
     markdown.write_text('Body at 25 °C [수정]{.insertion author="김하나" date="2026-09-01T00:00:00Z"} ok.\n',
                         encoding="utf-8")
     coauthor = tmp_path / "coauthor.docx"
-    coauthor.write_bytes(b"placeholder")
+    Document().save(str(coauthor))  # pandoc is stubbed; it only has to be a DOCX
     env = dict(os.environ, LC_ALL=_korean_locale(), PYTHONUTF8="0",
                WONGO_STUB_PANDOC_MD_FILE=str(markdown), PYTHONPATH=SRC)
     env.pop("PYTHONIOENCODING", None)

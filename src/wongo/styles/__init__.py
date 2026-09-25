@@ -38,8 +38,8 @@ from wongo.docxpatch import (
     dedupe_ppr,
     normalize_ppr_order,
 )
-from wongo.errors import ConfigError
-from wongo.textio import read_text
+from wongo.errors import ConfigError, InputError
+from wongo.textio import read_text, yaml_error_message
 
 DEFAULT_STYLE = "default"
 
@@ -96,7 +96,11 @@ def read_front_matter(project: Path, qmd: str = "index.qmd") -> dict:
         end = next(i for i, ln in enumerate(lines[1:], start=1) if ln.strip() == "---")
     except StopIteration:
         return {}
-    return yaml.safe_load("\n".join(lines[1:end])) or {}
+    try:
+        meta = yaml.safe_load("\n".join(lines[1:end])) or {}
+    except yaml.YAMLError as exc:
+        raise InputError(yaml_error_message(qmd, exc, first_line=2)) from exc
+    return meta if isinstance(meta, dict) else {}
 
 
 # ---------------------------------------------------------------------------

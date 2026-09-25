@@ -6,8 +6,12 @@
   by WONGO_STUB_PANDOC_MD_FILE.
 - ``--version`` prints 1.10.18.
 
-Every invocation is appended to WONGO_STUB_QUARTO_LOG as a JSON line, and
-WONGO_STUB_QUARTO_FAIL=<qmd> makes rendering that file exit 1.
+Every invocation is appended to WONGO_STUB_QUARTO_LOG as a JSON line.
+WONGO_STUB_QUARTO_FAIL=<qmd> makes rendering that file exit 1;
+WONGO_STUB_QUARTO_FAIL_AFTER_WRITE=<qmd> writes the DOCX first (like a failing
+post-render hook); WONGO_STUB_QUARTO_EDIT=<file> appends to that file during
+every render (an author saving mid-render); WONGO_STUB_QUARTO_STAMP=<text>
+adds that paragraph, so two renders' outputs differ.
 """
 from __future__ import annotations
 
@@ -68,6 +72,9 @@ def _docx(path: Path, qmd: str) -> None:
     table.cell(0, 0).paragraphs[0].text = f"Table {prefix}1: A stub table."
     table.cell(0, 0).add_table(rows=2, cols=2)
     doc.add_paragraph("Closing sentence.")
+    stamp = os.environ.get("WONGO_STUB_QUARTO_STAMP")
+    if stamp:  # lets a test tell one render's output from another's
+        doc.add_paragraph(stamp)
     doc.save(str(path))
     (path.parent / f".{path.stem}.png").unlink()
 
@@ -83,8 +90,15 @@ def main(argv: list[str]) -> int:
         if os.environ.get("WONGO_STUB_QUARTO_FAIL") == qmd:
             print(f"stub quarto: failing {qmd} on request", file=sys.stderr)
             return 1
+        edit = os.environ.get("WONGO_STUB_QUARTO_EDIT")
+        if edit:  # the author saves a source file while the render runs
+            with open(edit, "a", encoding="utf-8") as fh:
+                fh.write("\nA sentence saved during the render.\n")
         _docx(_output_dir(Path.cwd()) / name, qmd)
         print(f"Output created: {name}", file=sys.stderr)
+        if os.environ.get("WONGO_STUB_QUARTO_FAIL_AFTER_WRITE") == qmd:
+            print("stub quarto: post-render hook failed", file=sys.stderr)
+            return 1
         return 0
     if argv[:1] == ["pandoc"]:
         source = os.environ.get("WONGO_STUB_PANDOC_MD_FILE")

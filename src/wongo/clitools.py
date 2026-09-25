@@ -2,8 +2,9 @@
 
 Every command accepts --json and then prints exactly one JSON object on stdout:
 ``{"command": ..., "wongo": <version>, "ok": <bool>, ...}``; errors become
-``{"ok": false, "error": {"kind": ..., "message": ...}}`` with exit code 1. The
-Claude skill and scripts read this instead of parsing prose.
+``{"ok": false, "error": {"kind": ..., "message": ...}}`` with exit code 1 (2 for
+a usage error, 130 for Ctrl-C; kind "internal" is a wongo bug and carries a
+"traceback"). The Claude skill and scripts read this instead of parsing prose.
 """
 from __future__ import annotations
 

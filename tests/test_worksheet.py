@@ -685,6 +685,34 @@ def test_worksheet_never_writes_or_reads_a_qmd(tmp_path):
     assert qmd.read_text(encoding="utf-8") == QMD
 
 
+@pytest.mark.parametrize("name", ["index.qmd.", "index.qmd ", "index.qmd::$DATA", "INDEX.QMD"])
+def test_names_windows_would_open_as_the_qmd_are_refused_too(tmp_path, name):
+    # Windows drops trailing dots and spaces and treats name:stream as a stream of
+    # `name`, so each of these would write index.qmd itself
+    ws = parse(AGENT)
+    with pytest.raises(InputError, match="never edits a .qmd"):
+        ws.save(tmp_path / name)
+    with pytest.raises(InputError, match="not a merge worksheet"):
+        Worksheet.load(tmp_path / name)
+
+
+@pytest.mark.parametrize(("path", "expected"), [
+    ("decisions/merge-20260925-kim.md", "decisions/merge-20260925-kim.md"),
+    ("decisions/merge-20260925-김민수.md", "decisions/merge-20260925-김민수.md"),
+    ("C:/papers/wetland study/decisions/merge.md", '"C:/papers/wetland study/decisions/merge.md"'),
+    ("R&D/decisions/merge.md", '"R&D/decisions/merge.md"'),
+    ("papers (2026)/merge.md", '"papers (2026)/merge.md"'),
+    ("$work/merge.md", "'$work/merge.md'"),
+    ("wow!/merge.md", "'wow!/merge.md'"),
+    ("kim's edits/merge.md", '"kim\'s edits/merge.md"'),
+    ("kim's $edits/merge.md", "'kim'\\''s $edits/merge.md'"),
+])
+def test_shell_arg_survives_pasting_into_bash_powershell_and_cmd(path, expected):
+    from wongo.engine.worksheet import shell_arg
+
+    assert shell_arg(path) == expected
+
+
 def test_load_errors_are_actionable(tmp_path):
     with pytest.raises(InputError, match="worksheet not found.*wongo roundtrip"):
         Worksheet.load(tmp_path / "missing.md")

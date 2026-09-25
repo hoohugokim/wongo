@@ -7,7 +7,6 @@ the people most likely to run this are new to the toolchain.
 from __future__ import annotations
 
 import locale
-import os
 import platform
 import shutil
 import sys
@@ -151,6 +150,7 @@ def system_checks(project: Path | None) -> list[Check]:
 
 
 def project_checks(project: Path) -> list[Check]:
+    from wongo.engine import style_name
     from wongo.profiles import (
         load_journal_config,
         load_profile,
@@ -164,7 +164,7 @@ def project_checks(project: Path) -> list[Check]:
         cfg = load_journal_config(project)
         profile = load_profile(cfg["journal"], project)
         mtype = manuscript_type(profile, cfg["ms_type"])
-        style = cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
+        style = style_name(cfg)
         load_style(style)
     except WongoError as exc:
         return [Check("project-config", "HARD", False, str(exc))]

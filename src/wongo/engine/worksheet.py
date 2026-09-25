@@ -405,7 +405,7 @@ class Worksheet:
     @classmethod
     def load(cls, path: Path | str) -> Worksheet:
         path = Path(path)
-        if path.suffix.lower() == ".qmd":
+        if names_a_qmd(path):
             raise InputError(
                 f"{path} is a .qmd manuscript source, not a merge worksheet; give the "
                 "decisions/merge-*.md file that `wongo roundtrip` wrote"
@@ -448,7 +448,7 @@ class Worksheet:
         target = Path(path) if path is not None else self.path
         if target is None:
             raise InputError("this worksheet has no file yet; give a path to save it to")
-        if target.suffix.lower() == ".qmd":
+        if names_a_qmd(target):
             raise InputError(
                 f"refusing to write {target}: wongo never edits a .qmd. Save the worksheet "
                 "as a .md file (roundtrip writes them to decisions/)."
@@ -827,12 +827,31 @@ def load(path: Path | str) -> Worksheet:
     return Worksheet.load(path)
 
 
+def names_a_qmd(path: Path | str) -> bool:
+    """Whether `path` would open a .qmd file. Windows ignores trailing dots and
+    spaces in a name and reads ``name:stream`` as a stream of ``name``, so
+    ``index.qmd.``, ``index.qmd `` and ``index.qmd::$DATA`` all mean index.qmd."""
+    name = Path(path).name.split(":", 1)[0].rstrip(". ")
+    return name.lower().endswith(".qmd")
+
+
+_PLAIN_ARG = re.compile(r"[\w@+=:,./-]+")  # \w includes Hangul and other letters
+
+
 def shell_arg(path: Path | str) -> str:
-    """A path as a user would type it in a command line: forward slashes (which
-    cmd, PowerShell and Git Bash all accept; a backslash is an escape in Git
-    Bash, the shell Claude Code uses on Windows), quoted if it has spaces."""
+    """A path as a user would type it in a command line, safe to paste into
+    Git Bash (the shell Claude Code uses on Windows), PowerShell or cmd.
+
+    Forward slashes, which all three accept (a backslash is an escape in Git
+    Bash). A path with spaces or characters such as & ( ) is double-quoted,
+    which works in all three; one with $ ` " ! or a backslash is single-quoted
+    instead, because bash and PowerShell expand those inside double quotes."""
     text = Path(path).as_posix()
-    return f'"{text}"' if any(ch.isspace() for ch in text) else text
+    if _PLAIN_ARG.fullmatch(text):
+        return text
+    if not any(ch in text for ch in '$`"!\\'):
+        return f'"{text}"'
+    return "'" + text.replace("'", "'\\''") + "'"
 
 
 def _target_problems(project: Path, row: Row, cache: dict, missing: set[Path]) -> list[Problem]:

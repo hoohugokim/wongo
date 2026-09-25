@@ -57,7 +57,7 @@ def add_parsers(sub, common: argparse.ArgumentParser) -> None:
         description="Show how far the review of a merge worksheet has got.",
     )
     p.add_argument("file", help=FILE_HELP)
-    p.set_defaults(fn=cmd_status)
+    p.set_defaults(fn=cmd_status, command="worksheet status")
 
     p = wsub.add_parser(
         "lint", parents=[common],
@@ -71,7 +71,7 @@ def add_parsers(sub, common: argparse.ArgumentParser) -> None:
     )
     p.add_argument("file", help=FILE_HELP)
     p.add_argument("--project", metavar="DIR", default=None, help=PROJECT_HELP)
-    p.set_defaults(fn=cmd_lint)
+    p.set_defaults(fn=cmd_lint, command="worksheet lint")
 
     p = wsub.add_parser(
         "set", parents=[common],
@@ -91,7 +91,11 @@ def add_parsers(sub, common: argparse.ArgumentParser) -> None:
         "--location", type=int, metavar="N", default=None,
         help="point the row at line N of its .qmd (e.g. an UNMATCHED change found by hand)",
     )
-    p.set_defaults(fn=cmd_set)
+    p.add_argument(
+        "--force", action="store_true",
+        help="allow a PROPOSED or PENDING value to replace a decision already recorded",
+    )
+    p.set_defaults(fn=cmd_set, command="worksheet set")
 
     p = sub.add_parser(
         "review", parents=[common],
@@ -105,7 +109,7 @@ def add_parsers(sub, common: argparse.ArgumentParser) -> None:
     )
     p.add_argument("file", help=FILE_HELP)
     p.add_argument("--project", metavar="DIR", default=None, help=PROJECT_HELP)
-    p.set_defaults(fn=cmd_review)
+    p.set_defaults(fn=cmd_review, command="review")
 
 
 # ---------------------------------------------------------------------------
@@ -189,10 +193,17 @@ def cmd_set(args: argparse.Namespace) -> int:
     if value is not None:
         current = ws.row(args.row).disposition
         before = current.text
-        if check_disposition(value).state == "final" and current.state in ("proposed", "final"):
+        if check_disposition(value).state == "final" and current.state != "pending":
             # recording a decision: keep the agent's rationale ("was PROPOSED ...")
+            # or the earlier value, even a mistyped one, on record
             after = ws.decide(args.row, value).disposition.text
         else:
+            if _holds_a_decision(current) and not getattr(args, "force", False):
+                raise InputError(
+                    f"row {args.row} already has a decision ({_first_line(current.text)}); "
+                    f"a {value.split()[0]} value would replace it. Leave the row as it is, "
+                    "or pass --force if the person asked to reopen it."
+                )
             after = ws.set_disposition(args.row, value).disposition.text
         changes["disposition"] = {"old": before, "new": after}
     changed = any(c["old"] != c["new"] for c in changes.values())
@@ -213,6 +224,15 @@ def cmd_set(args: argparse.Namespace) -> int:
             print(f"row {args.row}: {key} {old} -> {new}")
     print(f"saved {path}" if changed else "nothing changed; file not written")
     return 0
+
+
+def _holds_a_decision(disposition) -> bool:
+    """A person's decision, or a value that may be one (a mistyped decision is
+    invalid but still the person's); a malformed PROPOSED line is not."""
+    if disposition.state == "final":
+        return True
+    return (disposition.state == "invalid"
+            and not disposition.text.lstrip().upper().startswith("PROPOSED"))
 
 
 def cmd_review(args: argparse.Namespace) -> int:

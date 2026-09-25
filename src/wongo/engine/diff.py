@@ -51,6 +51,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from wongo.errors import InputError
+from wongo.textio import require_docx
 
 _TOKEN_RE = re.compile(r"\s+|\S+")
 _RUN_CHILDREN = {qn("w:rPr"), qn("w:t")}
@@ -234,6 +235,8 @@ def diff_documents(original: Path, revised: Path, out: Path,
     if date is None:
         date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    require_docx(original)
+    require_docx(revised)
     doc_orig = Document(str(original))
     doc_rev = Document(str(revised))
 

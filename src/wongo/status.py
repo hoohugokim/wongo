@@ -10,6 +10,7 @@ from wongo.engine.worksheet import Worksheet, shell_arg
 from wongo.errors import WongoError
 
 WORKSHEET_GLOB = "merge-*.md"
+UP_TO_DATE = "everything is rendered and current"
 
 
 @dataclass
@@ -49,7 +50,7 @@ def _open_rows(worksheet: Path) -> int | None:
 
 
 def project_status(project: Path) -> Status:
-    from wongo.engine import output_freshness
+    from wongo.engine import output_freshness, style_name
     from wongo.engine.checks import run_checks
     from wongo.profiles import load_journal_config, load_profile, manuscript_type
 
@@ -69,7 +70,7 @@ def project_status(project: Path) -> Status:
     try:
         cfg = load_journal_config(project)
         status.journal, status.ms_type = cfg["journal"], cfg["ms_type"]
-        status.style = cfg.get("style") or "default"
+        status.style = style_name(cfg)
         profile = load_profile(cfg["journal"], project)
         status.journal_name = str(profile.get("journal", cfg["journal"]))
         manuscript_type(profile, cfg["ms_type"])
@@ -90,8 +91,20 @@ def project_status(project: Path) -> Status:
         status.worksheet_open = _open_rows(sheet) or 0
 
     collab = status.outputs["collab"]["state"]
+    saved_over = [f"output/{name}" for target in ("collab", "submission")
+                  if status.outputs[target]["state"] == "modified"
+                  for name in status.outputs[target]["changed"]]
     if status.quarto is None:
         status.next_command, status.next_reason = "wongo doctor", "Quarto was not found"
+    elif saved_over:
+        # a render would replace the file, and it may hold a coauthor's edits:
+        # no command to run blindly, only the choice to make first
+        status.next_command = ""
+        status.next_reason = (
+            f"{', '.join(saved_over)} changed after rendering (saved over in Word?). If it "
+            "holds coauthor edits, move it into from-coauthors/ and run wongo roundtrip on "
+            "it; if not, render again"
+        )
     elif status.worksheet and status.worksheet_open:
         status.next_command = f"wongo review {shell_arg(status.worksheet)}"
         status.next_reason = f"{status.worksheet_open} coauthor edit(s) still need a decision"
@@ -108,7 +121,7 @@ def project_status(project: Path) -> Status:
         status.next_reason = "checks pass and the coauthor render is current"
     else:
         status.next_command = ""
-        status.next_reason = "everything is rendered and current"
+        status.next_reason = UP_TO_DATE
     return status
 
 
@@ -139,6 +152,8 @@ def format_status(status: Status) -> list[str]:
         lines.append(f"worksheet:  {status.worksheet} ({status.worksheet_open} open)")
     if status.next_command:
         lines.append(f"next:       {status.next_command}  — {status.next_reason}")
-    else:
+    elif status.next_reason == UP_TO_DATE:
         lines.append(f"next:       nothing to do — {status.next_reason}")
+    else:
+        lines.append(f"next:       {status.next_reason}")
     return lines
