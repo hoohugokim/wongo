@@ -5,15 +5,24 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
-    name: pytest (py${{ matrix.python }})
-    runs-on: ubuntu-latest
+    name: pytest (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.11"
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,6 +41,64 @@ jobs:
           wongo --version
           wongo profile list
           wongo profile verify est --offline
+          wongo profile show est
+          wongo style list
+
+  e2e:
+    # Real Quarto and R, the example manuscript, and a Hangul folder name:
+    # the path a new lab member takes on Windows, macOS, and Linux.
+    name: end-to-end render (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.18
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - name: R packages
+        run: Rscript -e "install.packages(c('knitr', 'rmarkdown', 'jsonlite'), repos = 'https://cloud.r-project.org')"
+      - name: Install wongo
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Example manuscript, first render to coauthor round-trip
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          wongo scaffold "원고 예제" --example
+          cd "원고 예제"
+          wongo doctor
+          wongo check --strict
+          wongo render --target collab
+          wongo render --target submission
+          wongo status
+          wongo status --json > status.json
+          wongo roundtrip output/main-collab.docx --json > roundtrip.json
+          wongo diff output/main-collab.docx output/main-submission.docx -o output/compare.docx
+          python - <<'PY'
+          import json
+          import zipfile
+          status = json.load(open("status.json", encoding="utf-8"))["status"]
+          for target in ("collab", "submission"):
+              assert status["outputs"][target]["state"] == "fresh", status["outputs"]
+          roundtrip = json.load(open("roundtrip.json", encoding="utf-8"))
+          assert roundtrip["ok"] and roundtrip["changes"] == 0, roundtrip
+          with zipfile.ZipFile("output/main-collab.docx") as z:
+              assert "<w:trackRevisions/>" in z.read("word/settings.xml").decode()
+          with zipfile.ZipFile("output/si-submission.docx") as z:
+              assert "Contents: 1 figures, 1 tables" in z.read("word/document.xml").decode()
+          print("e2e OK")
+          PY
 
   build:
     name: wheel + sdist build
@@ -53,6 +120,9 @@ jobs:
           names = zipfile.ZipFile(whl).namelist()
           required = [
               "wongo/assets/scaffold/_journal.yml",
+              "wongo/assets/scaffold/.vscode/tasks.json",
+              "wongo/assets/scaffold/AGENTS.md.tmpl",
+              "wongo/assets/scaffold-example/index.qmd",
               "wongo/styles/kist-wcr.yml",
               "wongo/profiles/est/profile.yml",
               "wongo/profiles/est/assets/reference.docx",
