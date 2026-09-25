@@ -24,6 +24,8 @@
 - [x] T-0021 TUI deferred by the maintainer (D-0011); the S4 review loop was built as a line-oriented `wongo review` instead (D-0009).
 - [ ] T-0022 Publish wongo to PyPI (trusted publishing from GitHub Actions) so the install becomes `uv tool install wongo`; needs the maintainer's PyPI account setup.
 - [ ] T-0023 Nature-family counting rules exclude the abstract, Methods and figure legends, but `wongo check` counts them, so natwater/npj manuscripts can FAIL the word limit falsely; add per-type exclusions.
-- [ ] T-0024 After `feat/windows-front-door` merges: bump to v0.3.0, tag and release (parity vs v0.2.0 already verified on 2026-09-25: only the collab trackRevisions rename differs).
+- [ ] T-0024 After `feat/windows-front-door` merges: bump to v0.3.0, tag and release (parity vs v0.2.0 already verified on 2026-09-25: only the collab trackRevisions rename differs); then drop the "do not use the v0.2.0 release wheel" line from the skill's setup reference.
 - [ ] T-0025 Smoke-test on a real Windows PC with a Korean user account: Claude desktop + plugin setup, Korean IME in `wongo review`, rendering while Word has a file open.
 - [ ] T-0026 With the maintainer's OK, retire the legacy `scripts/` and `*.bak-pre-wongo*` files in ~/.claude/skills/quarto-manuscript-* and point the personal skills at the wongo plugin.
+- [x] T-0027 Claude front door: plugin marketplace, the wongo skill with setup and S4 references, and docs/getting-started.md (D-0010; validated, installed in an isolated config, and exercised by a headless session; notes/front-door-2026-09-25.md).
+- [x] T-0028 Pre-merge review of `feat/windows-front-door`: 10 findings fixed test-first (promotion rollback on any interruption, manifest promoted with outputs, pre-render source fingerprint, --json contract for usage/YAML/non-DOCX/Ctrl-C/internal errors, `worksheet set` guards decisions, status and quoting fixes, Windows path guards).
