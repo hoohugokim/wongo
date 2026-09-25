@@ -42,6 +42,10 @@ manuscript_types:      # word limits are MAIN TEXT unless counting_rule says oth
   - type: ""
     word_limit: 0
     counting_rule: ""  # exactly what counts; cite source
+    word_limit_includes_references: false  # OPTIONAL: true when the limit counts the
+                       # reference list (e.g. Water Research). `wongo check` counts body +
+                       # abstract only, so it FAILs when that lower bound alone exceeds the
+                       # limit and otherwise WARNs that the pass is unproven.
 csl: ""
 reference_doc: ""
 section_headings: []   # ordered; journal-specific — check this profile's list, don't assume any generic heading set applies

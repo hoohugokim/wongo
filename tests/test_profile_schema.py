@@ -68,3 +68,26 @@ def test_profile_verify_offline_fails_on_contract_violation(tmp_path, monkeypatc
     monkeypatch.setattr(profiles, "candidate_dirs", lambda project=None: [root])
     assert main(["profile", "verify", "demo", "--offline"]) == 1
     assert "manuscript_types" in capsys.readouterr().out
+
+
+def test_reference_flag_must_be_boolean():
+    profile = dict(GOOD, manuscript_types=[
+        {"type": "article", "word_limit": 100, "word_limit_includes_references": "yes"},
+    ])
+    assert any("word_limit_includes_references" in p for p in validate_profile(profile))
+
+
+@pytest.mark.parametrize("pdir", sorted(Path("src/wongo/profiles").glob("*/profile.yml")))
+def test_rules_that_count_references_set_the_flag(pdir):
+    """A counting_rule that says references are included must be machine-
+    readable, or `wongo check` would report a false PASS."""
+    import re
+
+    says_included = re.compile(
+        r"including references|INCLUDING citations/references|NOT reference-exclusive",
+        re.IGNORECASE,
+    )
+    profile = yaml.safe_load(pdir.read_text(encoding="utf-8"))
+    for mtype in profile["manuscript_types"]:
+        if says_included.search(mtype.get("counting_rule", "")):
+            assert mtype.get("word_limit_includes_references") is True, (pdir, mtype["type"])

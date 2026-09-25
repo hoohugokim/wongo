@@ -184,11 +184,20 @@ def run_checks(project: Path) -> list[Check]:
 
     wc = word_count(texts["index.qmd"])
     limit = mtype.get("word_limit")
-    checks.append(Check(
-        "word-limit", "HARD", limit is None or wc <= limit,
-        f"{wc} words vs limit {limit} for {cfg['ms_type']} "
-        f"(rule: {mtype.get('counting_rule', 'unspecified')})",
-    ))
+    includes_refs = bool(mtype.get("word_limit_includes_references"))
+    detail = (f"{wc} words vs limit {limit} for {cfg['ms_type']} "
+              f"(rule: {mtype.get('counting_rule', 'unspecified')})")
+    if includes_refs:
+        detail += "; lower bound: references are not counted but this limit includes them"
+    checks.append(Check("word-limit", "HARD", limit is None or wc <= limit, detail))
+    if includes_refs and limit is not None and wc <= limit:
+        # body + abstract is only a lower bound here, so a pass is unproven
+        checks.append(Check(
+            "word-limit-references", "WARN", False,
+            f"{wc} words counted without references; the {limit}-word limit "
+            "includes references, so add the reference list's word count "
+            f"(headroom {limit - wc} words) before submitting",
+        ))
 
     bib: set[str] = set()
     for bib_path in bibliography_paths(project, texts["index.qmd"]):

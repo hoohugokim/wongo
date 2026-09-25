@@ -269,3 +269,48 @@ def test_bibliography_list_in_front_matter_is_honored(tmp_path):
     (project / "b.bib").write_text("@misc{two, title={2}}\n", encoding="utf-8")
     checks = {c.name: c for c in run_checks(project)}
     assert checks["citekeys"].ok, checks["citekeys"].detail
+
+
+# ---------------------------------------------------------------------------
+# Limits that include references (T-0003 interim): body + abstract is only a
+# lower bound, so it may FAIL on its own but must never PASS silently.
+
+
+def _reference_inclusive_project(tmp_path: Path, body: str) -> Path:
+    project = make_project(tmp_path, index_body=body)
+    profile = project / "profiles" / "demo" / "profile.yml"
+    text = profile.read_text(encoding="utf-8").replace(
+        '    counting_rule: "test"',
+        '    counting_rule: "test"\n    word_limit_includes_references: true',
+    )
+    profile.write_text(text, encoding="utf-8")
+    return project
+
+
+def test_reference_inclusive_limit_fails_hard_when_lower_bound_exceeds_it(tmp_path):
+    project = _reference_inclusive_project(tmp_path, " ".join(["word"] * (WORD_LIMIT + 5)))
+
+    checks = run_checks(project)
+
+    hard = _check(checks, "word-limit")
+    assert hard.level == "HARD" and not hard.ok
+    assert "references" in hard.detail
+
+
+def test_reference_inclusive_limit_under_lower_bound_warns_instead_of_passing(tmp_path):
+    project = _reference_inclusive_project(tmp_path, "three short words")
+
+    checks = run_checks(project)
+
+    assert _check(checks, "word-limit").ok
+    warn = _check(checks, "word-limit-references")
+    assert warn.level == "WARN" and not warn.ok
+    assert "include" in warn.detail and "reference" in warn.detail
+
+
+def test_ordinary_limit_has_no_reference_warning(tmp_path):
+    project = make_project(tmp_path, index_body="three short words")
+
+    names = [c.name for c in run_checks(project)]
+
+    assert "word-limit-references" not in names

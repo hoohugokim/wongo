@@ -130,6 +130,11 @@ def validate_profile(profile: dict) -> list[str]:
             problems.append(f"manuscript_types[{i}] has no type")
         if isinstance(t, dict) and "word_limit" not in t:
             problems.append(f"manuscript_types[{i}] has no word_limit (use null when unlimited)")
+        flag = t.get("word_limit_includes_references") if isinstance(t, dict) else None
+        if flag is not None and not isinstance(flag, bool):
+            problems.append(
+                f"manuscript_types[{i}].word_limit_includes_references must be true or false"
+            )
     vd = profile.get("verified_date")
     if vd is not None and not isinstance(vd, date):
         try:
