@@ -138,7 +138,8 @@ def test_roundtrip_writes_a_pending_worksheet(cli, stub_quarto, wongo_project, t
     worksheets = sorted((wongo_project / "decisions").glob("merge-*-coauthor.md"))
     assert len(worksheets) == 1
     assert out == (f"wrote {worksheets[0]} (1 changes; NONE applied — "
-                   "review dispositions first)\n")
+                   "review dispositions first)\n"
+                   f"next: wongo review {worksheets[0]}\n")
     text = worksheets[0].read_text(encoding="utf-8")
     assert "## 1. insertion — Jane Doe" in text
     assert "- new: now" in text

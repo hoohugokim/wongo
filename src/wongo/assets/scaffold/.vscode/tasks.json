@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "wongo: render for coauthors (collab)",
+      "type": "shell",
+      "command": "wongo render --target collab",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "wongo: render for submission",
+      "type": "shell",
+      "command": "wongo render --target submission",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "wongo: check",
+      "type": "shell",
+      "command": "wongo check",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "wongo: status",
+      "type": "shell",
+      "command": "wongo status",
+      "problemMatcher": []
+    },
+    {
+      "label": "wongo: doctor (check this computer's setup)",
+      "type": "shell",
+      "command": "wongo doctor",
+      "problemMatcher": []
+    }
+  ]
+}

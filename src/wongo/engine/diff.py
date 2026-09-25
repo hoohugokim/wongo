@@ -50,6 +50,8 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+from wongo.errors import InputError
+
 _TOKEN_RE = re.compile(r"\s+|\S+")
 _RUN_CHILDREN = {qn("w:rPr"), qn("w:t")}
 # zero-width markers that carry no text and survive a rebuild untouched
@@ -227,7 +229,7 @@ def diff_documents(original: Path, revised: Path, out: Path,
     revised = Path(revised)
     out = Path(out)
     if out.resolve() in {original.resolve(), revised.resolve()}:
-        raise ValueError("output DOCX must differ from both input paths")
+        raise InputError("output DOCX must differ from both input paths")
 
     if date is None:
         date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -356,52 +358,3 @@ def diff_documents(original: Path, revised: Path, out: Path,
     out.parent.mkdir(parents=True, exist_ok=True)
     doc_rev.save(str(out))
     return report
-
-
-def main(argv: list[str] | None = None) -> int:
-    """CLI entry backing `wongo diff`."""
-    import argparse
-
-    ap = argparse.ArgumentParser(
-        prog="wongo diff",
-        description="Stamp tracked changes into a revised DOCX vs the original "
-                    "submission (S6 marked-up revision, no Word Compare needed).")
-    ap.add_argument("original", help="originally submitted DOCX")
-    ap.add_argument("revised", help="revised DOCX (never modified)")
-    ap.add_argument("-o", "--out", default=None,
-                    help="output path (default: <revised-stem>-tracked.docx)")
-    ap.add_argument("--author", default="Revised manuscript",
-                    help="attribution for stamped changes")
-    ap.add_argument("--date", default=None,
-                    help="ISO timestamp for stamped changes (default: now UTC)")
-    args = ap.parse_args(argv)
-
-    original, revised = Path(args.original), Path(args.revised)
-    out = Path(args.out) if args.out else revised.with_name(
-        revised.stem + "-tracked.docx")
-    try:
-        report = diff_documents(
-            original, revised, out, author=args.author, date=args.date
-        )
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    print(f"wrote {out}")
-    print(f"  words: +{report['inserted_words']} inserted, "
-          f"-{report['deleted_words']} deleted")
-    print(f"  paragraphs: +{report['inserted_paragraphs']}, "
-          f"-{report['deleted_paragraphs']}")
-    if report["tables_differ"]:
-        print("  NOTE: tables differ between the two documents and are NOT "
-              "tracked by this tool — run Word Compare for table pages.")
-    if report["rich_paragraphs_skipped"]:
-        print(
-            "  NOTE: "
-            f"{report['rich_paragraphs_skipped']} changed paragraph(s) contain "
-            "fields, drawings, footnotes, or other rich OOXML and were not "
-            "rewritten — run Word Compare for those paragraphs."
-        )
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

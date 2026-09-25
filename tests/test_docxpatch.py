@@ -123,10 +123,13 @@ def test_track_changes_collab_only(tmp_path):
 
         with zipfile.ZipFile(str(path)) as z:
             settings = z.read("word/settings.xml").decode()
-        assert ("<w:trackChanges/>" in settings) is tracked
+        # CT_Settings names the element trackRevisions; trackChanges is not in
+        # the schema and Word ignores it (docs/docx-quirks.md, 2026-09-25)
+        assert ("<w:trackRevisions/>" in settings) is tracked
+        assert "<w:trackChanges" not in settings
         if tracked and "<w:defaultTabStop" in settings:
-            # schema order: trackChanges must precede defaultTabStop
-            assert settings.index("<w:trackChanges/>") < settings.index("<w:defaultTabStop")
+            # schema order: trackRevisions must precede defaultTabStop
+            assert settings.index("<w:trackRevisions/>") < settings.index("<w:defaultTabStop")
 
 
 def test_patch_compat_mode_standalone(tmp_path):

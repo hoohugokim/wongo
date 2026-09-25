@@ -10,7 +10,7 @@ abstract: |
 keywords: [KEYWORD1, KEYWORD2]
 ---
 
-<!-- Writing rules (quarto-manuscript-sci):
+<!-- Writing rules (wongo):
      - ONE SENTENCE PER LINE. Never reflow; the DOCX round-trip depends on it.
      - Analysis numbers ONLY as inline R code — backtick r expr backtick, e.g. r sprintf("%.2f", k_obs) wrapped in backticks — never typed by hand.
      - Cross-references only via @fig-/@tbl-/@eq-/@sec-; citations only via @citekey. -->

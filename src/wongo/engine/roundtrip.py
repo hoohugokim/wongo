@@ -1,29 +1,26 @@
-#!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["PyYAML>=6"]
-# ///
 """Extract coauthor tracked changes/comments from a DOCX into a merge worksheet.
 
-Usage: roundtrip.py <coauthor.docx> [--project DIR] [--qmd index.qmd]
-
-Runs pandoc (via quarto) with --track-changes=all, parses insertion/deletion/
-comment spans with author attribution, aligns each change to a line of the
-source .qmd (default index.qmd; one-sentence-per-line invariant), and writes
-decisions/merge-<date>-<stem>.md. NEVER applies changes: every worksheet row
-starts as 'disposition: PENDING' for interactive review (SKILL.md S4 rules).
+`extract()` runs pandoc (via quarto) with --track-changes=all, parses
+insertion/deletion/comment spans with author attribution, aligns each change to
+a line of the source .qmd (default index.qmd; one-sentence-per-line invariant),
+and writes decisions/merge-<date>-<stem>.md. NEVER applies changes: every row
+starts as 'disposition: PENDING'; people decide rows with `wongo review` (or the
+agent with `wongo worksheet set`), and approved rows are applied to the .qmd
+outside wongo.
 """
 from __future__ import annotations
 
-import argparse
 import difflib
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+from wongo import toolchain
 from wongo.engine import checks as mslib
+from wongo.errors import InputError, ToolchainError
+from wongo.textio import read_text
 
 SPAN_RE = re.compile(
     r"\[(?P<text>[^\][]*)\]\{\.(?P<kind>insertion|deletion|comment-start|comment-end)(?P<attrs>[^}]*)\}",
@@ -210,8 +207,10 @@ def write_worksheet(
         f"# Merge worksheet — {source_name} — {date.today().isoformat()}",
         "",
         "Review each item; set disposition to one of: apply / reject: <reason> /",
-        "fix-code (edit inside auto-generated output) / needs-PI. Apply to the",
-        ".qmd only AFTER every disposition is approved (quarto-manuscript-sci S4).",
+        "fix-code (edit inside auto-generated output) / needs-PI. Decide rows with",
+        f"`wongo review {out_path.name}` (or `wongo worksheet set`), then run",
+        f"`wongo worksheet lint {out_path.name}`; apply approved rows to the .qmd only",
+        "after lint passes. wongo never edits the .qmd.",
         "Items marked 'unparsed' could not be machine-extracted: open the source",
         "DOCX at the quoted context and review that change by hand before setting",
         "a disposition — do NOT treat an unparsed row as ignorable.",
@@ -266,44 +265,57 @@ def available_worksheet_path(
         suffix += 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("docx")
-    ap.add_argument("--project", default=".")
-    ap.add_argument("--qmd", default="index.qmd",
-                    help="source .qmd the DOCX was rendered from (e.g. si.qmd)")
-    args = ap.parse_args(argv)
-    project = Path(args.project).resolve()
-    docx_path = Path(args.docx).resolve()
+@dataclass
+class RoundtripResult:
+    worksheet: Path
+    changes: int
+    kinds: dict[str, int] = field(default_factory=dict)
+    unmatched: int = 0
+    unparsed: int = 0
 
-    if not docx_path.exists():
-        raise SystemExit(f"coauthor docx not found: {docx_path}")
-    index_qmd = project / args.qmd
-    if not index_qmd.exists():
-        raise SystemExit(f"project source not found: {index_qmd}")
 
-    # --wrap=none: with the default auto-wrap, pandoc can break a long
-    # insertion/deletion span's text (or its attribute list) across a hard
-    # line boundary, embedding a literal "\n" inside the regex-captured text.
-    # Confirmed via a live run against the synthetic fixture; see
-    # references/quarto-docx-quirks.md (2026-07-03).
+def pandoc_markdown(docx_path: Path) -> str:
+    """The coauthor DOCX as pandoc markdown with tracked changes as spans.
+
+    --wrap=none: with auto-wrap pandoc can break a long span's text or its
+    attribute list across lines (docs/docx-quirks.md, 2026-07-03). pandoc
+    writes UTF-8 whatever the locale, so decode it as UTF-8: the locale code
+    page (CP949 on Korean Windows) garbles or crashes on Hangul.
+    """
+    cmd = [*toolchain.quarto_command(), "pandoc", "--track-changes=all", "--wrap=none",
+           str(docx_path), "-t", "markdown"]
     try:
-        md = subprocess.run(
-            ["quarto", "pandoc", "--track-changes=all", "--wrap=none", str(docx_path), "-t", "markdown"],
-            capture_output=True, text=True, check=True,
-        ).stdout
-    except subprocess.CalledProcessError as e:
-        raise SystemExit(f"pandoc extraction failed: {e.stderr.strip()[-500:]}") from e
+        done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", check=True)
+    except subprocess.CalledProcessError as exc:
+        raise ToolchainError(f"pandoc extraction failed: {exc.stderr.strip()[-500:]}") from exc
+    except OSError as exc:
+        raise ToolchainError(f"could not run Quarto ({cmd[0]}): {exc}") from exc
+    return done.stdout
 
-    changes = extract_changes(md)
-    qmd_lines = index_qmd.read_text(encoding="utf-8").splitlines()
+
+def extract(docx: Path, project: Path, qmd: str = "index.qmd") -> RoundtripResult:
+    """Write a PENDING merge worksheet for a coauthor's DOCX; never edits .qmd."""
+    project = Path(project).resolve()
+    docx_path = Path(docx).resolve()
+    if not docx_path.exists():
+        raise InputError(f"coauthor docx not found: {docx_path}")
+    source = project / qmd
+    if not source.exists():
+        raise InputError(f"project source not found: {source} (use --qmd si.qmd for an SI render)")
+
+    changes = extract_changes(pandoc_markdown(docx_path))
+    qmd_lines = read_text(source).splitlines()
     locations = [locate(c, qmd_lines) for c in changes]
-
     out = available_worksheet_path(project, docx_path.stem)
-    write_worksheet(changes, locations, out, docx_path.name, qmd_name=args.qmd)
-    print(f"wrote {out} ({len(changes)} changes; NONE applied — review dispositions first)")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    write_worksheet(changes, locations, out, docx_path.name, qmd_name=qmd)
+    kinds: dict[str, int] = {}
+    for c in changes:
+        kinds[c.kind] = kinds.get(c.kind, 0) + 1
+    return RoundtripResult(
+        worksheet=out,
+        changes=len(changes),
+        kinds=kinds,
+        unmatched=sum(1 for c, loc in zip(changes, locations) if loc is None and c.kind != "unparsed"),
+        unparsed=kinds.get("unparsed", 0),
+    )

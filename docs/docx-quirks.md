@@ -369,3 +369,74 @@ byte-identical under kist-wcr. The builders also stop using `doc.styles[name]`
 `tests/test_reference_docs.py` and
 `test_set_fonts_emits_rfonts_attributes_in_canonical_order`. Versions: quarto
 1.10.18, pandoc 3.10, python-docx 1.2.0.
+
+## Collab renders wrote `<w:trackChanges/>`, which is not an OOXML element — Track Changes never switched on
+
+2026-09-25 / The collab target was meant to open with Track Changes already on,
+so every coauthor edit is captured. `patch_document_package()` planted
+`<w:trackChanges/>` in word/settings.xml. CT_Settings (ECMA-376 §17.15.1) has
+no such element; the setting is `<w:trackRevisions/>` (python-docx's own
+CT_Settings child sequence lists only trackRevisions, and every Word-saved file
+in the reference project with tracking on carries `<w:trackRevisions/>`). An
+element outside the schema cannot switch the setting on, so coauthors most
+likely opened collab files with tracking off unless they turned it on
+themselves (Word automation could not read back an old-style file in this
+session; this part rests on the schema). Fix: write
+`<w:trackRevisions/>` before its first schema successor present (the full
+successor list is spelled out in docxpatch; pandoc output has doNotTrackMoves).
+Verification: raw settings.xml of a collab render contains `<w:trackRevisions/>`
+before `<w:defaultTabStop`, a submission render contains neither element, and
+Microsoft Word for Mac (AppleScript `track revisions of active document`)
+reports `true` for a collab render of `wongo scaffold --example`. Pinned by
+`test_track_changes_collab_only` and
+`test_collab_opens_with_track_changes_on_and_submission_does_not`. This changes
+collab `word/settings.xml` bytes for the reference manuscript (allowlisted with
+this justification). Versions: quarto 1.10.18, pandoc 3.10, python-docx 1.2.0,
+Word for Mac 16.x.
+
+## Word locks open DOCX files on Windows; renders now replace outputs as one unit
+
+2026-09-25 / Re-rendering while `output/main-collab.docx` is open in Word on
+Windows fails: Word opens documents without FILE_SHARE_DELETE, so renaming or
+replacing the file raises PermissionError [WinError 32]. The old pipeline also
+wrote Quarto's raw output straight into output/ and post-processed it in place,
+and finished main before rendering SI, so any failure after Quarto (including
+this lock) left a half-processed deliverable. Fix: Quarto renders under a
+`.wongo-stage-<name>` file name, post-processing happens in
+`output/.stage-<target>/`, and `promote()` first renames every existing output
+to a backup (the step Word's lock refuses, reported as "<name> is open in
+another program (probably Word)"), restores all backups on any failure, then
+moves the staged files in. Verified with real Quarto that the `--output` name
+does not change any compared part (word/*, [Content_Types].xml, _rels/.rels),
+and that Quarto accepts a dot-prefixed output name. The reference project's
+post-render hook finds its files through `QUARTO_PROJECT_OUTPUT_FILES`, so the
+staging name does not affect it. Pinned by the tests in
+`tests/test_render_pipeline.py` (failed SI render, post-processing crash,
+locked output, crashed-run leftovers). Versions: quarto 1.10.18, Windows 10/11.
+
+## Korean Windows: CP949 decoding of pandoc output, BOM-prefixed sources, and redirected output
+
+2026-09-25 / Three encoding failures, reproduced on macOS under
+`LC_ALL=ko_KR.CP949 PYTHONUTF8=0` (the code page Korean Windows uses):
+(1) `wongo roundtrip` decoded `quarto pandoc` output with the locale encoding
+(`text=True` without `encoding=`); pandoc always writes UTF-8, so Hangul crashed
+with UnicodeDecodeError and Latin-1 symbols silently turned into Hangul
+mojibake (°C became 째C). Fix: decode with `encoding="utf-8"`. (2) Older Windows
+Notepad saves UTF-8 with a byte-order mark; read with `utf-8` the BOM stays in
+the text, so the front-matter regex (`\A---`) and the first BibTeX key no
+longer match (abstract uncounted, title block not rebuilt, first citekey
+"missing"). Fix: every source is read through `wongo.textio.read_text`
+(`utf-8-sig`), which also turns a non-UTF-8 file into an actionable error.
+(3) Redirected stdout falls back to the locale code page, which cannot encode
+the em-dash in wongo's reports. Fix: `configure_stdio()` switches non-UTF-8
+streams to UTF-8 (or makes an explicit PYTHONIOENCODING lossy instead of
+fatal). Pinned by `test_roundtrip_and_report_work_under_a_korean_legacy_locale`,
+`test_bom_and_crlf_sources_parse_like_plain_utf8`,
+`test_non_utf8_source_is_an_actionable_error`, and
+`test_reports_survive_a_non_utf8_output_encoding`. Versions: Python 3.11-3.13.
+
+## `editor: markdown: wrap: sentence` does not change render output
+
+2026-09-25 / The scaffold now sets this `_quarto.yml` key so visual editors keep
+one sentence per line. Verified with real Quarto that renders with and without
+it are identical in every compared part. Versions: quarto 1.10.18.
