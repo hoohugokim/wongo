@@ -1,38 +1,35 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-09-25 by `uv run pytest -q` (111 passed) + ruff (AGENTS command) + CLI smoke (wongo 0.2.0)
+last_verified: 2026-09-25 by `uv run pytest -q` (131 passed) + ruff + `tools/bytecompare.py check --target both` (PASS)
 last_worker: claude
 last_machine: unknown
-handoff_id: 321bd04f1c682ff460837104e62e8290
-supersedes: 83a7660b3041a9eaf5d44ca432de4769
+handoff_id: c73bd55ed9a0ab337ab5761bd907ba10
+supersedes: 321bd04f1c682ff460837104e62e8290
 
 ## Goal
-Cut v0.2.0: `main` is pushed to origin at `99ae645` with CI and CodeQL green; only the
-reference-manuscript byte comparison and the tag remain (T-0002, D-0007).
+v0.2.0 is released. Now: Windows compatibility, environment floor, headless seam and
+the S4 review loop (steps 2-4 of notes/tui-feasibility-2026-09-25.md; TUI deferred).
 
 ## Last verified state
-- 111 tests green (Python 3.13 and 3.11); ruff clean; wheel 0.2.0 carries package data;
-  CLI smoke clean; `statutor-doctor .` clean.
-- Fixed and committed: `default`-style crash, SI cover counts, `wongo diff` v2 (D-0006),
-  TOC-art box fit, `line_numbers: forbidden` (D-0005), reference fonts kept, contract
-  lint, bibliography discovery, `roundtrip --qmd`, reference-doc builders without theme
-  font links (all 7 assets regenerated), canonical rFonts order in `set_fonts`.
-- Demo renders (est + wr, default + kist-wcr, both targets) succeed; kist-wcr output is
-  byte-identical with the old and regenerated reference docs (checked on the demo).
-- Full report: `notes/overnight-2026-09-19.md` (section 10 = follow-up commits).
+- `v0.2.0` tagged at `b0db8ba`, pushed, GitHub Release with wheel and sdist; the
+  release wheel installs and runs from its URL via `uvx --from`.
+- T-0002: baseline `ad6019d` vs `34e8150`, 95 parts, only the SI cover count differs
+  ("26 tables" to "12 tables"). T-0017 harness fix and T-0003 interim gate shipped.
+- The reference project's post-render hook (`keep_captions.py`) finds files through
+  `QUARTO_PROJECT_OUTPUT_FILES`, so a staging file name does not break it.
 
 ## Next action
-1. T-0002: `set -x WONGO_REF_PROJECT ~/workbench/<reference-repo>`; in a worktree at
-   `ad6019d` run `uv run tools/bytecompare.py baseline --target both`, then here
-   `uv run tools/bytecompare.py check --target both --allow tools/bytecompare-allow.txt`.
-   Expected: `main-*` identical; only `si-*/word/document.xml` differs (cover count).
-2. On PASS: `git tag -a v0.2.0 -m "wongo v0.2.0"`, `git push --follow-tags`, GitHub
-   Release with `dist/wongo-0.2.0-*` from `uv build`. On FAIL: fix, never allowlist blind.
+1. Work continues on branch `feat/windows-front-door`: T-0018 (trackRevisions), T-0019
+   (staged renders), T-0020 (doctor, preflight, UTF-8), S4 worksheet review, Claude front door.
+2. Re-run the byte comparison against a `v0.2.0` baseline before merging:
+   `git worktree add --detach <tmp> v0.2.0`, then `bytecompare.py baseline --repo <tmp>`
+   and `bytecompare.py check --allow tools/bytecompare-allow.txt` (WONGO_BC_SCRATCH set).
 
 ## Gotchas
-- DO NOT run step 1 before T-0017: bytecompare writes into the LIVE reference output/.
+- pandoc 3.10's default reference.docx has no pgSz/pgMar; styles without `page:` must work.
 - pandoc sorts rFonts attributes when copying reference styles; `set_fonts` canonicalizes.
+- Only ~9 GiB disk free on this Mac; each harness pass copies ~0.7 GB of the reference repo.
 
 ## Do not touch
 - `plans/archive/` (uplift records), frozen `docs/CHANGELOG.md`, existing
