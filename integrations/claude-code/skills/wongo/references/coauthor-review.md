@@ -64,8 +64,10 @@ means empty. For a comment, `old` is the text the comment is attached to and
 
 Read the rows with `wongo worksheet status <ws> --json`, then open the `.qmd`
 at each row's `line` and confirm the line holds `old` (or, for an insertion,
-the end of `context`). The alignment is fuzzy and can pick the wrong line, for
-example a line inside a multi-line `<!-- ... -->` comment. When it is wrong,
+the end of `context`). wongo anchors each row on the last words of `context`
+and never points into front matter or HTML comments, but it can still pick the
+wrong line, for example when the context is mostly a rendered citation or
+number, or when the same phrase appears on several lines. When it is wrong,
 find the right line and run `wongo worksheet set <ws> <N> --location <line>`.
 
 - `UNMATCHED`: search the `.qmd` for `old` or the context. Found: set the

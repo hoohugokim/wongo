@@ -27,6 +27,9 @@ SPAN_RE = re.compile(
     re.DOTALL,
 )
 ATTR_RE = re.compile(r'([\w-]+)="([^"]*)"')
+WORD_RE = re.compile(r"\w+")  # Unicode-aware: Hangul words count as words
+CONTEXT_CHARS = 60  # rendered text kept before each change
+ANCHOR_WORDS = 8    # at most this many context words are matched against a line
 
 
 @dataclass
@@ -60,7 +63,7 @@ def _context_before(md: str, pos: int) -> str:
     the worksheet's "- context: ...…" stays a single markdown list item
     instead of a stray blank line splitting it into a new paragraph.
     """
-    return " ".join(_plain(md[:pos]).split())[-60:]
+    return " ".join(_plain(md[:pos]).split())[-CONTEXT_CHARS:]
 
 
 def extract_changes(md: str) -> list[Change]:
@@ -161,43 +164,113 @@ def extract_changes(md: str) -> list[Change]:
     return [c for _, c in changes]
 
 
+def _words(text: str) -> list[str]:
+    return WORD_RE.findall(text.lower())
+
+
+def _contains_run(words: list[str], run: list[str]) -> bool:
+    """Whether `run` occurs in `words` as consecutive words."""
+    n = len(run)
+    return any(words[i:i + n] == run for i in range(len(words) - n + 1))
+
+
+def _tail_run(context: list[str], words: list[str], then: list[str] | None = None) -> int:
+    """How many of the context's last words (at most ANCHOR_WORDS) `words`
+    holds consecutively, followed directly by `then`; 0 if none."""
+    for k in range(min(len(context), ANCHOR_WORDS), 0, -1):
+        if _contains_run(words, context[-k:] + (then or [])):
+            return k
+    return 0
+
+
+def _comment_lines(lines: list[str]) -> set[int]:
+    """1-based numbers of the lines inside HTML comments. Comments are never
+    rendered, so no coauthor edited them; prose before an inline `<!--` keeps
+    its line a candidate."""
+    inside: set[int] = set()
+    is_open = False
+    for idx, line in enumerate(lines, start=1):
+        if is_open:
+            inside.add(idx)
+            is_open = "-->" not in line
+            continue
+        start = line.find("<!--")
+        if start == -1:
+            continue
+        end = line.find("-->", start + 4)
+        if not line[:start].strip() and (end == -1 or not line[end + 3:].strip()):
+            inside.add(idx)
+        is_open = end == -1
+    return inside
+
+
+def _anchor_strength(context: list[str], old: list[str], words: list[str]) -> int:
+    """How surely a line is where the change happened, from exact word runs:
+    the context's last words followed by the old text, then a context tail of
+    three or more words (all an insertion has), then the old text alone, then a
+    two-word tail. 0 means no anchor; the fuzzy score decides."""
+    joined = _tail_run(context, words, old) if old else 0
+    if joined:
+        return 100 + joined
+    tail = _tail_run(context, words)
+    if tail >= 3:
+        return 50 + tail
+    if old and _contains_run(words, old):
+        return 20 + tail
+    return 10 if tail == 2 else 0
+
+
 def locate(change: Change, qmd_lines: list[str]) -> int | None:
     """Best-matching 1-based line in the .qmd for this change's original text.
 
-    Front matter (YAML header) is excluded from candidates via
-    mslib.split_front_matter so coauthor prose never spuriously matches
-    title/author/abstract metadata; returned indices still index into the
-    full qmd_lines list (front matter included), as documented in the
+    Candidates exclude the front matter (via mslib.split_front_matter, so
+    coauthor prose never spuriously matches title/author/abstract metadata),
+    lines inside HTML comments, headings and other markup lines; returned
+    indices still index into the full qmd_lines list, as documented in the
     interface contract.
 
+    Each candidate is first judged by exact word runs (_anchor_strength): the
+    rendered context ends right where the change happened, so its last words,
+    followed by any old text, pin the line even when an unrelated line looks
+    more similar overall. The difflib similarity of context plus old text
+    breaks ties, and decides alone when nothing anchors (e.g. a context that
+    is mostly a rendered citation absent from the source).
+
     Unparsed changes always return None: their context ends with the raw
-    unmatched span text (useful for a human, junk for difflib), so any line
+    unmatched span text (useful for a human, junk for matching), so any line
     it "matched" would be a spurious guess — worse than an honest UNMATCHED.
-    (Note the guard must be explicit: the needle is built from context+old,
-    and an unparsed change's *context* is non-empty, so without the guard the
-    fuzzy match could still fire.)
+    The guard must stay explicit: that context is non-empty and could still
+    anchor or fuzzy-match a line.
     """
     if change.kind == "unparsed":
         return None
     full_text = "\n".join(qmd_lines)
     _, body = mslib.split_front_matter(full_text)
     fm_line_count = len(full_text.splitlines()) - len(body.splitlines())
+    comments = _comment_lines(qmd_lines)
 
     needle = " ".join(f"{change.context} {change.old}".split())
     if not needle.strip():
         needle = change.new
-    best_line, best_score = None, 0.0
+    context = _words(change.context)
+    if len(change.context) >= CONTEXT_CHARS:
+        context = context[1:]  # the window may start mid-word
+    old = _words(change.old)
+
+    best_line, best_key = None, (0, 0.0)
     for idx, line in enumerate(qmd_lines, start=1):
-        if idx <= fm_line_count:
+        if idx <= fm_line_count or idx in comments:
             continue
         if not line.strip() or line.lstrip().startswith(("#", "---", "<!--", "!", "```")):
             continue
         score = difflib.SequenceMatcher(None, needle.lower(), line.lower()).ratio()
         if change.old and change.old.strip().lower() in line.lower():
             score += 0.5
-        if score > best_score:
-            best_line, best_score = idx, score
-    return best_line if best_score >= 0.3 else None
+        key = (_anchor_strength(context, old, _words(line)), score)
+        if key > best_key:
+            best_line, best_key = idx, key
+    strength, score = best_key
+    return best_line if strength or score >= 0.3 else None
 
 
 def write_worksheet(
