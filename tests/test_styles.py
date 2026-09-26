@@ -12,6 +12,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Mm
 
+from wongo.errors import ConfigError
 from wongo.styles import (
     apply_page_geometry,
     bold_caption_leads,
@@ -197,7 +198,7 @@ def test_apply_page_geometry_sets_a4_and_margins_from_kist_wcr():
 
 
 def test_load_style_unknown_name_raises_system_exit_naming_known_styles():
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(ConfigError) as excinfo:
         load_style("nope")
     message = str(excinfo.value)
     assert "nope" in message
@@ -239,3 +240,11 @@ def test_rebuild_title_block_when_authors_are_the_last_paragraphs():
     texts = [p.text for p in doc.paragraphs]
     assert any(t.startswith("E-mail:") for t in texts)
     assert sum("Ann Author" in t for t in texts) == 1
+
+
+def test_read_front_matter_ignores_a_bom(tmp_path):
+    from wongo.styles import read_front_matter
+
+    (tmp_path / "index.qmd").write_bytes(b"\xef\xbb\xbf---\r\ntitle: T\r\nkeywords: [a]\r\n---\r\nBody\r\n")
+
+    assert read_front_matter(tmp_path, "index.qmd") == {"title": "T", "keywords": ["a"]}

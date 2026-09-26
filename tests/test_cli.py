@@ -1,7 +1,8 @@
 """Focused CLI safety and precedence checks."""
 
 from wongo import profiles
-from wongo.cli import _url_allowed, main
+from wongo.cli import main
+from wongo.profiles.verify import url_allowed as _url_allowed
 
 
 def test_url_filter_rejects_trailing_dot_localhost():

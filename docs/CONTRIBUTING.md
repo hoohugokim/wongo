@@ -15,7 +15,7 @@ See `plans/archive/HANDOFF-wongo-uplift.md` for the full migration map and `docs
 - Python ≥3.11, [uv](https://docs.astral.sh/uv/) (runner of choice)
 - Quarto ≥1.10 (currently 1.10.18, pandoc 3.10) and R ≥4.6 with `knitr`/`rmarkdown` (and `jsonlite` if inline numbers read JSON)
 
-CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: pytest on Python 3.11–3.13, a CLI smoke (`wongo --version`, `profile list`, `profile verify est --offline`), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
+CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: ruff and pytest on Linux (Python 3.11–3.13), Windows (3.11, 3.13) and macOS (3.12), a CLI smoke, an end-to-end job that installs Quarto 1.10.18 and R on all three platforms and renders `wongo scaffold --example` inside a Hangul-named folder (doctor, check, both renders, status, roundtrip, diff), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. Tests never need Quarto or R: `tests/stub_quarto.py` stands in for Quarto (see `tests/conftest.py`). CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
 - Fish for shell snippets; public repo `hoohugokim/wongo` on GitHub, MIT
 
 ```sh
@@ -25,13 +25,18 @@ uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools
 uv build
 uv run wongo --version && uv run wongo profile verify est --offline
 uv run tools/bytecompare.py selftest --target collab   # noise floor must be zero
-uv run tools/bytecompare.py baseline --target both     # 63 XML parts across 4 docs
-uv run tools/bytecompare.py check --target both        # allowlist: tools/bytecompare-allow.txt
+git worktree add --detach /tmp/wongo-prev v0.2.0        # the last release renders the baseline
+uv run tools/bytecompare.py baseline --repo /tmp/wongo-prev
+uv run tools/bytecompare.py check --allow tools/bytecompare-allow.txt
 ```
 
 `WONGO_REF_PROJECT` must point at the reference manuscript repo's root for
-the bytecompare commands above; the harness only reads from that project —
-it never writes into it.
+the bytecompare commands above. The harness copies that repository (without
+`.git`, local environments and old `manuscript/output`) into a scratch folder
+(`WONGO_BC_SCRATCH`, default the system temp folder), renders the copy, and
+never writes into the reference project; a render that fails to produce an
+expected output fails the comparison. Keep `tools/bytecompare-allow.txt`
+scoped to the current release baseline.
 
 ## How to add a journal profile
 

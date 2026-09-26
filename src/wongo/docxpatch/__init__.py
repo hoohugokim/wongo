@@ -141,6 +141,35 @@ def _rewrite_package(path: Path, transform) -> None:
     tmp.replace(path)
 
 
+# CT_Settings children that follow w:trackRevisions (ECMA-376 §17.15.1.78),
+# in schema order.
+_TRACK_REVISIONS_SUCCESSORS = (
+    "w:doNotTrackMoves", "w:doNotTrackFormatting", "w:documentProtection",
+    "w:autoFormatOverride", "w:styleLockTheme", "w:styleLockQFSet",
+    "w:defaultTabStop", "w:autoHyphenation", "w:consecutiveHyphenLimit",
+    "w:hyphenationZone", "w:doNotHyphenateCaps", "w:showEnvelope",
+    "w:summaryLength", "w:clickAndTypeStyle", "w:defaultTableStyle",
+    "w:evenAndOddHeaders", "w:bookFoldRevPrinting", "w:bookFoldPrinting",
+    "w:bookFoldPrintingSheets", "w:drawingGridHorizontalSpacing",
+    "w:drawingGridVerticalSpacing", "w:displayHorizontalDrawingGridEvery",
+    "w:displayVerticalDrawingGridEvery", "w:doNotUseMarginsForDrawingGridOrigin",
+    "w:drawingGridHorizontalOrigin", "w:drawingGridVerticalOrigin",
+    "w:doNotShadeFormData", "w:noPunctuationKerning", "w:characterSpacingControl",
+    "w:printTwoOnOne", "w:strictFirstAndLastChars", "w:noLineBreaksAfter",
+    "w:noLineBreaksBefore", "w:savePreviewPicture", "w:doNotValidateAgainstSchema",
+    "w:saveInvalidXml", "w:ignoreMixedContent", "w:alwaysShowPlaceholderText",
+    "w:doNotDemarcateInvalidXml", "w:saveXmlDataOnly", "w:useXSLTWhenSaving",
+    "w:saveThroughXslt", "w:showXMLTags", "w:alwaysMergeEmptyNamespace",
+    "w:updateFields", "w:hdrShapeDefaults", "w:footnotePr", "w:endnotePr",
+    "w:compat", "w:docVars", "w:rsids", "m:mathPr", "w:attachedSchema",
+    "w:themeFontLang", "w:clrSchemeMapping", "w:doNotIncludeSubdocsInStats",
+    "w:doNotAutoCompressPictures", "w:forceUpgrade", "w:captions",
+    "w:readModeInkLockDown", "w:smartTagType", "sl:schemaLibrary",
+    "w:shapeDefaults", "w:doNotEmbedSmartTags", "w:decimalSymbol",
+    "w:listSeparator",
+)
+
+
 def patch_theme_fonts(path: Path, name: str, track_changes: bool = False) -> None:
     """Zip-level fixes python-docx can't do: (1) rewrite the document theme's
     typefaces so anything resolving through the theme lands on the same font
@@ -148,7 +177,7 @@ def patch_theme_fonts(path: Path, name: str, track_changes: bool = False) -> Non
     settings.xml — pandoc emits NO compatSetting at all, so Word opens every
     render in Compatibility Mode and applies legacy layout rules (pct table
     widths and in-cell justification misbehave); (3) when track_changes is
-    True (collab target only — NEVER submission), plant <w:trackChanges/> so
+    True (collab target only — NEVER submission), plant <w:trackRevisions/> so
     the document OPENS with Track Changes already on: coauthors start editing
     and every edit is captured without anyone remembering the toggle. It is a
     default, not a lock — a reviewer can still switch it off; we deliberately
@@ -233,16 +262,18 @@ def patch_document_package(
             )
             items["word/settings.xml"] = settings.encode("utf-8")
         settings = items.get("word/settings.xml", b"").decode("utf-8")
-        if track_changes and settings and "<w:trackChanges" not in settings:
-            # CT_Settings order: trackChanges precedes doNotTrackMoves and
-            # defaultTabStop — anchor on whichever exists (pandoc has both).
-            el = "<w:trackChanges/>"
-            for anchor in ("<w:doNotTrackMoves", "<w:defaultTabStop"):
-                if anchor in settings:
-                    settings = settings.replace(anchor, el + anchor, 1)
+        if track_changes and settings and "<w:trackRevisions" not in settings:
+            # The CT_Settings element is trackRevisions (an earlier version wrote
+            # the non-schema <w:trackChanges/>, which Word ignored). Insert it
+            # before its first schema successor present (pandoc has
+            # doNotTrackMoves and defaultTabStop).
+            el = "<w:trackRevisions/>"
+            for anchor in _TRACK_REVISIONS_SUCCESSORS:
+                if f"<{anchor}" in settings:
+                    settings = settings.replace(f"<{anchor}", el + f"<{anchor}", 1)
                     break
             else:
-                settings = re.sub(r"(<w:settings[^>]*>)", r"\1" + el, settings, count=1)
+                settings = settings.replace("</w:settings>", el + "</w:settings>", 1)
             items["word/settings.xml"] = settings.encode("utf-8")
 
     _rewrite_package(path, transform)

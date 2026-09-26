@@ -1,0 +1,15 @@
+{
+  "name": "wongo",
+  "description": "Claude Code plugin for wongo: turn Quarto manuscripts into journal-ready Word files and bring coauthors' tracked changes back through a reviewed worksheet.",
+  "owner": {
+    "name": "Hoo Hugo Kim",
+    "url": "https://github.com/hoohugokim"
+  },
+  "plugins": [
+    {
+      "name": "wongo",
+      "source": "./integrations/claude-code",
+      "description": "Talk to Claude to set up wongo, write and check Quarto manuscripts, render Word files for coauthors and journals, and review coauthors' edits."
+    }
+  ]
+}
