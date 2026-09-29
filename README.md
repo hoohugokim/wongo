@@ -5,7 +5,7 @@
 
 *Wongo* is Korean for **manuscript** — and this is a manuscript pipeline:
 
-> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.2.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `doctor` / `status` / `check` / `render` / `roundtrip` / `review` / `diff` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
+> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.3.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `doctor` / `status` / `check` / `render` / `roundtrip` / `review` / `diff` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
 
 Write a journal article as a Quarto `.qmd` with every inferential number wired
 to committed analysis artifacts, render **submission-grade DOCX** against
@@ -13,7 +13,7 @@ to committed analysis artifacts, render **submission-grade DOCX** against
 tracked-changes round-tripping, and never let a hand-typed number or a stale
 journal rule reach a submission portal.
 
-> **Status: v0.2.0** (diff v2 for cited prose, profile contract lint, `default`-style and SI-cover fixes; v0.1.0 was the first shareable release). The engine is battle-tested — it produced a real ES&T
+> **Status: v0.3.0** (Windows support, all-or-nothing renders, doctor/status, JSON output, the coauthor review loop, and the Claude plugin; v0.1.0 was the first shareable release). The engine is battle-tested — it produced a real ES&T
 > submission — and has been migrated into `src/wongo/`
 > (`docxpatch`/`styles`/`profiles`/`engine`) per `plans/archive/HANDOFF-wongo-uplift.md`.
 > `legacy/` shims were removed in v0.1.0; the lab's reference manuscript pins

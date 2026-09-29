@@ -1,4 +1,4 @@
-# Wongo product definition (v0.1.0)
+# Wongo product definition (v0.3.0)
 
 > One-sentence positioning: **Wongo is a Python package that ships a CLI research-software pipeline and an extensible pipeline framework for verified journal-manuscript production.**
 
@@ -8,28 +8,28 @@ This file is the canonical answer to "is it a software / framework / package?" �
 
 | Layer | What Wongo is | What to do with it | Where it lives |
 |---|---|---|---|
-| **Distribution (package)** | A Python package `wongo` (wheel `wongo-0.1.0-py3-none-any.whl`, sdist `wongo-0.1.0.tar.gz`), built with `hatchling`, `src/` layout, `pyproject.toml:3` declares `requires-python >=3.11`, MIT, owner Hoo Hugo Kim (KIST). Name `wongo` was free on PyPI 2026-08-24 and is reserved for a future release there; the repository `hoohugokim/wongo` is public on GitHub, and distribution today is via GitHub Releases (`v0.1.0`, `uv tool install` / `pip install` from a local checkout or the release wheel, not yet PyPI). | Install: `uv tool install --editable .` or `pip install dist/wongo-0.1.0-py3-none-any.whl` | `pyproject.toml`, `src/wongo/`, `dist/` |
-| **Runnable (research software)** | An installed CLI `wongo` (`project.scripts: wongo = "wongo.cli:main"`) that runs locally — no server, no SaaS. Deterministic local transforms: Quarto → docx → python-docx post-processing (`wongo.docxpatch` unconditional OOXML fixes, `wongo.styles` house look) → validation (`wongo check`) → round-trip extraction (`wongo roundtrip`). Cite via `CITATION.cff` (or the GitHub Release `hoohugokim/wongo@v0.2.0` with the `src/wongo/` commit hash). | Run: `wongo doctor`, `wongo status`, `wongo scaffold [--example]`, `wongo check`, `wongo render --target collab|submission`, `wongo roundtrip <docx>`, `wongo review <worksheet>`, `wongo worksheet status|lint|set`, `wongo diff <original.docx> <revised.docx>`, `wongo profile list|show|verify`, `wongo style list`; every command takes `--json`. Runs on Windows, macOS and Linux. | `~/.local/bin/wongo`, `src/wongo/cli.py:1` |
+| **Distribution (package)** | A Python package `wongo` (wheel `wongo-0.3.0-py3-none-any.whl`, sdist `wongo-0.3.0.tar.gz`), built with `hatchling`, `src/` layout, `pyproject.toml:3` declares `requires-python >=3.11`, MIT, owner Hoo Hugo Kim (KIST). Name `wongo` was free on PyPI 2026-08-24 and is reserved for a future release there; the repository `hoohugokim/wongo` is public on GitHub, and distribution today is via GitHub Releases (`v0.3.0`, `uv tool install` / `pip install` from a local checkout or the release wheel, not yet PyPI). | Install: `uv tool install --editable .` or `pip install dist/wongo-0.3.0-py3-none-any.whl` | `pyproject.toml`, `src/wongo/`, `dist/` |
+| **Runnable (research software)** | An installed CLI `wongo` (`project.scripts: wongo = "wongo.cli:main"`) that runs locally — no server, no SaaS. Deterministic local transforms: Quarto → docx → python-docx post-processing (`wongo.docxpatch` unconditional OOXML fixes, `wongo.styles` house look) → validation (`wongo check`) → round-trip extraction (`wongo roundtrip`). Cite via `CITATION.cff` (or the GitHub Release `hoohugokim/wongo@v0.3.0` with the `src/wongo/` commit hash). | Run: `wongo doctor`, `wongo status`, `wongo scaffold [--example]`, `wongo check`, `wongo render --target collab|submission`, `wongo roundtrip <docx>`, `wongo review <worksheet>`, `wongo worksheet status|lint|set`, `wongo diff <original.docx> <revised.docx>`, `wongo profile list|show|verify`, `wongo style list`; every command takes `--json`. Runs on Windows, macOS and Linux. | `~/.local/bin/wongo`, `src/wongo/cli.py:1` |
 | **Architecture (pipeline framework)** | An opinionated lifecycle framework S1 Scaffold → S2 Author → S3 Render → S4 Round-trip → S5 Submit → S6 Revise, driven by declarative data: verified journal profiles (`src/wongo/profiles/<slug>/profile.yml` satisfying `docs/journal-profile-contract.md:1`) and house styles (`src/wongo/styles/*.yml` via `wongo.styles`). Extending Wongo means adding a profile/style that satisfies the contract — you do not subclass code. The framework ships 7 verified profiles (`est`, `wr`, `npjcw`, `natwater`, `microbiome`, `envmicrobiome`, `npjbiofilms`) and 2 styles (`kist-wcr`, `default`). | Extend: add `src/wongo/profiles/<slug>/` per `docs/CONTRIBUTING.md` contract | `src/wongo/profiles/`, `src/wongo/styles/`, `src/wongo/engine/` |
-| **Code (library)** | Importable Python library (`import wongo`, `wongo.engine`, `wongo.docxpatch`, `wongo.profiles`, `wongo.styles`, `wongo.engine.checks`) for programmatic use inside Quarto/R/Python manuscript projects. The Claude Code skills at `~/.claude/skills/quarto-manuscript-*` are now thin wrappers that call this library via the CLI and retain only judgment content (`SKILL.md` S4–S6, `references/editorial-framing.md`). | Import: `from wongo.profiles import load_profile` etc. | `src/wongo/` |
+| **Code (library)** | Importable Python library (`import wongo`, `wongo.engine`, `wongo.docxpatch`, `wongo.profiles`, `wongo.styles`, `wongo.engine.checks`) for programmatic use inside Quarto/R/Python manuscript projects. The Claude Code plugin at `integrations/claude-code/` calls this library via the CLI; its skill guides setup and the S1–S6 workflow, with journal judgment reached through `wongo profile show <slug> --json`. The personal `quarto-manuscript-*` entry points are retired. | Import: `from wongo.profiles import load_profile` etc. | `src/wongo/` |
 
 ## What Wongo is not
 
 - **Not a SaaS / web service.** Nothing leaves the machine except the optional `wongo profile verify` live `HEAD` against a profile's official `sources` URLs (and `--offline` skips it).
 - **Not a Quarto extension or Word add-in.** It drives `quarto render` with `-M reference-doc` / `-M csl` and post-processes the docx with `python-docx` + raw OOXML zip passes.
 - **Not a general-purpose publishing framework** (like a web or data framework you build arbitrary apps on). It is a *manuscript-pipeline* framework — narrow, opinionated, and verified per journal. The extension surface is intentionally small (profiles/styles satisfying a contract), not a plugin API.
-- **Not the Claude Code skill itself anymore.** The skills (`quarto-manuscript-sci` + `quarto-manuscript-<slug>`) were the incubator; since `v0.1.0` the canonical implementation is this package (`src/wongo/`), and the skills are wrappers. `docs/docx-quirks.md:1` is the canonical quirks memory; `plans/archive/HANDOFF-wongo-uplift.md` is retained as historical record.
+- **Not the Claude Code skill itself anymore.** The skills (`quarto-manuscript-sci` + `quarto-manuscript-<slug>`) were the incubator; since `v0.1.0` the canonical implementation is this package (`src/wongo/`), and the maintained front door is the wongo plugin. `docs/docx-quirks.md:1` is the canonical quirks memory; `plans/archive/HANDOFF-wongo-uplift.md` is retained as historical record.
 
 ## How to refer to Wongo (by audience)
 
 - **For installation docs / `pyproject.toml` / GitHub:** "Python package `wongo`" (distribution).
-- **For methods sections / citations / grant reports:** "research software `wongo` (CLI `wongo`, Python package, `hoohugokim/wongo` `v0.1.0`)" — cite the GitHub Release DOI/commit, not the skill name.
+- **For methods sections / citations / grant reports:** "research software `wongo` (CLI `wongo`, Python package, `hoohugokim/wongo` `v0.3.0`)" — cite the GitHub Release DOI/commit, not the skill name.
 - **For extension docs / `docs/CONTRIBUTING.md`:** "pipeline framework" — "add a journal profile that satisfies `docs/journal-profile-contract.md`" / "add a house style in `src/wongo/styles/`".
 - **For code docs / API references:** "library `wongo`" — "import `wongo.engine`".
 
 If one label is required (e.g., PyPI classifier, keyword): use **"manuscript pipeline (Python package and CLI)"** as the primary, with keywords `quarto`, `manuscript`, `docx`, `journal`, `publishing`, `reproducible-research`, `research-software`, `pipeline-framework` (see `pyproject.toml:9`).
 
-## Distribution status (2026-08-24)
+## Historical distribution status (2026-08-24)
 
 - **Version:** `0.1.0` (`src/wongo/__init__.py:3`, `pyproject.toml:3`, tag `v0.1.0`, GitHub Release `wongo v0.1.0` with wheel + sdist — public repo `hoohugokim/wongo`).
 - **Install:** `uv tool install --editable .` (dev) or `uv tool install dist/wongo-0.1.0-py3-none-any.whl` / `pip install -e .` from the GitHub Release. PyPI publication is deferred (name `wongo` reserved, not yet published) — see `docs/CHANGELOG.md` and `plans/archive/HANDOFF-wongo-uplift.md`.
@@ -37,10 +37,10 @@ If one label is required (e.g., PyPI classifier, keyword): use **"manuscript pip
 
 ## Relation to the Claude Code skills
 
-| Before `v0.1.0` (incubator) | Since `v0.1.0` (canonical) |
+| Before `v0.1.0` (incubator) | Current canonical implementation |
 |---|---|
 | Logic lived in `~/.claude/skills/quarto-manuscript-sci/scripts/` and `~/.claude/skills/quarto-manuscript-<slug>/` (verbatim `legacy/` in the repo) | Logic lives in `src/wongo/` (shipped as wheel data); `legacy/` removed (`f1e4e54`) |
-| `~/.claude/skills/quarto-manuscript-*` were authoritative for the live manuscript until `ms-r0-sent` | `~/.claude/skills/quarto-manuscript-*` are thin wrappers calling `wongo` CLI; judgment content (`SKILL.md` S4 disposition rules, `references/submission-checklist.md`, `references/editorial-framing.md`) retained, machine-readable `profile.yml`/`assets/` now pointers to `wongo` |
+| `~/.claude/skills/quarto-manuscript-*` were authoritative for the live manuscript until `ms-r0-sent` | `integrations/claude-code/skills/wongo/` is the maintained front door; profile requirements and journal judgment live in `src/wongo/profiles/`; personal `quarto-manuscript-*` entry points are retired |
 | `references/quarto-docx-quirks.md` in the skill was the quirks memory | `docs/docx-quirks.md` is canonical; skill's file is a pointer |
 
 ## Consequences for contributors

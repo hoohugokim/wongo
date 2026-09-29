@@ -16,6 +16,11 @@ compatibility: Quarto CLI >=1.5 (bundles pandoc); Python >=3.11 (scripts are PEP
 
 # Quarto SCI Manuscript Skill (Global)
 
+> Historical skill preserved for provenance. The maintained entry point is the
+> [wongo plugin](../integrations/claude-code/README.md), with the
+> [wongo skill](../integrations/claude-code/skills/wongo/SKILL.md) and journal
+> requirements from `wongo profile show <slug> --json`.
+
 Journal-agnostic spine for the manuscript lifecycle. Journal-specific numbers
 (word limits, TOC art, reference style, SI packaging) live in separate
 `quarto-manuscript-<slug>` profile skills (e.g. `quarto-manuscript-est` for

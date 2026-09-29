@@ -63,11 +63,10 @@ No git is needed: uv builds wongo from the source archive, and it downloads a
 suitable Python (3.11 or newer) by itself when the computer has none.
 
 Success: `~/.local/bin/wongo --version` (or
-`& "$env:USERPROFILE\.local\bin\wongo.exe" --version`) prints `wongo 0.2.0` or
+`& "$env:USERPROFILE\.local\bin\wongo.exe" --version`) prints `wongo 0.3.0` or
 newer. If uv warns that its tool folder is not on PATH, run
 `uv tool update-shell` (by full path, like uv above); it takes effect in new
-windows. Do not use the v0.2.0 release wheel: it predates `doctor`, `status`
-and `review`.
+windows.
 
 ### 2.3 Quarto 1.10
 
@@ -164,7 +163,7 @@ Alternative with Homebrew: `brew install uv`. Success:
 ~/.local/bin/uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip
 ```
 
-Success: `~/.local/bin/wongo --version` prints `wongo 0.2.0` or newer. If uv
+Success: `~/.local/bin/wongo --version` prints `wongo 0.3.0` or newer. If uv
 warns about PATH, run `~/.local/bin/uv tool update-shell`.
 
 ### 3.3 Quarto 1.10 (the person runs it)

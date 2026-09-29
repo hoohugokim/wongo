@@ -1,5 +1,6 @@
 {
   "name": "wongo",
+  "version": "0.3.0",
   "description": "Front door to the wongo manuscript pipeline for researchers who do not use a terminal: Claude sets up wongo, writes and checks Quarto manuscripts, renders journal-ready Word files, and brings coauthors' tracked changes back through a worksheet the author approves.",
   "author": {
     "name": "Hoo Hugo Kim",

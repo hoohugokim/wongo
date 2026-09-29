@@ -201,7 +201,7 @@ later (steps A1, A2, A4 and A5).
    wongo --version
    ```
 
-   Success: `wongo 0.2.0` or a newer number. If Windows says `wongo` is not
+   Success: `wongo 0.3.0` or a newer number. If Windows says `wongo` is not
    recognized, run `uv tool update-shell`, then open a new window.
 
 3. Install Quarto. Click **Yes** if Windows asks for permission:
@@ -267,7 +267,7 @@ later (steps A1, A2, A4 and A5).
    ```
 
    Close the window and open a new one. Check it with `wongo --version`.
-   Success: `wongo 0.2.0` or a newer number.
+   Success: `wongo 0.3.0` or a newer number.
 
 3. Install Quarto: download the macOS installer from
    https://quarto.org/docs/get-started/ and double-click it. (With Homebrew:
