@@ -77,6 +77,17 @@ def test_reference_flag_must_be_boolean():
     assert any("word_limit_includes_references" in p for p in validate_profile(profile))
 
 
+@pytest.mark.parametrize("policy", [
+    None, [], {"include_abstract": "false"}, {"exclude_sections": "Methods"},
+    {"exclude_sections": [""]}, {"include_figures": False},
+])
+def test_invalid_word_count_policy_is_reported(policy):
+    profile = dict(GOOD, manuscript_types=[
+        {"type": "article", "word_limit": 100, "word_count": policy},
+    ])
+    assert any("word_count" in p for p in validate_profile(profile))
+
+
 @pytest.mark.parametrize("pdir", sorted(Path("src/wongo/profiles").glob("*/profile.yml")))
 def test_rules_that_count_references_set_the_flag(pdir):
     """A counting_rule that says references are included must be machine-

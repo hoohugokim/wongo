@@ -147,9 +147,11 @@ slashes in every wongo command.
    render. Collab renders are for internal eyes only.
 9. The word count is wongo's approximation of the journal's rule, which the
    check's `detail` quotes. Read that rule before asking anyone to cut text:
-   Water Research counts references (a WARN gives the headroom), and for the
-   Nature-family profiles (natwater, npjcw, npjbiofilms) wongo currently counts
-   sections those journals exclude, so a FAIL there can be false.
+   Water Research counts references (a WARN gives the headroom). Nature-family
+   manuscript types carry explicit abstract, section and caption exclusions in
+   `word_count`; inspect it with `wongo profile show <slug> --json`.
+   Counts remain source estimates: unusual markup and generated prose can
+   require a manual count against the journal's rule.
 
 ## S4: coauthor edits (summary)
 
