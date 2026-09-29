@@ -21,7 +21,7 @@ Usage:
         ^si-collab/word/document\\.xml$) for diffs justified in its comments.
 
 Typical release check (fish):
-    git worktree add --detach /tmp/wongo-prev v0.2.0
+    git worktree add --detach /tmp/wongo-prev v0.3.0
     uv run tools/bytecompare.py baseline --repo /tmp/wongo-prev
     uv run tools/bytecompare.py check --allow tools/bytecompare-allow.txt
 

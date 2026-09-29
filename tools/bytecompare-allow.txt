@@ -2,12 +2,7 @@
 # (and, for engine changes, in docs/docx-quirks.md). Patterns are regexes
 # matched against compared part names such as si-collab/word/document.xml.
 #
-# Entries apply to the comparison against the CURRENT release baseline
-# (v0.2.0). When the baseline moves to a new release, drop the entries that no
-# longer apply so the gate stays strict; earlier entries live in git history.
-
-# 2026-09-25 (baseline v0.2.0): collab renders write <w:trackRevisions/>
-# instead of the non-schema <w:trackChanges/> (docs/docx-quirks.md, T-0018).
-# Only the two collab settings parts change; inspect the diff to confirm it is
-# exactly that element rename before accepting a PASS.
-^(main|si)-collab/word/settings\.xml$
+# The release baseline is now v0.3.0. Generate a fresh baseline from that tag
+# before comparing later engine changes. No differences are currently allowed.
+# The v0.2.0 trackRevisions exception was verified for the v0.3.0 release and
+# retired here; its justification and pattern remain in the v0.3.0 tag/history.
