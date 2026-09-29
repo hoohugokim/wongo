@@ -1,0 +1,29 @@
+# Manuscript project (wongo)
+
+This folder is a journal manuscript written in Quarto and rendered to Word by
+wongo (https://github.com/hoohugokim/wongo). The `.qmd` files are the source
+of truth; the Word files in `output/` are disposable renders.
+
+## Commands
+
+- `wongo status` — where the manuscript stands and the suggested next step
+- `wongo check` — word limit, citations, cross-references, figures
+- `wongo render --target collab` — Word files for coauthors (Track Changes on)
+- `wongo render --target submission` — refused while a HARD check fails
+- `wongo roundtrip <coauthor.docx>` — coauthor edits into `decisions/merge-*.md`
+- `wongo review <worksheet>` (a person) or `wongo worksheet set` (an agent) —
+  decide each edit; `wongo worksheet lint <worksheet>` must pass before any
+  approved edit is applied to the `.qmd`
+- `wongo profile show <journal>` — the journal's verified requirements
+- `wongo doctor` — Quarto, R and this project's configuration
+
+Add `--json` to any command for machine-readable output.
+
+## Rules
+
+- One sentence per line in `.qmd` prose.
+- Numbers from analysis are inline code (`` `r ...` ``), never typed by hand.
+- Cite with `@citekey` from `refs.bib`; cross-reference with `@fig-`, `@tbl-`, `@sec-`.
+- wongo never edits the `.qmd` from a worksheet. Apply only rows the author
+  approved, and only after `wongo worksheet lint` passes.
+- Journal requirements come from `wongo profile show <journal>`; never guess them.

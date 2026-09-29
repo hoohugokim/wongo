@@ -10,3 +10,9 @@ format:
 bibliography: refs.bib
 execute:
   freeze: auto
+# Visual editors (RStudio, Positron, VS Code) keep one sentence per line,
+# which the Word round-trip depends on. Render with wongo, not the editor's
+# Render button: that skips the journal styling and the submission gates.
+editor:
+  markdown:
+    wrap: sentence

@@ -16,6 +16,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from wongo.engine.diff import diff_documents
+from wongo.errors import InputError
 
 
 def _make_doc(tmp_path: Path, name: str, paragraphs: list[str]) -> Path:
@@ -284,5 +285,5 @@ def test_output_cannot_overwrite_either_input(tmp_path, output_name):
     orig = _make_doc(tmp_path, "a.docx", ["Original."])
     revised = _make_doc(tmp_path, "b.docx", ["Revised."])
 
-    with pytest.raises(ValueError, match="output DOCX must differ"):
+    with pytest.raises(InputError, match="output DOCX must differ"):
         diff_documents(orig, revised, tmp_path / output_name)

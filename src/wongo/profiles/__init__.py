@@ -20,6 +20,9 @@ from pathlib import Path
 
 import yaml
 
+from wongo.errors import ConfigError
+from wongo.textio import read_text
+
 LEGACY_NAME_FMT = "quarto-manuscript-{slug}"
 
 
@@ -46,8 +49,22 @@ def candidate_dirs(project: Path | None = None) -> list[Path]:
     return out
 
 
+def _load_yaml(path: Path) -> dict:
+    try:
+        data = yaml.safe_load(read_text(path))
+    except yaml.YAMLError as exc:
+        mark = getattr(exc, "problem_mark", None)
+        where = f" (line {mark.line + 1})" if mark is not None else ""
+        raise ConfigError(f"{path} is not valid YAML{where}: {exc}") from exc
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ConfigError(f"{path} must be a YAML mapping of keys to values")
+    return data
+
+
 def find_profile_dir(slug: str, project: Path | None = None) -> Path:
-    """Locate a profile dir; SystemExit with an actionable message if absent."""
+    """Locate a profile dir; ConfigError with an actionable message if absent."""
     names = [slug, LEGACY_NAME_FMT.format(slug=slug)]
     for root in candidate_dirs(project):
         for n in names:
@@ -55,15 +72,16 @@ def find_profile_dir(slug: str, project: Path | None = None) -> Path:
             if (pdir / "profile.yml").exists():
                 return pdir
     searched = "\n  ".join(str(r / names[-1]) for r in candidate_dirs(project))
-    raise SystemExit(
+    raise ConfigError(
         f"Journal profile for slug '{slug}' not found. Searched:\n  {searched}\n"
-        f"Install or create the profile (contract: docs/journal-profile-contract.md)."
+        "Run `wongo profile list` for the known slugs, or add the profile "
+        "(contract: docs/journal-profile-contract.md)."
     )
 
 
 def load_profile(slug: str, project: Path | None = None) -> dict:
     pdir = find_profile_dir(slug, project)
-    profile = yaml.safe_load((pdir / "profile.yml").read_text(encoding="utf-8"))
+    profile = _load_yaml(pdir / "profile.yml")
     profile["_dir"] = str(pdir)
     return profile
 
@@ -75,14 +93,18 @@ def load_profile(slug: str, project: Path | None = None) -> dict:
 def load_journal_config(project_dir: Path) -> dict:
     path = Path(project_dir) / "_journal.yml"
     if not path.exists():
-        raise SystemExit(
-            "_journal.yml not found in project. Create it with 'journal: <slug>' "
-            "and 'ms_type: <type>' (see quarto-manuscript-sci S1)."
+        raise ConfigError(
+            f"_journal.yml not found in {Path(project_dir)}. Run `wongo scaffold` to start a "
+            "project, or create _journal.yml with `journal: <slug>` and `ms_type: <type>` "
+            "(`wongo profile list` shows the slugs)."
         )
-    cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    cfg = _load_yaml(path)
     missing = [k for k in ("journal", "ms_type") if not cfg.get(k)]
     if missing:
-        raise SystemExit(f"_journal.yml missing required keys: {', '.join(missing)}")
+        raise ConfigError(
+            f"{path} is missing {', '.join(missing)}; set `journal: <slug>` and "
+            "`ms_type: <type>` (`wongo profile show <slug>` lists the types)."
+        )
     return cfg
 
 
@@ -92,7 +114,27 @@ def manuscript_type(profile: dict, ms_type: str) -> dict:
         if t.get("type") == ms_type:
             return t
     known = ", ".join(t.get("type", "?") for t in types)
-    raise SystemExit(f"ms_type '{ms_type}' not defined by profile '{profile.get('slug')}'. Known: {known}")
+    raise ConfigError(f"ms_type '{ms_type}' not defined by profile '{profile.get('slug')}'. Known: {known}")
+
+
+def list_profiles(project: Path | None = None) -> list[dict]:
+    """Every discoverable profile, one per slug; earlier roots win."""
+    seen: set[str] = set()
+    listed: list[dict] = []
+    for root in candidate_dirs(project):
+        if not root.is_dir():
+            continue
+        for pdir in sorted(root.glob("*")):
+            if not (pdir / "profile.yml").exists():
+                continue
+            profile = _load_yaml(pdir / "profile.yml")
+            slug = str(profile.get("slug", pdir.name))
+            if slug in seen:
+                continue
+            seen.add(slug)
+            profile["_dir"] = str(pdir)
+            listed.append(profile)
+    return listed
 
 
 def profile_staleness_days(profile: dict) -> int | None:

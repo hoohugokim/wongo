@@ -1,0 +1,21 @@
+{
+  "name": "wongo",
+  "description": "Front door to the wongo manuscript pipeline for researchers who do not use a terminal: Claude sets up wongo, writes and checks Quarto manuscripts, renders journal-ready Word files, and brings coauthors' tracked changes back through a worksheet the author approves.",
+  "author": {
+    "name": "Hoo Hugo Kim",
+    "url": "https://github.com/hoohugokim"
+  },
+  "homepage": "https://github.com/hoohugokim/wongo",
+  "repository": "https://github.com/hoohugokim/wongo",
+  "license": "MIT",
+  "keywords": [
+    "wongo",
+    "quarto",
+    "manuscript",
+    "journal",
+    "docx",
+    "word",
+    "tracked-changes",
+    "coauthors"
+  ]
+}

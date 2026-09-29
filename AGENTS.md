@@ -18,7 +18,11 @@ against a private reference manuscript; the uplift records live in `plans/archiv
 - Lint: `uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools`
 - Build: `uv build`
 - CLI smoke: `uv run wongo --version && uv run wongo profile verify est --offline`
-- Render parity: `uv run tools/bytecompare.py check --target both` (requires `WONGO_REF_PROJECT`)
+- Setup check on a machine: `uv run wongo doctor` (Quarto, R, packages, project config)
+- Render parity (requires `WONGO_REF_PROJECT`): baseline from the last release worktree
+  with `tools/bytecompare.py baseline --repo <worktree>`, then
+  `tools/bytecompare.py check --allow tools/bytecompare-allow.txt`; it renders a
+  scratch copy and never writes into the reference project
 - Ledger: `statutor-doctor .`; staged floor: `statutor staged .`
 - Git floor setup (once per clone): `uvx pre-commit install`
 
@@ -41,6 +45,12 @@ against a private reference manuscript; the uplift records live in `plans/archiv
   script; never hand-edit it. Profile hard numbers require official sources.
 - Keep output errors actionable; submission renders must fail before leaving a
   partial deliverable when a HARD gate fails.
+- Windows is supported: raise `wongo.errors.WongoError` (never SystemExit),
+  read sources with `wongo.textio.read_text`, decode subprocess output as UTF-8,
+  and resolve executables through `wongo.toolchain`. The engine prints nothing;
+  every command keeps `--json` output to one object (D-0008).
+- Agent-instruction templates for scaffolded projects end in `.tmpl`; never add
+  a file named like this repo's own agent files under `src/`.
 
 ## Pitfalls
 

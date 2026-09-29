@@ -1,35 +1,35 @@
-#!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["PyYAML>=6"]
-# ///
 """Extract coauthor tracked changes/comments from a DOCX into a merge worksheet.
 
-Usage: roundtrip.py <coauthor.docx> [--project DIR] [--qmd index.qmd]
-
-Runs pandoc (via quarto) with --track-changes=all, parses insertion/deletion/
-comment spans with author attribution, aligns each change to a line of the
-source .qmd (default index.qmd; one-sentence-per-line invariant), and writes
-decisions/merge-<date>-<stem>.md. NEVER applies changes: every worksheet row
-starts as 'disposition: PENDING' for interactive review (SKILL.md S4 rules).
+`extract()` runs pandoc (via quarto) with --track-changes=all, parses
+insertion/deletion/comment spans with author attribution, aligns each change to
+a line of the source .qmd (default index.qmd; one-sentence-per-line invariant),
+and writes decisions/merge-<date>-<stem>.md. NEVER applies changes: every row
+starts as 'disposition: PENDING'; people decide rows with `wongo review` (or the
+agent with `wongo worksheet set`), and approved rows are applied to the .qmd
+outside wongo.
 """
 from __future__ import annotations
 
-import argparse
 import difflib
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+from wongo import toolchain
 from wongo.engine import checks as mslib
+from wongo.errors import InputError, ToolchainError
+from wongo.textio import read_text, require_docx
 
 SPAN_RE = re.compile(
     r"\[(?P<text>[^\][]*)\]\{\.(?P<kind>insertion|deletion|comment-start|comment-end)(?P<attrs>[^}]*)\}",
     re.DOTALL,
 )
 ATTR_RE = re.compile(r'([\w-]+)="([^"]*)"')
+WORD_RE = re.compile(r"\w+")  # Unicode-aware: Hangul words count as words
+CONTEXT_CHARS = 60  # rendered text kept before each change
+ANCHOR_WORDS = 8    # at most this many context words are matched against a line
 
 
 @dataclass
@@ -63,7 +63,7 @@ def _context_before(md: str, pos: int) -> str:
     the worksheet's "- context: ...…" stays a single markdown list item
     instead of a stray blank line splitting it into a new paragraph.
     """
-    return " ".join(_plain(md[:pos]).split())[-60:]
+    return " ".join(_plain(md[:pos]).split())[-CONTEXT_CHARS:]
 
 
 def extract_changes(md: str) -> list[Change]:
@@ -164,43 +164,113 @@ def extract_changes(md: str) -> list[Change]:
     return [c for _, c in changes]
 
 
+def _words(text: str) -> list[str]:
+    return WORD_RE.findall(text.lower())
+
+
+def _contains_run(words: list[str], run: list[str]) -> bool:
+    """Whether `run` occurs in `words` as consecutive words."""
+    n = len(run)
+    return any(words[i:i + n] == run for i in range(len(words) - n + 1))
+
+
+def _tail_run(context: list[str], words: list[str], then: list[str] | None = None) -> int:
+    """How many of the context's last words (at most ANCHOR_WORDS) `words`
+    holds consecutively, followed directly by `then`; 0 if none."""
+    for k in range(min(len(context), ANCHOR_WORDS), 0, -1):
+        if _contains_run(words, context[-k:] + (then or [])):
+            return k
+    return 0
+
+
+def _comment_lines(lines: list[str]) -> set[int]:
+    """1-based numbers of the lines inside HTML comments. Comments are never
+    rendered, so no coauthor edited them; prose before an inline `<!--` keeps
+    its line a candidate."""
+    inside: set[int] = set()
+    is_open = False
+    for idx, line in enumerate(lines, start=1):
+        if is_open:
+            inside.add(idx)
+            is_open = "-->" not in line
+            continue
+        start = line.find("<!--")
+        if start == -1:
+            continue
+        end = line.find("-->", start + 4)
+        if not line[:start].strip() and (end == -1 or not line[end + 3:].strip()):
+            inside.add(idx)
+        is_open = end == -1
+    return inside
+
+
+def _anchor_strength(context: list[str], old: list[str], words: list[str]) -> int:
+    """How surely a line is where the change happened, from exact word runs:
+    the context's last words followed by the old text, then a context tail of
+    three or more words (all an insertion has), then the old text alone, then a
+    two-word tail. 0 means no anchor; the fuzzy score decides."""
+    joined = _tail_run(context, words, old) if old else 0
+    if joined:
+        return 100 + joined
+    tail = _tail_run(context, words)
+    if tail >= 3:
+        return 50 + tail
+    if old and _contains_run(words, old):
+        return 20 + tail
+    return 10 if tail == 2 else 0
+
+
 def locate(change: Change, qmd_lines: list[str]) -> int | None:
     """Best-matching 1-based line in the .qmd for this change's original text.
 
-    Front matter (YAML header) is excluded from candidates via
-    mslib.split_front_matter so coauthor prose never spuriously matches
-    title/author/abstract metadata; returned indices still index into the
-    full qmd_lines list (front matter included), as documented in the
+    Candidates exclude the front matter (via mslib.split_front_matter, so
+    coauthor prose never spuriously matches title/author/abstract metadata),
+    lines inside HTML comments, headings and other markup lines; returned
+    indices still index into the full qmd_lines list, as documented in the
     interface contract.
 
+    Each candidate is first judged by exact word runs (_anchor_strength): the
+    rendered context ends right where the change happened, so its last words,
+    followed by any old text, pin the line even when an unrelated line looks
+    more similar overall. The difflib similarity of context plus old text
+    breaks ties, and decides alone when nothing anchors (e.g. a context that
+    is mostly a rendered citation absent from the source).
+
     Unparsed changes always return None: their context ends with the raw
-    unmatched span text (useful for a human, junk for difflib), so any line
+    unmatched span text (useful for a human, junk for matching), so any line
     it "matched" would be a spurious guess — worse than an honest UNMATCHED.
-    (Note the guard must be explicit: the needle is built from context+old,
-    and an unparsed change's *context* is non-empty, so without the guard the
-    fuzzy match could still fire.)
+    The guard must stay explicit: that context is non-empty and could still
+    anchor or fuzzy-match a line.
     """
     if change.kind == "unparsed":
         return None
     full_text = "\n".join(qmd_lines)
     _, body = mslib.split_front_matter(full_text)
     fm_line_count = len(full_text.splitlines()) - len(body.splitlines())
+    comments = _comment_lines(qmd_lines)
 
     needle = " ".join(f"{change.context} {change.old}".split())
     if not needle.strip():
         needle = change.new
-    best_line, best_score = None, 0.0
+    context = _words(change.context)
+    if len(change.context) >= CONTEXT_CHARS:
+        context = context[1:]  # the window may start mid-word
+    old = _words(change.old)
+
+    best_line, best_key = None, (0, 0.0)
     for idx, line in enumerate(qmd_lines, start=1):
-        if idx <= fm_line_count:
+        if idx <= fm_line_count or idx in comments:
             continue
         if not line.strip() or line.lstrip().startswith(("#", "---", "<!--", "!", "```")):
             continue
         score = difflib.SequenceMatcher(None, needle.lower(), line.lower()).ratio()
         if change.old and change.old.strip().lower() in line.lower():
             score += 0.5
-        if score > best_score:
-            best_line, best_score = idx, score
-    return best_line if best_score >= 0.3 else None
+        key = (_anchor_strength(context, old, _words(line)), score)
+        if key > best_key:
+            best_line, best_key = idx, key
+    strength, score = best_key
+    return best_line if strength or score >= 0.3 else None
 
 
 def write_worksheet(
@@ -210,8 +280,11 @@ def write_worksheet(
         f"# Merge worksheet — {source_name} — {date.today().isoformat()}",
         "",
         "Review each item; set disposition to one of: apply / reject: <reason> /",
-        "fix-code (edit inside auto-generated output) / needs-PI. Apply to the",
-        ".qmd only AFTER every disposition is approved (quarto-manuscript-sci S4).",
+        "fix-code (edit inside auto-generated output) / needs-PI. Decide rows with",
+        f"`wongo review {out_path.parent.name}/{out_path.name}` (or `wongo worksheet set`),",
+        f"then run `wongo worksheet lint {out_path.parent.name}/{out_path.name}`; apply",
+        "approved rows to the .qmd only",
+        "after lint passes. wongo never edits the .qmd.",
         "Items marked 'unparsed' could not be machine-extracted: open the source",
         "DOCX at the quoted context and review that change by hand before setting",
         "a disposition — do NOT treat an unparsed row as ignorable.",
@@ -266,44 +339,60 @@ def available_worksheet_path(
         suffix += 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("docx")
-    ap.add_argument("--project", default=".")
-    ap.add_argument("--qmd", default="index.qmd",
-                    help="source .qmd the DOCX was rendered from (e.g. si.qmd)")
-    args = ap.parse_args(argv)
-    project = Path(args.project).resolve()
-    docx_path = Path(args.docx).resolve()
+@dataclass
+class RoundtripResult:
+    worksheet: Path
+    changes: int
+    kinds: dict[str, int] = field(default_factory=dict)
+    unmatched: int = 0
+    unparsed: int = 0
 
-    if not docx_path.exists():
-        raise SystemExit(f"coauthor docx not found: {docx_path}")
-    index_qmd = project / args.qmd
-    if not index_qmd.exists():
-        raise SystemExit(f"project source not found: {index_qmd}")
 
-    # --wrap=none: with the default auto-wrap, pandoc can break a long
-    # insertion/deletion span's text (or its attribute list) across a hard
-    # line boundary, embedding a literal "\n" inside the regex-captured text.
-    # Confirmed via a live run against the synthetic fixture; see
-    # references/quarto-docx-quirks.md (2026-07-03).
+def pandoc_markdown(docx_path: Path) -> str:
+    """The coauthor DOCX as pandoc markdown with tracked changes as spans.
+
+    --wrap=none: with auto-wrap pandoc can break a long span's text or its
+    attribute list across lines (docs/docx-quirks.md, 2026-07-03). pandoc
+    writes UTF-8 whatever the locale, so decode it as UTF-8: the locale code
+    page (CP949 on Korean Windows) garbles or crashes on Hangul.
+    """
+    cmd = [*toolchain.quarto_command(), "pandoc", "--track-changes=all", "--wrap=none",
+           str(docx_path), "-t", "markdown"]
     try:
-        md = subprocess.run(
-            ["quarto", "pandoc", "--track-changes=all", "--wrap=none", str(docx_path), "-t", "markdown"],
-            capture_output=True, text=True, check=True,
-        ).stdout
-    except subprocess.CalledProcessError as e:
-        raise SystemExit(f"pandoc extraction failed: {e.stderr.strip()[-500:]}") from e
+        done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", check=True)
+    except subprocess.CalledProcessError as exc:
+        raise ToolchainError(f"pandoc extraction failed: {exc.stderr.strip()[-500:]}") from exc
+    except OSError as exc:
+        raise ToolchainError(f"could not run Quarto ({cmd[0]}): {exc}") from exc
+    return done.stdout
 
-    changes = extract_changes(md)
-    qmd_lines = index_qmd.read_text(encoding="utf-8").splitlines()
+
+def extract(docx: Path, project: Path, qmd: str = "index.qmd") -> RoundtripResult:
+    """Write a PENDING merge worksheet for a coauthor's DOCX; never edits .qmd."""
+    project = Path(project).resolve()
+    docx_path = Path(docx).resolve()
+    if not docx_path.exists():
+        raise InputError(f"coauthor docx not found: {docx_path}")
+    source = project / qmd
+    if not source.exists():
+        raise InputError(f"project source not found: {source} (use --qmd si.qmd for an SI render)")
+
+    require_docx(docx_path)
+    qmd_text = read_text(source)
+    mslib.split_front_matter(qmd_text, source=qmd)  # a front-matter typo names its line
+    changes = extract_changes(pandoc_markdown(docx_path))
+    qmd_lines = qmd_text.splitlines()
     locations = [locate(c, qmd_lines) for c in changes]
-
     out = available_worksheet_path(project, docx_path.stem)
-    write_worksheet(changes, locations, out, docx_path.name, qmd_name=args.qmd)
-    print(f"wrote {out} ({len(changes)} changes; NONE applied — review dispositions first)")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    write_worksheet(changes, locations, out, docx_path.name, qmd_name=qmd)
+    kinds: dict[str, int] = {}
+    for c in changes:
+        kinds[c.kind] = kinds.get(c.kind, 0) + 1
+    return RoundtripResult(
+        worksheet=out,
+        changes=len(changes),
+        kinds=kinds,
+        unmatched=sum(1 for c, loc in zip(changes, locations) if loc is None and c.kind != "unparsed"),
+        unparsed=kinds.get("unparsed", 0),
+    )

@@ -1,3 +1,4 @@
-journal: ""        # journal profile slug, e.g. est
-ms_type: ""        # must match a manuscript_types entry in the profile
+journal: ""        # journal profile slug: `wongo profile list`
+ms_type: ""        # a manuscript type of that profile: `wongo profile show <slug>`
+style: default     # house look: `wongo style list`
 blinding: default  # or override per submission

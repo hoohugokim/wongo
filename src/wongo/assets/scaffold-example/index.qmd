@@ -1,0 +1,70 @@
+---
+title: "Example: First-Order Nitrate Removal in a Model Wetland"
+author:
+  - name: Ada Author
+    corresponding: true
+    email: ada.author@example.org
+    affiliations:
+      - name: Example Institute of Water Research
+        country: Republic of Korea
+abstract: |
+  This example manuscript shows how wongo turns a Quarto source into journal-ready Word files.
+  Every number in the text is computed from data by inline R code, so the text cannot drift from the analysis.
+  Replace this abstract with your own.
+keywords: [example, wongo, Quarto, reproducible manuscript, water treatment]
+---
+
+<!-- Writing rules (wongo):
+     - ONE SENTENCE PER LINE. Never reflow; the DOCX round-trip depends on it.
+     - Analysis numbers ONLY as inline R code, never typed by hand.
+     - Cross-references only via @fig-/@tbl-/@sec-; citations only via @citekey. -->
+
+```{r setup}
+#| include: false
+removal <- data.frame(
+  day = 1:10,
+  nitrate = c(12.1, 10.8, 9.9, 9.1, 8.2, 7.6, 7.1, 6.5, 6.0, 5.6)
+)
+fit <- lm(log(nitrate) ~ day, data = removal)
+k <- -coef(fit)[["day"]]
+```
+
+# Introduction
+
+Constructed wetlands remove nitrate from agricultural runoff [@kadlec2009].
+This example estimates a first-order removal rate from ten days of synthetic data.
+
+# Materials and Methods
+
+We fitted a log-linear model to the daily nitrate concentrations (@fig-decay).
+
+# Results and Discussion
+
+The fitted first-order rate constant was `r sprintf("%.3f", k)` per day.
+Nitrate fell from `r removal$nitrate[1]` to `r removal$nitrate[10]` mg/L over `r nrow(removal)` days (@tbl-data).
+
+```{r fig-decay}
+#| echo: false
+#| fig-cap: "Nitrate concentration over time with the fitted first-order decay."
+plot(removal$day, removal$nitrate, pch = 19, xlab = "Day", ylab = "Nitrate (mg/L)")
+lines(removal$day, exp(predict(fit)))
+```
+
+```{r tbl-data}
+#| echo: false
+#| tbl-cap: "Synthetic nitrate concentrations."
+knitr::kable(removal, col.names = c("Day", "Nitrate (mg/L)"))
+```
+
+# Conclusions
+
+Replace this example with your manuscript and keep one sentence per line.
+
+# Acknowledgments
+
+This example uses synthetic data only.
+
+# References
+
+::: {#refs}
+:::

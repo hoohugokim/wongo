@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from wongo.engine.checks import Check, run_checks
+from wongo.engine.checks import Check, print_report, run_checks
+from wongo.errors import InputError
 
 WORD_LIMIT = 10
 
@@ -231,12 +232,12 @@ def test_fresh_verified_date_ok(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# (i) missing index.qmd raises SystemExit
+# (i) missing index.qmd raises an actionable WongoError, not SystemExit
 
 
 def test_missing_index_qmd_raises_system_exit(tmp_path):
     project = make_project(tmp_path, include_si=True, write_index=False)
-    with pytest.raises(SystemExit):
+    with pytest.raises(InputError):
         run_checks(project)
 
 
@@ -314,3 +315,42 @@ def test_ordinary_limit_has_no_reference_warning(tmp_path):
     names = [c.name for c in run_checks(project)]
 
     assert "word-limit-references" not in names
+
+
+# ---------------------------------------------------------------------------
+# Files from Windows editors and failure locations
+
+
+def test_bom_and_crlf_sources_parse_like_plain_utf8(tmp_path):
+    project = make_project(tmp_path, index_body="Body citing [@smith2020].", include_si=True)
+    index = project / "index.qmd"
+    text = index.read_text(encoding="utf-8").replace("---\ntitle:", "---\nabstract: one two three\ntitle:")
+    index.write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+    bib = project / "refs.bib"
+    bib.write_bytes(b"\xef\xbb\xbf" + bib.read_bytes().replace(b"\n", b"\r\n"))
+
+    checks = {c.name: c for c in run_checks(project)}
+
+    assert checks["citekeys"].ok, checks["citekeys"].detail
+    assert checks["word-limit"].detail.startswith("6 words")  # abstract counted: front matter parsed
+
+
+def test_non_utf8_source_is_an_actionable_error(tmp_path):
+    project = make_project(tmp_path)
+    (project / "index.qmd").write_bytes("---\ntitle: 원고\n---\n\n본문.\n".encode("cp949"))
+
+    with pytest.raises(InputError) as excinfo:
+        run_checks(project)
+
+    assert "index.qmd" in str(excinfo.value)
+    assert "UTF-8" in str(excinfo.value)
+
+
+def test_failing_checks_carry_file_and_line_locations(tmp_path, capsys):
+    project = make_project(tmp_path, index_body="First line.\nSecond cites [@ghost2099].")
+
+    checks = {c.name: c for c in run_checks(project)}
+    print_report(list(checks.values()))
+
+    assert checks["citekeys"].locations == ["index.qmd:6: @ghost2099"]
+    assert "      index.qmd:6: @ghost2099" in capsys.readouterr().out

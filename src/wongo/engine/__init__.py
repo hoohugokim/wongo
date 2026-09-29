@@ -1,31 +1,40 @@
-"""wongo.engine — render pipeline (HANDOFF step 4).
+"""wongo.engine — the render pipeline.
 
-Migrated from legacy/render.py: quarto invocation, target logic, TOC-art
-gate, SI pipeline, and post-processing orchestration. Validation checks live
-in wongo.engine.checks; tracked-changes extraction in wongo.engine.roundtrip.
+`render_project()` runs the checks, refuses a submission render on a HARD
+failure BEFORE Quarto runs, renders main (and SI) with Quarto into a staging
+folder, post-processes there (wongo.docxpatch correctness fixes, then the house
+style from wongo.styles), and only then moves the finished DOCX files into
+output/ together. A failure at any step leaves output/ exactly as it was, and
+a file held open by Word is reported instead of half-replaced. The function
+returns a RenderResult and prints nothing; the CLI owns all output.
 
-TWO LONG-STANDING SI COVER GAPS ARE FIXED HERE (tests in
-tests/test_engine.py pin them):
-1. the cover sheet printed "Journal: ... — ms_type" where journal profiles
-   specify AUTHORS + title (ES&T verified 2026-07-03: cover sheet carries
-   authors, title, page/figure/table counts);
-2. the page-count line shipped a literal placeholder string — replaced with
-   a NUMPAGES field that Word resolves to the true count on open.
+Validation checks live in wongo.engine.checks; tracked-changes extraction in
+wongo.engine.roundtrip; the tracked diff in wongo.engine.diff.
+
+The SI cover sheet carries title, authors, figure/table counts, and a NUMPAGES
+field Word resolves on open (tests in tests/test_engine.py pin it).
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
+import yaml
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Mm
 
+from wongo import __version__, toolchain
 from wongo import styles as wstyles
 from wongo.docxpatch import (
     add_line_numbers,
@@ -35,23 +44,38 @@ from wongo.docxpatch import (
     restart_page_numbering,
     set_fonts,
 )
+from wongo.errors import (
+    GateError,
+    InputError,
+    OutputError,
+    OutputLockedError,
+    ToolchainError,
+    WongoError,
+)
+from wongo.textio import read_text, write_text_atomic
+
+EventHandler = Callable[[str, dict], None]
+TARGETS = ("collab", "submission")
 
 
 def set_line_spacing(doc: Document, factor: float) -> None:
     doc.styles["Normal"].paragraph_format.line_spacing = factor
 
 
-def resolve_style(cfg: dict, override: str | None = None) -> dict:
-    """Resolve an explicit CLI override, then project/env/default style.
+def style_name(cfg: dict, override: str | None = None) -> str:
+    """The house style a render uses: an explicit CLI override, then the
+    project's, then the environment's, then `default`.
 
     ``--style`` is an actual one-render override and does not mutate process
     state. Without it, an explicit ``style:`` in ``_journal.yml`` remains
     authoritative over the legacy ``$WONGO_STYLE`` environment fallback.
     """
-    name = (
-        override or cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
-    )
-    return wstyles.load_style(name)
+    return override or cfg.get("style") or os.environ.get("WONGO_STYLE") or "default"
+
+
+def resolve_style(cfg: dict, override: str | None = None) -> dict:
+    """Load the style `style_name` picks."""
+    return wstyles.load_style(style_name(cfg, override))
 
 
 # ---------------------------------------------------------------------------
@@ -195,29 +219,81 @@ def insert_toc_art(
 # Quarto invocation + gates
 
 
-def quarto_render(project: Path, qmd: str, out_name: str, profile: dict) -> Path:
-    cmd = ["quarto", "render", qmd, "--to", "docx", "--output", out_name]
+STAGE_PREFIX = ".wongo-stage-"
+
+
+def quarto_output_dir(project: Path) -> Path | None:
+    """The project's Quarto output-dir (from _quarto.yml), if any."""
+    config = project / "_quarto.yml"
+    if not config.exists():
+        return None
+    try:
+        data = yaml.safe_load(read_text(config)) or {}
+    except yaml.YAMLError:
+        return None
+    out = (data.get("project") or {}).get("output-dir") if isinstance(data, dict) else None
+    return project / str(out) if out else None
+
+
+def quarto_render_command(quarto: list[str], qmd: str, out_name: str, profile: dict) -> list[str]:
+    """The quarto argv for one document. Metadata paths use forward slashes:
+    Windows backslashes would reach pandoc's YAML metadata parser."""
+    cmd = [*quarto, "render", qmd, "--to", "docx", "--output", out_name]
     ref = profile.get("reference_doc")
     if ref:
-        cmd += ["-M", f"reference-doc:{Path(profile['_dir']) / ref}"]
+        cmd += ["-M", f"reference-doc:{(Path(profile['_dir']) / ref).as_posix()}"]
     csl = profile.get("csl")
     if csl:
-        cmd += ["-M", f"csl:{Path(profile['_dir']) / csl}"]
+        cmd += ["-M", f"csl:{(Path(profile['_dir']) / csl).as_posix()}"]
+    return cmd
+
+
+def quarto_render(
+    project: Path,
+    qmd: str,
+    out_name: str,
+    profile: dict,
+    *,
+    stage_dir: Path,
+    quarto: list[str] | None = None,
+    quarto_stdout: int | None = None,
+) -> Path:
+    """Render `qmd` under a temporary name and move the raw DOCX to
+    stage_dir/out_name. The deliverable in output/ is not touched."""
+    quarto = quarto or toolchain.quarto_command()
+    staged_name = f"{STAGE_PREFIX}{out_name}"
+    out_dir = quarto_output_dir(project)
+    candidates = [d / staged_name for d in (out_dir, project) if d is not None]
+    for leftover in candidates:  # never mistake a crashed run's file for this one's
+        try:
+            leftover.unlink(missing_ok=True)
+        except PermissionError as exc:
+            raise OutputLockedError(
+                f"{leftover.name} in {leftover.parent}, an unfinished file left by an "
+                "interrupted render, is open in another program (probably Word). Close it "
+                "and render again."
+            ) from exc
+    cmd = quarto_render_command(quarto, qmd, staged_name, profile)
     try:
-        subprocess.run(cmd, cwd=project, check=True)
-    except subprocess.CalledProcessError as exc:
-        raise SystemExit(
-            f"quarto render failed for {qmd} (see quarto output above)"
-        ) from exc
-    out_dir = project / "output"
-    out_dir.mkdir(exist_ok=True)
-    produced = project / out_name          # quarto writes next to the input
-    target = out_dir / out_name
-    if produced.exists() and produced != target:
-        shutil.move(str(produced), target)
-    if not target.exists():
-        raise SystemExit(f"quarto render did not produce {target}")
-    return target
+        subprocess.run(cmd, cwd=project, check=True, stdout=quarto_stdout)
+    except BaseException as exc:
+        # Quarto may have written its file before failing (a post-render hook,
+        # Ctrl-C): never leave an unfinished DOCX next to the deliverables.
+        _discard(candidates)
+        if isinstance(exc, subprocess.CalledProcessError):
+            raise ToolchainError(
+                f"quarto render failed for {qmd} (see quarto output above)"
+            ) from exc
+        if isinstance(exc, OSError):
+            raise ToolchainError(f"could not run Quarto ({cmd[0]}): {exc}") from exc
+        raise
+    produced = next((c for c in candidates if c.exists()), None)
+    if produced is None:
+        looked = ", ".join(str(c.parent) for c in candidates)
+        raise ToolchainError(f"quarto render did not produce {staged_name} (looked in {looked})")
+    dest = stage_dir / out_name
+    shutil.move(str(produced), dest)
+    return dest
 
 
 def find_toc_art(project: Path) -> Path | None:
@@ -253,7 +329,7 @@ def postprocess_main(
                 # Backstop only: render_project() gates this BEFORE
                 # quarto_render() runs, so this branch should be unreachable in
                 # practice. Message kept aligned with the pre-render gate.
-                raise SystemExit(
+                raise GateError(
                     "Profile requires TOC art but figures/toc-art.{png,tif,tiff,jpg,jpeg} is missing."
                 )
             insert_toc_art(
@@ -311,59 +387,288 @@ def postprocess_si(
 
 
 # ---------------------------------------------------------------------------
+# Output promotion and manifest
+
+
+MANIFEST_NAME = ".wongo-manifest.json"
+
+
+def _discard(paths: list[Path]) -> None:
+    """Best-effort removal: cleaning up must never hide the original error."""
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _roll_back(placed: list[Path], backups: list[tuple[Path, Path]]) -> list[Path]:
+    """Undo a partial promotion; return the backups that could not be put back."""
+    _discard(placed)
+    stranded = []
+    for dest, backup in reversed(backups):
+        try:
+            os.replace(backup, dest)
+        except OSError:
+            stranded.append(backup)
+    return stranded
+
+
+def _promotion_error(exc: OSError, stranded: list[Path]) -> WongoError:
+    name = Path(exc.filename).name if exc.filename else "an output file"
+    if stranded:
+        kept = ", ".join(f"output/{p.name}" for p in stranded)
+        outcome = (f"the previous version is kept as {kept}; rename it back by removing the "
+                   "leading dot and the .wongo-bak ending")
+    else:
+        outcome = "output/ was left unchanged"
+    if isinstance(exc, PermissionError):
+        return OutputLockedError(
+            f"{name} is open in another program (probably Word). Close it and render "
+            f"again; {outcome}."
+        )
+    return OutputError(
+        f"could not replace {name} in output/ ({exc.strerror or exc}); {outcome}. If the "
+        "project is in OneDrive or another synced folder, pause syncing and render again."
+    )
+
+
+def promote(staged: list[Path], out_dir: Path) -> list[Path]:
+    """Move finished files into out_dir as one unit.
+
+    Existing outputs are first renamed to backups; on Windows that rename
+    fails while Word holds the file open. Then the staged files move in, and
+    the backups go. Any failure or interruption before the end, Ctrl-C
+    included, puts the previous files back first.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    backups: list[tuple[Path, Path]] = []
+    placed: list[Path] = []
+    try:
+        for src in staged:
+            dest = out_dir / src.name
+            if dest.exists():
+                backup = out_dir / f".{src.name}.wongo-bak"
+                backup.unlink(missing_ok=True)
+                os.replace(dest, backup)
+                backups.append((dest, backup))
+        for src in staged:
+            dest = out_dir / src.name
+            os.replace(src, dest)
+            placed.append(dest)
+    except BaseException as exc:
+        stranded = _roll_back(placed, backups)
+        if isinstance(exc, OSError):
+            raise _promotion_error(exc, stranded) from exc
+        raise
+    _discard([backup for _, backup in backups])
+    return placed
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def source_files(project: Path) -> list[Path]:
+    """Inputs whose change makes an output stale: the .qmd files, the project
+    and journal config, the bibliography, and everything under figures/."""
+    from wongo.engine.checks import bibliography_paths
+
+    files = [project / n for n in ("index.qmd", "si.qmd", "_quarto.yml", "_journal.yml")]
+    index = project / "index.qmd"
+    if index.exists():
+        try:
+            files += bibliography_paths(project, read_text(index))
+        except WongoError:
+            pass
+    figures = project / "figures"
+    if figures.is_dir():
+        files += sorted(p for p in figures.rglob("*") if p.is_file())
+    return [p for p in dict.fromkeys(files) if p.is_file()]
+
+
+def source_fingerprint(project: Path) -> dict[str, str]:
+    fingerprint = {}
+    for path in source_files(project):
+        try:
+            key = path.relative_to(project).as_posix()
+        except ValueError:
+            key = str(path)
+        try:
+            fingerprint[key] = _sha256(path)
+        except OSError as exc:
+            raise InputError(
+                f"could not read {key} ({exc.strerror or exc}); if another program has it "
+                "open, close it and try again"
+            ) from exc
+    return fingerprint
+
+
+def read_manifest(project: Path) -> dict:
+    path = Path(project) / "output" / MANIFEST_NAME
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
+                   style_name: str, quarto_version: str | None, *,
+                   sources: dict[str, str] | None = None, dest: Path | None = None) -> Path:
+    """Record what produced each output (versions, config, source hashes) so
+    `wongo status` can tell a fresh output from a stale or hand-edited one.
+
+    `sources` is the fingerprint taken before rendering (default: now); `dest`
+    is where to write (default: output/), e.g. a staging folder whose files
+    are promoted together with the outputs."""
+    path = dest or project / "output" / MANIFEST_NAME
+    data = read_manifest(project)
+    data["format"] = 1
+    data.setdefault("targets", {})[target] = {
+        "rendered_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "wongo": __version__,
+        "quarto": quarto_version,
+        "journal": cfg.get("journal"),
+        "ms_type": cfg.get("ms_type"),
+        "style": style_name,
+        "outputs": {p.name: _sha256(p) for p in outputs},
+        "sources": sources if sources is not None else source_fingerprint(project),
+    }
+    write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    return path
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 
 
-def check_hard_failures(project: Path) -> list:
-    """Run validation checks; returns the HARD failures ([] if clean)."""
-    from wongo.engine.checks import run_checks
+@dataclass
+class RenderResult:
+    project: Path
+    target: str
+    outputs: list[Path]
+    checks: list
+    manifest: Path
+    quarto_version: str | None = None
 
-    checks = run_checks(project)
-    from wongo.engine.checks import print_report
+    @property
+    def hard_failures(self) -> list:
+        return [c for c in self.checks if c.level == "HARD" and not c.ok]
 
-    print_report(checks)
-    return [c for c in checks if c.level == "HARD" and not c.ok]
+    @property
+    def warnings(self) -> list:
+        return [c for c in self.checks if c.level == "WARN" and not c.ok]
+
+
+def _emit(on_event: EventHandler | None, kind: str, **payload) -> None:
+    if on_event is not None:
+        on_event(kind, payload)
 
 
 def render_project(
-    project: Path, target: str, style_override: str | None = None
-) -> int:
-    """The full render pipeline for one manuscript project. Returns 0 on
-    success; raises SystemExit on gate failures."""
+    project: Path,
+    target: str,
+    style_override: str | None = None,
+    *,
+    on_event: EventHandler | None = None,
+    quarto_stdout: int | None = None,
+) -> RenderResult:
+    """Render one manuscript project; see the module docstring.
+
+    `on_event(kind, payload)` receives "checks" (after validation, before any
+    rendering) and "wrote" (after the outputs are in place). `quarto_stdout`
+    redirects Quarto's stdout (e.g. to fd 2 when stdout must stay JSON).
+    Raises WongoError subclasses for every user-fixable failure.
+    """
+    from wongo.engine.checks import run_checks
     from wongo.profiles import load_journal_config, load_profile, manuscript_type
 
+    if target not in TARGETS:
+        raise InputError(f"unknown target {target!r}; use one of: {', '.join(TARGETS)}")
     project = Path(project).resolve()
     cfg = load_journal_config(project)
     profile = load_profile(cfg["journal"], project)
     manuscript_type(profile, cfg["ms_type"])  # fail fast on bad ms_type
+    style = resolve_style(cfg, style_override)  # fail fast on an unknown style
 
-    hard = check_hard_failures(project)
+    checks = run_checks(project)
+    _emit(on_event, "checks", checks=checks)
+    hard = [c for c in checks if c.level == "HARD" and not c.ok]
     if hard and target == "submission":
-        raise SystemExit("HARD checks failed — submission render refused (fix, or render --target collab).")
+        raise GateError("HARD checks failed — submission render refused (fix, or render --target collab).",
+                        checks=checks)
 
-    # Gate BEFORE quarto ever runs: refusing here means no half-processed
-    # deliverable is left behind when the TOC art is missing (backstop kept
-    # in postprocess_main in case this function is ever bypassed).
+    # Gate BEFORE quarto ever runs (backstop kept in postprocess_main).
     if (
         target == "submission"
         and (profile.get("toc_graphic") or {}).get("required")
         and find_toc_art(project) is None
     ):
-        raise SystemExit(
+        raise GateError(
             "Profile requires TOC art but figures/toc-art.{png,tif,tiff,jpg,jpeg} "
-            "is missing — submission render refused."
+            "is missing — submission render refused.",
+            checks=checks,
         )
 
-    main_docx = quarto_render(project, "index.qmd", f"main-{target}.docx", profile)
-    postprocess_main(
-        main_docx, profile, cfg, target, project, style_override=style_override
-    )
-    print(f"wrote {main_docx}")
+    quarto = toolchain.quarto_command()
+    unrenderable = toolchain.unrenderable_path_reason(project)
+    if unrenderable:
+        raise ToolchainError(unrenderable)
+    # Before Quarto reads anything: a source saved during the render then
+    # makes the output stale, never falsely fresh.
+    sources = source_fingerprint(project)
+    out_dir = project / "output"
+    stage = out_dir / f".stage-{target}"
+    if stage.exists():
+        shutil.rmtree(stage)
+    stage.mkdir(parents=True)
+    try:
+        staged = [quarto_render(project, "index.qmd", f"main-{target}.docx", profile,
+                                stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout)]
+        postprocess_main(staged[0], profile, cfg, target, project,
+                         style_override=style_override)
+        if (project / "si.qmd").exists():
+            si_docx = quarto_render(project, "si.qmd", f"si-{target}.docx", profile,
+                                    stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout)
+            postprocess_si(si_docx, profile, cfg, target, project,
+                           style_override=style_override)
+            staged.append(si_docx)
+        version = toolchain.tool_version(quarto)
+        # the manifest is promoted with the outputs, so the two always agree
+        staged.append(write_manifest(project, target, staged, cfg, style.get("_name", "default"),
+                                     version, sources=sources, dest=stage / MANIFEST_NAME))
+        placed = promote(staged, out_dir)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
 
-    if (project / "si.qmd").exists():
-        si_docx = quarto_render(project, "si.qmd", f"si-{target}.docx", profile)
-        postprocess_si(
-            si_docx, profile, cfg, target, project, style_override=style_override
-        )
-        print(f"wrote {si_docx}")
-    return 0
+    outputs = [p for p in placed if p.name != MANIFEST_NAME]
+    manifest = out_dir / MANIFEST_NAME
+    _emit(on_event, "wrote", outputs=outputs)
+    return RenderResult(project, target, outputs, checks, manifest, version)
+
+
+def output_freshness(project: Path, target: str) -> dict:
+    """State of one target's outputs against the manifest.
+
+    state: missing (no output) | unknown (no manifest entry) | modified (an
+    output changed after rendering, e.g. saved over in Word) | stale (sources
+    changed since rendering) | fresh.
+    """
+    project = Path(project).resolve()
+    out_dir = project / "output"
+    names = [f"main-{target}.docx"] + ([f"si-{target}.docx"] if (project / "si.qmd").exists() else [])
+    if not all((out_dir / n).is_file() for n in names):
+        return {"state": "missing", "changed": [n for n in names if not (out_dir / n).is_file()]}
+    entry = (read_manifest(project).get("targets") or {}).get(target)
+    if not entry:
+        return {"state": "unknown", "changed": []}
+    modified = [n for n, digest in (entry.get("outputs") or {}).items()
+                if (out_dir / n).is_file() and _sha256(out_dir / n) != digest]
+    if modified:
+        return {"state": "modified", "changed": modified}
+    recorded = entry.get("sources") or {}
+    current = source_fingerprint(project)
+    changed = sorted(k for k in set(recorded) | set(current) if recorded.get(k) != current.get(k))
+    return {"state": "stale" if changed else "fresh", "changed": changed,
+            "rendered_at": entry.get("rendered_at")}

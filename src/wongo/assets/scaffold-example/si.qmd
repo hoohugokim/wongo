@@ -1,0 +1,44 @@
+---
+title: "Supporting Information for: Example: First-Order Nitrate Removal in a Model Wetland"
+crossref:
+  fig-title: "Figure S"
+  tbl-title: "Table S"
+---
+
+<!-- SI policy: content a specialist needs but a reader doesn't.
+     Rendered separately; S-page numbering applied by wongo. -->
+
+```{r setup}
+#| include: false
+removal <- data.frame(
+  day = 1:10,
+  nitrate = c(12.1, 10.8, 9.9, 9.1, 8.2, 7.6, 7.1, 6.5, 6.0, 5.6)
+)
+fit <- lm(log(nitrate) ~ day, data = removal)
+```
+
+# Supplementary Methods
+
+The data are synthetic and exist only to demonstrate the pipeline.
+
+# Supplementary Figures and Tables
+
+```{r fig-residuals}
+#| echo: false
+#| fig-cap: "Residuals of the log-linear fit."
+plot(removal$day, resid(fit), pch = 19, xlab = "Day", ylab = "Residual (log units)")
+abline(h = 0, lty = 2)
+```
+
+```{r tbl-summary}
+#| echo: false
+#| tbl-cap: "Summary statistics of the synthetic data."
+knitr::kable(
+  data.frame(
+    Statistic = c("Mean", "Minimum", "Maximum"),
+    `Nitrate (mg/L)` = c(mean(removal$nitrate), min(removal$nitrate), max(removal$nitrate)),
+    check.names = FALSE
+  ),
+  digits = 2
+)
+```

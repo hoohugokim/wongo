@@ -121,6 +121,107 @@ def test_locate_never_points_into_front_matter():
     assert locate(change, qmd_lines) == body_idx
 
 
+# The scaffold example's layout: a multi-line HTML comment of writing rules
+# sits above the prose. Its inner lines are never rendered, so no coauthor can
+# have edited them, yet their length made one of them the fuzzy match for an
+# insertion whose context crosses the Introduction heading.
+COMMENT_QMD = (
+    "---\n"
+    'title: "Example"\n'
+    "abstract: |\n"
+    "  Replace this abstract with your own.\n"
+    "---\n"
+    "\n"
+    "<!-- Writing rules (wongo):\n"
+    "     - ONE SENTENCE PER LINE. Never reflow; the DOCX round-trip depends on it.\n"
+    "     - Analysis numbers ONLY as inline R code, never typed by hand.\n"
+    "     - Cross-references only via @fig-/@tbl-/@sec-; citations only via @citekey. -->\n"
+    "\n"
+    "# Introduction\n"
+    "\n"
+    "Constructed wetlands remove nitrate from agricultural runoff [@kadlec2009].\n"
+    "This example estimates a first-order removal rate from ten days of synthetic data.\n"
+)
+TARGET = "Constructed wetlands remove nitrate from agricultural runoff [@kadlec2009]."
+
+
+def _line_of(lines: list[str], text: str) -> int:
+    return lines.index(text) + 1
+
+
+def test_locate_never_points_inside_an_html_comment():
+    lines = COMMENT_QMD.splitlines()
+    insertion = Change("insertion", "Kim Coauthor", "", "efficiently",
+                       "abstract with your own. # Introduction Constructed wetlands")
+
+    assert locate(insertion, lines) == _line_of(lines, TARGET)
+
+
+def test_the_scaffold_example_places_this_insertion_on_its_prose_line():
+    from pathlib import Path
+
+    import wongo
+
+    example = Path(wongo.__file__).parent / "assets" / "scaffold-example" / "index.qmd"
+    lines = example.read_text(encoding="utf-8").splitlines()
+    insertion = Change("insertion", "Kim Coauthor", "", "efficiently",
+                       "abstract with your own. # Introduction Constructed wetlands")
+
+    assert locate(insertion, lines) == _line_of(lines, TARGET)
+
+
+def test_prose_before_an_inline_comment_is_still_a_candidate():
+    lines = [
+        "Ponds settle solids first.",
+        "Wetlands remove nitrate efficiently. <!-- TODO: cite a review -->",
+        "<!-- a whole-line note -->",
+        "Rates vary with temperature.",
+    ]
+    deletion = Change("deletion", "Kim", "efficiently", "",
+                      "Ponds settle solids first. Wetlands remove nitrate")
+
+    assert locate(deletion, lines) == 2
+
+
+def test_an_insertion_is_placed_by_the_words_right_before_it():
+    # The context is mostly the Methods sentence, which wins on similarity;
+    # only its last words, "Removal was", say where the insertion happened.
+    lines = [
+        "# Methods",
+        "",
+        "Samples were filtered and stored at 4 °C before analysis of all ions.",
+        "",
+        "# Results",
+        "",
+        "Removal was fastest in June.",
+    ]
+    insertion = Change("insertion", "Kim", "", "clearly ",
+                       "d stored at 4 °C before analysis of all ions. # Results Removal was")
+
+    assert locate(insertion, lines) == 7
+
+
+def test_old_text_that_follows_the_context_beats_a_similar_line_holding_it_too():
+    lines = [
+        "Twelve weeks after start-up we observed stable operation, and the reactor held its pH.",
+        "Nitrate fell once the reactor warmed.",
+    ]
+    replacement = Change("replacement", "Kim", "the reactor", "the bioreactor",
+                         "weeks after start-up we observed stable operation. Nitrate fell once")
+
+    assert locate(replacement, lines) == 2
+
+
+def test_without_an_anchor_the_fuzzy_match_still_applies():
+    # rendered citation text in the context is not in the source, but the
+    # old text alone still finds its line
+    lines = ["Wetlands remove nitrate [@kadlec2009].", "Rates vary with temperature in every season."]
+    deletion = Change("deletion", "Kim", "in every season", "",
+                      "(Kadlec and Wallace 2009). Rates vary with temperature")
+
+    assert locate(deletion, lines) == 2
+
+
 def test_changes_returned_in_document_order_for_duplicate_text():
     dupes = [c for c in _changes() if c.new == "recheck this"]
     assert len(dupes) == 2
