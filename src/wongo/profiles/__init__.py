@@ -112,6 +112,13 @@ def manuscript_type(profile: dict, ms_type: str) -> dict:
     types = profile.get("manuscript_types") or []
     for t in types:
         if t.get("type") == ms_type:
+            problems = _word_count_problems(t.get("word_count", {}))
+            if problems:
+                raise ConfigError(
+                    f"Profile '{profile.get('slug')}', ms_type '{ms_type}': "
+                    + "; ".join(problems) + ". Fix word_count in profile.yml "
+                    "(docs/journal-profile-contract.md)."
+                )
             return t
     known = ", ".join(t.get("type", "?") for t in types)
     raise ConfigError(f"ms_type '{ms_type}' not defined by profile '{profile.get('slug')}'. Known: {known}")
@@ -151,6 +158,27 @@ def profile_staleness_days(profile: dict) -> int | None:
 
 REQUIRED_KEYS = ("journal", "slug", "manuscript_types", "sources", "verified_date")
 LINE_NUMBER_VALUES = (True, False, None, "forbidden")
+WORD_COUNT_FLAGS = {
+    "include_abstract", "include_figure_captions", "include_table_captions", "exclude_boxes",
+}
+
+
+def _word_count_problems(policy: object) -> list[str]:
+    """The same policy contract is enforced by profile verify and at use time."""
+    if not isinstance(policy, dict):
+        return ["word_count must be a mapping"]
+    problems = []
+    for key, value in policy.items():
+        if key in WORD_COUNT_FLAGS:
+            if not isinstance(value, bool):
+                problems.append(f"word_count.{key} must be true or false")
+        elif key == "exclude_sections":
+            if (not isinstance(value, list)
+                    or any(not isinstance(v, str) or not v.strip() for v in value)):
+                problems.append("word_count.exclude_sections must be a list of nonempty titles")
+        else:
+            problems.append(f"word_count has unknown option {key!r}")
+    return problems
 
 
 def validate_profile(profile: dict) -> list[str]:
@@ -177,6 +205,9 @@ def validate_profile(profile: dict) -> list[str]:
             problems.append(
                 f"manuscript_types[{i}].word_limit_includes_references must be true or false"
             )
+        if isinstance(t, dict):
+            problems.extend(f"manuscript_types[{i}].{p}"
+                            for p in _word_count_problems(t.get("word_count", {})))
     vd = profile.get("verified_date")
     if vd is not None and not isinstance(vd, date):
         try:

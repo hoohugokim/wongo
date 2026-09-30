@@ -1,8 +1,7 @@
 """wongo.engine.checks — manuscript validation + text analysis.
 
-HARD/WARN report shape preserved verbatim from legacy/validate.py; the text
-analysis helpers (word count, citekeys, crossrefs, image paths) moved
-verbatim from legacy/mslib.py. Regexes here encode Quarto/pandoc markdown
+HARD/WARN report shape preserved from legacy/validate.py; the text analysis
+helpers originated in legacy/mslib.py. Regexes here encode Quarto/pandoc markdown
 conventions and journal counting-rule approximations — change with care and
 record why in docs/docx-quirks.md.
 """
@@ -28,7 +27,11 @@ STALE_DAYS = 183
 CROSSREF_PREFIXES = ("fig-", "tbl-", "eq-", "sec-", "lst-", "thm-")
 
 FRONT_MATTER_RE = re.compile(r"\A---\n(.*?\n)(?:---|\.\.\.)\n", re.DOTALL)
-FENCE_RE = re.compile(r"^(```|~~~)[^\n]*\n.*?^\1\s*$\n?", re.DOTALL | re.MULTILINE)
+FENCE_RE = re.compile(
+    r"^ {0,3}(?:(`{3,})(?!`)[^\n]*\n.*?^ {0,3}\1`*|"
+    r"(~{3,})(?!~)[^\n]*\n.*?^ {0,3}\2~*)[ \t]*(?:\n|$)",
+    re.DOTALL | re.MULTILINE,
+)
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?")
@@ -36,7 +39,7 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?")
 # chunks, which `prose()` strips; journals count table/figure captions, so they are
 # harvested before the fence is dropped (2026-08-25: an ES&T draft passed the gate at
 # 6,739 while its rendered count, captions included, was 7,349).
-CHUNK_CAPTION_RE = re.compile(r"^#\|\s*(?:tbl|fig)-cap:\s*[\"']?(.*?)[\"']?\s*$", re.MULTILINE)
+CHUNK_CAPTION_RE = re.compile(r"^#\|\s*(tbl|fig)-cap:\s*[\"']?(.*?)[\"']?\s*$", re.MULTILINE)
 HEADING_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
 # pandoc fenced-div delimiters (`::: {#refs}` / `:::`) and Quarto shortcodes
 # (`{{< pagebreak >}}`) are markup, not prose; they must not count as words.
@@ -55,7 +58,7 @@ BIB_KEY_RE = re.compile(r"^@\w+\{([^,\s]+)\s*,", re.MULTILINE)
 
 
 # ---------------------------------------------------------------------------
-# Text analysis (verbatim from mslib)
+# Text analysis
 
 
 def split_front_matter(text: str, source: str = "the .qmd") -> tuple[dict, str]:
@@ -70,37 +73,145 @@ def split_front_matter(text: str, source: str = "the .qmd") -> tuple[dict, str]:
     return (meta if isinstance(meta, dict) else {}), text[m.end():]
 
 
-def prose(body: str) -> str:
+def prose(body: str, *, include_figure_captions: bool = True,
+          include_table_captions: bool = True) -> str:
     """Fenced chunks and HTML comments removed; each image markdown collapses
     to its alt/caption text (captions are prose the journal's word count
     includes — dropping them entirely undercounts); each inline code
     expression collapses to one placeholder word (a code-generated number
     reads as one word in any journal's count). Table/figure captions declared
-    as chunk options inside fences are kept as prose — journals count them."""
-    captions = CHUNK_CAPTION_RE.findall(body)
+    as chunk options inside fences are kept unless the counting policy excludes
+    that caption kind. Citation/crossref checks always use the inclusive defaults."""
+    captions = [
+        caption for kind, caption in CHUNK_CAPTION_RE.findall(body)
+        if (include_figure_captions if kind == "fig" else include_table_captions)
+    ]
     body = FENCE_RE.sub("", body)
     body = COMMENT_RE.sub("", body)
     body = DIV_FENCE_RE.sub("", body)
     body = SHORTCODE_RE.sub("", body)
-    body = IMAGE_RE.sub(lambda m: m.group(1), body)
+    body = IMAGE_RE.sub(lambda m: m.group(1) if include_figure_captions else "", body)
+    if not include_table_captions:
+        body = _without_table_captions(body)
     if captions:
         body = body + "\n" + "\n".join(captions) + "\n"
     return INLINE_CODE_RE.sub("X", body)
 
 
-def word_count(text: str) -> int:
-    """Approximation of a journal's official word count: body prose (see
-    `prose`) plus the front-matter `abstract` when present, since most SCI
-    journals' verified counting rules include the abstract (e.g. ES&T: "count
-    runs from the Abstract through the end of the main text"). Title,
-    keywords, and author metadata are never counted. This is NOT a verbatim
-    implementation of any single journal's rule — see profile.yml's
-    `counting_rule` for the authoritative text, and treat the journal's own
-    submission-system checker as the final word."""
+def _without_table_captions(body: str) -> str:
+    """A ':' paragraph is a caption when labelled or adjacent to a pipe table.
+
+    Requiring table context preserves Markdown definition lists and prose
+    paragraphs that happen to start with 'Table:'.
+    """
+    table_rule = re.compile(
+        r"^ *\|? *:?-+:? *(?:\| *:?-+:? *)+\|? *$", re.MULTILINE)
+
+    def remove(match: re.Match) -> str:
+        caption = match[0]
+        before = body[:match.start()].rstrip("\n").rsplit("\n\n", 1)[-1]
+        after = body[match.end():].lstrip("\n").split("\n\n", 1)[0]
+        if (re.search(r"\{#tbl-[\w-]+", caption)
+                or table_rule.search(before) or table_rule.search(after)):
+            return ""
+        return caption
+
+    return re.sub(r"^ {0,3}(?:Table:|:)[ \t]+\S[^\n]*(?:\n[^\n]+)*", remove, body,
+                  flags=re.MULTILINE)
+
+
+def _heading_name(title: str) -> str:
+    """Match a section title, ignoring Pandoc attributes and manual numbering."""
+    title = re.sub(r"\s+#+\s*$", "", title)
+    title = re.sub(r"\s+\{[^}]*\}\s*$", "", title)
+    title = re.sub(r"[*_`]", "", title)
+    title = re.sub(r"^\d+(?:\.\d+)*[.)]?\s+", "", title)
+    return " ".join(title.casefold().split())
+
+
+def _without_sections(body: str, titles: list[str], *, exclude_boxes: bool = False,
+                      exclude_figure_divs: bool = False) -> str:
+    """Remove named sections through the next heading of equal/higher rank.
+
+    Code fences cannot start or end manuscript sections. Keep retained chunks
+    intact so `prose()` can still harvest their captions.
+    """
+    excluded = {_heading_name(t) for t in titles}
+    lines = COMMENT_RE.sub("", body).splitlines(keepends=True)
+    kept: list[str] = []
+    skip_level = 0
+    fence = ""
+    divs: list[bool] = []
+    underline_index = -1
+    for i, line in enumerate(lines):
+        if i == underline_index:
+            continue
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence:
+            if (marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence)
+                    and not marker[2].strip()):
+                fence = ""
+        elif marker:
+            fence = marker[1]
+        else:
+            div = re.match(r"^ {0,3}:{3,}(.*)$", line)
+            if div:
+                attributes = div[1].strip()
+                if attributes:
+                    box = exclude_boxes and bool(re.search(
+                        r"(?:^|[\s{])(?:\.box|#box-[\w-]+|box)(?=[\s}]|$)", attributes))
+                    figure = exclude_figure_divs and bool(re.search(
+                        r"(?:^|[\s{])#fig-[\w-]+(?=[\s}]|$)", attributes))
+                    divs.append(box or figure)
+                elif divs:
+                    divs.pop()
+            if any(divs):
+                continue
+            heading = re.match(r"^ {0,3}(#{1,6})[ \t]+(.+?)\s*$", line)
+            level, title = (len(heading[1]), heading[2]) if heading else (0, "")
+            if not heading and line.strip() and i + 1 < len(lines):
+                underline = re.fullmatch(r" {0,3}(=+|-+)[ \t]*\n?", lines[i + 1])
+                if underline:
+                    level, title = (1 if underline[1][0] == "=" else 2), line.strip()
+                    underline_index = i + 1
+            if level:
+                if skip_level and level <= skip_level:
+                    skip_level = 0
+                name = _heading_name(title)
+                is_box = exclude_boxes and re.fullmatch(r"box(?:es)?(?:\s+\d+\b.*)?", name)
+                if not skip_level and (name in excluded or is_box):
+                    skip_level = level
+                continue  # headings themselves never enter the prose count
+        if not skip_level and not any(divs):
+            kept.append(line)
+    return "".join(kept)
+
+
+def word_count(text: str, *, include_abstract: bool = True,
+               exclude_sections: list[str] | None = None,
+               include_figure_captions: bool = True,
+               include_table_captions: bool = True,
+               exclude_boxes: bool = False) -> int:
+    """Source-level estimate using the manuscript type's explicit exclusions.
+
+    Defaults preserve the legacy body + abstract + captions count. Section
+    exclusions respect heading depth; excluding the abstract covers YAML and
+    a body Abstract section. Title, keywords and author metadata never count.
+    This remains a source approximation (inline code is one placeholder word),
+    not the journal's submission-system count; `counting_rule` is authoritative.
+    """
     meta, body = split_front_matter(text)
-    total = len(HEADING_RE.sub("", prose(body)).split())
+    titles = list(exclude_sections or [])
+    if not include_abstract:
+        titles.append("Abstract")
+    if titles or exclude_boxes or not include_figure_captions:
+        body = _without_sections(body, titles, exclude_boxes=exclude_boxes,
+                                 exclude_figure_divs=not include_figure_captions)
+    counted = prose(body, include_figure_captions=include_figure_captions,
+                    include_table_captions=include_table_captions)
+    total = len(HEADING_RE.sub("", counted).split())
     abstract = meta.get("abstract")
-    if isinstance(abstract, str):
+    if include_abstract and isinstance(abstract, str):
         total += len(abstract.split())
     return total
 
@@ -211,7 +322,7 @@ def run_checks(project: Path) -> list[Check]:
     for name, text in texts.items():  # a front-matter typo names its file and line
         split_front_matter(text, source=name)
 
-    wc = word_count(texts["index.qmd"])
+    wc = word_count(texts["index.qmd"], **mtype.get("word_count", {}))
     limit = mtype.get("word_limit")
     includes_refs = bool(mtype.get("word_limit_includes_references"))
     detail = (f"{wc} words vs limit {limit} for {cfg['ms_type']} "

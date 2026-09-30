@@ -7,12 +7,52 @@ publisher: "Springer Nature (Nature Portfolio), in partnership with King Fahd Un
 submission_portal: https://submission.springernature.com/new-submission/41545/3  # "Submit manuscript" link, nature.com/npjcleanwater homepage
 manuscript_types:
   - {type: article, word_limit: null, counting_rule: "npj Series journals are online-only and fully Open Access and impose NO strict word or page limit for Articles — 'We do not impose strict limits on word count or page numbers... However, we strongly recommend that you write concisely.' Structure per the journal's own formatting table: Title (<=15 words) / Abstract (<=150 words, no subheadings) / Introduction (no subheadings) / Results (subheadings used) / Discussion (no subheadings, limitations, or conclusions sections permitted) / Methods (subheadings used) / Data availability / Code availability / Acknowledgments / Author contributions / Competing interests / References (<=60, not strictly enforced) / Figure legends (<=350 words per figure, placed after references).", abstract_rule: "up to 150 words, one paragraph, no subheadings"}
-  - {type: brief-communication, word_limit: 1500, counting_rule: "main text no more than 1,000-1,500 words, NOT including abstract, methods, references, and figure legends", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: comment, word_limit: 2000, counting_rule: "main text typically 1,000-2,000 words; flexible format (policy, science and society, or purely scientific issues) for a broad, non-technical readership", abstract_rule: "up to 70 words, no subheadings"}
+  - type: brief-communication
+    word_limit: 1500
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [Methods, Online Methods, Materials and Methods, Materials & Methods, References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text no more than 1,000-1,500 words, NOT including abstract, methods, references, and figure legends"
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: comment
+    word_limit: 2000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text typically 1,000-2,000 words; flexible format (policy, science and society, or purely scientific issues) for a broad, non-technical readership"
+    abstract_rule: "up to 70 words, no subheadings"
   - {type: editorial, word_limit: null, counting_rule: "no stated main-text word limit; written by the journal's senior editorial team — unsolicited Editorials are not considered and are not typically peer reviewed", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: matters-arising, word_limit: 1200, counting_rule: "main text as concise as possible, not exceeding 1,200 words; the original article under discussion must be the first reference", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: perspective, word_limit: 3000, counting_rule: "main text should not normally exceed 3,000 words", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: review, word_limit: 4000, counting_rule: "main text typically 3,000-4,000 words; scope must be broad enough not to be dominated by a single lab (incl. the authors' own work); systematic reviews/scoping reviews/meta-analyses must be submitted as Articles, not Reviews", abstract_rule: "up to 70 words, no subheadings"}
+  - type: matters-arising
+    word_limit: 1200
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text as concise as possible, not exceeding 1,200 words; the original article under discussion must be the first reference"
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: perspective
+    word_limit: 3000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text should not normally exceed 3,000 words"
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: review
+    word_limit: 4000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text typically 3,000-4,000 words; scope must be broad enough not to be dominated by a single lab (incl. the authors' own work); systematic reviews/scoping reviews/meta-analyses must be submitted as Articles, not Reviews"
+    abstract_rule: "up to 70 words, no subheadings"
 csl: assets/nature.csl                          # VERIFIED: fetched from official CSL styles repo 2026-07-04; npj Clean Water's own Submission guidelines state "The npj Series journals use standard Nature referencing style."
 reference_doc: assets/reference.docx             # generated by scripts/build_reference_docx.py — never hand-edit
 section_headings: [Title, Abstract, Introduction, Results, Discussion, Methods, Data availability, Code availability, Acknowledgments, Author contributions, Competing interests, References, Figure legends]  # VERIFIED: exact order from the official Article formatting table (Content types page); Figure legends confirmed placed "in the main manuscript file after references" (Submission guidelines page)

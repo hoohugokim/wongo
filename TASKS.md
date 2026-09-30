@@ -23,7 +23,7 @@
 - [x] T-0020 Environment floor: `wongo doctor`, `wongo status`, Quarto/R discovery with per-OS install hints, UTF-8 everywhere (CP949 roundtrip crash, BOM sources, redirected output).
 - [x] T-0021 TUI deferred by the maintainer (D-0011); the S4 review loop was built as a line-oriented `wongo review` instead (D-0009).
 - [ ] T-0022 Publish wongo to PyPI (trusted publishing from GitHub Actions) so the install becomes `uv tool install wongo`; needs the maintainer's PyPI account setup.
-- [ ] T-0023 Nature-family counting rules exclude the abstract, Methods and figure legends, but `wongo check` counts them, so natwater/npj manuscripts can FAIL the word limit falsely; add per-type exclusions.
+- [x] T-0023 Per-type Nature-family word-count exclusions implemented on `codex/nature-word-count`: verified official counting rules, validated profile policies, boundary/submission regressions; 446 tests passed and fresh 95-part parity vs v0.3.0 is byte-identical (notes/nature-word-count-2026-09-30.md); awaiting PR review/merge.
 - [x] T-0024 PR #3 merged as `91641f9`; v0.3.0 tagged and released at `96c386e` on 2026-09-30 with wheel and sdist, CI/CodeQL green, fresh 95-part parity vs v0.2.0 (only collab trackRevisions rename); setup references updated (notes/release-v030-2026-09-30.md).
 - [ ] T-0025 Smoke-test on a real Windows PC with a Korean user account: Claude desktop + plugin setup, Korean IME in `wongo review`, rendering while Word has a file open.
 - [x] T-0026 Maintainer authorized retirement on 2026-09-30: shared legacy skill directories/scripts/backups already absent; nine dangling Codex links archived outside discovery; personal wongo links point to the canonical skill, and Claude plugin 0.3.0 installed and enabled (notes/release-v030-2026-09-30.md).

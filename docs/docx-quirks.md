@@ -459,3 +459,23 @@ Windows e2e job asserts both. Also from the same runs: Posit's binary R
 mirror must not be overridden with `repos=` on Linux CI, or rmarkdown's
 dependency `fs` compiles from source and fails without libuv headers.
 Versions: quarto 1.10.18, Windows Server 2022 runner (cp1252).
+
+## Nature-family submission gates counted prose excluded by the manuscript type
+
+2026-09-30 / Through wongo 0.3.0, `run_checks()` passed every manuscript to the
+same source counter. The profiles described abstract/Methods/legend exclusions
+in `counting_rule`, but the engine did not apply them. A main text exactly at
+the published limit could therefore fail the HARD gate and prevent submission
+rendering. Fix: optional, validated per-type `word_count` policies in the three
+Nature-family profiles, checked against official content-type pages (sources
+and scope in `notes/nature-word-count-2026-09-30.md`). Methods remain counted for
+types whose rules do not exclude them. Defaults preserve other profiles.
+Section filtering respects heading depth and code fences; caption and box
+exclusions operate only on the count, leaving other validation intact.
+Pinned by `tests/test_word_count_rules.py`, including a submission gate that
+accepts the boundary and preserves existing DOCX files when one extra main-text
+word fails. This is still a source estimate; generated prose and complex markup
+need manual checking. Raw-XML verification: fresh renders against v0.3.0 of the
+private reference manuscript have 95 byte-identical parts across four documents,
+including document.xml, styles.xml and settings.xml; no allowlist entries.
+Versions: wongo 0.3.0 baseline, Quarto 1.10.18, Pandoc 3.10.

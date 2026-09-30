@@ -46,6 +46,13 @@ manuscript_types:      # word limits are MAIN TEXT unless counting_rule says oth
                        # reference list (e.g. Water Research). `wongo check` counts body +
                        # abstract only, so it FAILs when that lower bound alone exceeds the
                        # limit and otherwise WARNs that the pass is unproven.
+    word_count:        # OPTIONAL per-type source-counting policy; shown defaults preserve
+                       # existing profiles. `counting_rule` remains the source-backed rule.
+      include_abstract: true
+      exclude_sections: []
+      include_figure_captions: true
+      include_table_captions: true
+      exclude_boxes: false
 csl: ""
 reference_doc: ""
 section_headings: []   # ordered; journal-specific — check this profile's list, don't assume any generic heading set applies
@@ -85,6 +92,30 @@ verified_date: ""      # ISO date the numbers were last checked against the jour
 ```
 
 ## Rules
+
+`word_count.exclude_sections` lists exact heading titles, matched without case,
+manual section numbering, emphasis or Pandoc attributes. Both ATX (`# Methods`)
+and setext headings work; an excluded section includes its subsections and ends
+at the next heading of equal or higher rank. List aliases explicitly in the
+profile (for example `Methods`, `Online Methods`, `Materials and Methods`).
+`include_abstract: false` excludes both YAML abstract metadata and a body
+`Abstract` section. Use YAML for an abstract followed by unheaded main text.
+
+Caption flags control `fig-cap`/`tbl-cap` chunk options. Figure exclusion also
+covers inline Markdown images and fenced `#fig-*` floats. Table-caption
+exclusion covers `:`/`Table:` caption paragraphs labelled with `#tbl-*` or
+adjacent to pipe tables; separate legend sections belong in `exclude_sections`.
+`exclude_boxes: true` drops `Box`, `Boxes` and numbered `Box N` sections, plus
+fenced divs marked `.box`, `#box-*` or `box`, including nested content.
+
+These are source estimates, with inline code represented by one word. They do
+not evaluate code, expand includes or shortcodes, parse raw HTML/LaTeX, or count
+the rendered bibliography. Complex caption/table syntax can still need a manual
+count. Exclusions affect only the word count: citations, crossrefs and missing
+figures are checked throughout the original manuscript. Invalid policy keys or
+values fail as configuration errors, including when a local profile overrides
+a shipped one. Do not infer an exclusion from a journal name or parse the prose
+`counting_rule`; record the verified policy for each manuscript type.
 
 - Every hard number in `profile.yml` must trace to an entry in `sources`.
 - Unverified or secondary-source claims go in SKILL.md under "TO VERIFY",

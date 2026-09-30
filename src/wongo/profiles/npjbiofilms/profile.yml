@@ -8,13 +8,61 @@ publisher: "Springer Nature (Nature Portfolio), in partnership with Nanyang Tech
 submission_portal: https://submission.springernature.com/new-submission/41522/3  # "Submit manuscript" link, nature.com/npjbiofilms homepage
 manuscript_types:
   - {type: article, word_limit: null, counting_rule: "npj Series journals are online-only and fully Open Access and impose NO strict word or page limit for Articles — 'Articles should report substantial original primary research'; systematic reviews, scoping reviews, and meta-analyses must be submitted as Articles, not Reviews. Structure per the journal's own formatting table: Title page / Abstract (<=150 words, no subheadings) / Introduction / Results / Discussion / Methods / Data availability / Code availability / Acknowledgments / Author contributions / Competing Interests / References (<=60, not strictly enforced) / Figure legends (<=350 words per figure, placed after references).", abstract_rule: "up to 150 words, no subheadings"}
-  - {type: brief-communication, word_limit: 1500, counting_rule: "main text no more than 1,000-1,500 words, not including the abstract, methods, references, and figure legends", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: comment, word_limit: 2000, counting_rule: "main text typically 1,000-2,000 words", abstract_rule: "up to 70 words, no subheadings"}
+  - type: brief-communication
+    word_limit: 1500
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [Methods, Online Methods, Materials and Methods, Materials & Methods, References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text no more than 1,000-1,500 words, not including the abstract, methods, references, and figure legends"
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: comment
+    word_limit: 2000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text typically 1,000-2,000 words"
+    abstract_rule: "up to 70 words, no subheadings"
   - {type: editorial, word_limit: null, counting_rule: "no stated main-text word limit; 'typically written by the senior editorial team of the journal, under the direction of the Editor-in-Chief. Unsolicited Editorials will not be considered.'; references limited to 60, though not strictly enforced", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: matters-arising, word_limit: 1200, counting_rule: "main text ideally not exceeding 1,200 words; opening paragraph must summarize the message for non-specialist readers and serves as the abstract; should ideally have been sent to the authors of the paper under discussion before submission (2-week wait if no response); only considered for papers published in this journal itself", abstract_rule: "opening paragraph functions as the abstract (no separate numeric cap beyond the 70-word content-types figure)"}
-  - {type: meeting-report, word_limit: 3000, counting_rule: "up to 3,000 words; typically commissioned by the Editors; 'should include a substantive discussion and clear outputs from a scientific meeting or workshop that will be of broad interest'; peer reviewed; references limited to 70, though not strictly enforced. Journal-specific type NOT present in the npj Clean Water sibling profile.", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: perspective, word_limit: 3000, counting_rule: "main text should not normally exceed 3,000 words; references limited to 70, though not strictly enforced", abstract_rule: "up to 70 words, no subheadings"}
-  - {type: review, word_limit: 4000, counting_rule: "main text typically 3,000-4,000 words; 'narratively summarize recent advances in the scientific literature within a given research field'; scope must be broad enough not to be dominated by the work of a single laboratory, particularly not the authors' own work; references limited to 60, though not strictly enforced", abstract_rule: "up to 70 words, no subheadings"}
+  - type: matters-arising
+    word_limit: 1200
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text ideally not exceeding 1,200 words; opening paragraph must summarize the message for non-specialist readers and serves as the abstract; should ideally have been sent to the authors of the paper under discussion before submission (2-week wait if no response); only considered for papers published in this journal itself"
+    abstract_rule: "opening paragraph functions as the abstract (no separate numeric cap beyond the 70-word content-types figure)"
+  - type: meeting-report
+    word_limit: 3000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "up to 3,000 words; typically commissioned by the Editors; 'should include a substantive discussion and clear outputs from a scientific meeting or workshop that will be of broad interest'; peer reviewed; references limited to 70, though not strictly enforced. Journal-specific type NOT present in the npj Clean Water sibling profile."
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: perspective
+    word_limit: 3000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text should not normally exceed 3,000 words; references limited to 70, though not strictly enforced"
+    abstract_rule: "up to 70 words, no subheadings"
+  - type: review
+    word_limit: 4000
+    # Counting exclusions: official content-types page; checked 2026-09-30.
+    word_count:
+      include_abstract: false
+      include_figure_captions: false
+      exclude_sections: [References, Bibliography, Figure legends, Figure captions, Acknowledgments, Acknowledgements, Author contributions, Competing interests, Data availability, Code availability]
+    counting_rule: "main text typically 3,000-4,000 words; 'narratively summarize recent advances in the scientific literature within a given research field'; scope must be broad enough not to be dominated by the work of a single laboratory, particularly not the authors' own work; references limited to 60, though not strictly enforced"
+    abstract_rule: "up to 70 words, no subheadings"
 csl: assets/nature.csl                          # VERIFIED: fetched from official CSL styles repo 2026-07-04; npj Biofilms and Microbiomes' own Submission guidelines state "The npj Series journals use standard Nature referencing style." (npj-Series-wide rule, re-confirmed on THIS journal's own page)
 reference_doc: assets/reference.docx             # generated by scripts/build_reference_docx.py — never hand-edit
 section_headings: [Title page, Abstract, Introduction, Results, Discussion, Methods, Data availability, Code availability, Acknowledgments, Author contributions, Competing Interests, References, Figure legends]  # VERIFIED: exact order from the official Article formatting table (Content types page); Figure legends confirmed as its own final section, placed after References, limited to 350 words/figure
