@@ -10,8 +10,11 @@ Every invocation is appended to WONGO_STUB_QUARTO_LOG as a JSON line.
 WONGO_STUB_QUARTO_FAIL=<qmd> makes rendering that file exit 1;
 WONGO_STUB_QUARTO_FAIL_AFTER_WRITE=<qmd> writes the DOCX first (like a failing
 post-render hook); WONGO_STUB_QUARTO_EDIT=<file> appends to that file during
-every render (an author saving mid-render); WONGO_STUB_QUARTO_STAMP=<text>
+every render (an author saving mid-render), with optional EDIT_TEXT;
+WONGO_STUB_QUARTO_STAMP=<text>
 adds that paragraph, so two renders' outputs differ.
+WONGO_STUB_QUARTO_REFERENCES is a JSON list of rendered main-document entries,
+or a mapping from input filename to its entries.
 """
 from __future__ import annotations
 
@@ -75,6 +78,14 @@ def _docx(path: Path, qmd: str) -> None:
     stamp = os.environ.get("WONGO_STUB_QUARTO_STAMP")
     if stamp:  # lets a test tell one render's output from another's
         doc.add_paragraph(stamp)
+    references = json.loads(os.environ.get("WONGO_STUB_QUARTO_REFERENCES", "[]"))
+    references = references.get(qmd, []) if isinstance(references, dict) else ([] if si else references)
+    if references:
+        from docx.enum.style import WD_STYLE_TYPE
+
+        doc.styles.add_style("Bibliography", WD_STYLE_TYPE.PARAGRAPH)
+        for reference in references:
+            doc.add_paragraph(reference, style="Bibliography")
     doc.save(str(path))
     (path.parent / f".{path.stem}.png").unlink()
 
@@ -93,7 +104,8 @@ def main(argv: list[str]) -> int:
         edit = os.environ.get("WONGO_STUB_QUARTO_EDIT")
         if edit:  # the author saves a source file while the render runs
             with open(edit, "a", encoding="utf-8") as fh:
-                fh.write("\nA sentence saved during the render.\n")
+                fh.write(os.environ.get("WONGO_STUB_QUARTO_EDIT_TEXT",
+                                        "\nA sentence saved during the render.\n"))
         _docx(_output_dir(Path.cwd()) / name, qmd)
         print(f"Output created: {name}", file=sys.stderr)
         if os.environ.get("WONGO_STUB_QUARTO_FAIL_AFTER_WRITE") == qmd:

@@ -1,9 +1,10 @@
 """wongo.engine — the render pipeline.
 
-`render_project()` runs the checks, refuses a submission render on a HARD
-failure BEFORE Quarto runs, renders main (and SI) with Quarto into a staging
+`render_project()` runs source checks, refuses a submission render on a known
+HARD failure BEFORE Quarto runs, renders main (and SI) with Quarto into a staging
 folder, post-processes there (wongo.docxpatch correctness fixes, then the house
-style from wongo.styles), and only then moves the finished DOCX files into
+style from wongo.styles), checks reference-inclusive limits on the staged main
+bibliography when required, and only then moves the finished DOCX files into
 output/ together. A failure at any step leaves output/ exactly as it was, and
 a file held open by Word is reported instead of half-replaced. The function
 returns a RenderResult and prints nothing; the CLI owns all output.
@@ -576,12 +577,13 @@ def render_project(
 ) -> RenderResult:
     """Render one manuscript project; see the module docstring.
 
-    `on_event(kind, payload)` receives "checks" (after validation, before any
-    rendering) and "wrote" (after the outputs are in place). `quarto_stdout`
+    `on_event(kind, payload)` receives "checks" before rendering, again after
+    reference-inclusive validation when required, and "wrote" after the outputs
+    are in place. `quarto_stdout`
     redirects Quarto's stdout (e.g. to fd 2 when stdout must stay JSON).
     Raises WongoError subclasses for every user-fixable failure.
     """
-    from wongo.engine.checks import run_checks
+    from wongo.engine.checks import Check, run_checks
     from wongo.profiles import load_journal_config, load_profile, manuscript_type
 
     if target not in TARGETS:
@@ -589,7 +591,7 @@ def render_project(
     project = Path(project).resolve()
     cfg = load_journal_config(project)
     profile = load_profile(cfg["journal"], project)
-    manuscript_type(profile, cfg["ms_type"])  # fail fast on bad ms_type
+    mtype = manuscript_type(profile, cfg["ms_type"])  # fail fast on bad ms_type
     style = resolve_style(cfg, style_override)  # fail fast on an unknown style
 
     checks = run_checks(project)
@@ -599,7 +601,7 @@ def render_project(
         raise GateError("HARD checks failed — submission render refused (fix, or render --target collab).",
                         checks=checks)
 
-    # Gate BEFORE quarto ever runs (backstop kept in postprocess_main).
+    # Source/TOC gates run before Quarto; reference words are checked in staging.
     if (
         target == "submission"
         and (profile.get("toc_graphic") or {}).get("required")
@@ -634,6 +636,24 @@ def render_project(
             postprocess_si(si_docx, profile, cfg, target, project,
                            style_override=style_override)
             staged.append(si_docx)
+        if mtype.get("word_limit_includes_references"):
+            if (source_fingerprint(project) != sources
+                    or load_profile(cfg["journal"], project) != profile):
+                checks = [c for c in checks if c.name != "word-limit-references"]
+                checks.append(Check(
+                    "word-limit-references", "HARD", False,
+                    "Sources or the journal profile changed during rendering; the "
+                    "reference-inclusive count is unverified. Finish saving and render again.",
+                ))
+            else:
+                checks = run_checks(project, rendered_main=staged[0])
+            _emit(on_event, "checks", checks=checks)
+            if target == "submission" and any(c.level == "HARD" and not c.ok for c in checks):
+                raise GateError(
+                    "HARD checks failed after counting the rendered references — submission "
+                    "refused; previous outputs were left unchanged. Fix the reported checks "
+                    "or render --target collab to inspect it.", checks=checks,
+                )
         version = toolchain.tool_version(quarto)
         # the manifest is promoted with the outputs, so the two always agree
         staged.append(write_manifest(project, target, staged, cfg, style.get("_name", "default"),

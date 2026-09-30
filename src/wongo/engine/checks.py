@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from docx import Document
+from docx.oxml.ns import qn
 
 from wongo.errors import InputError
 from wongo.profiles import (
@@ -304,7 +306,47 @@ def _at_ref(item: str):
     return re.compile(r"(?<![\w@.\\])-?@" + re.escape(item) + r"(?![\w:.#$%&+?<>~/-]*[\w])")
 
 
-def run_checks(project: Path) -> list[Check]:
+def _reference_words(path: Path) -> int:
+    """Read Quarto/Pandoc's Bibliography paragraphs, including hyperlink text.
+
+    Join runs before splitting words: italic titles and linked DOIs can split
+    a word across XML elements. Tabs and line breaks are word separators.
+    """
+    doc = Document(path)
+    total = 0
+    for paragraph in doc.element.xpath(".//w:p[w:pPr/w:pStyle[@w:val='Bibliography']]"):
+        text = "".join(
+            (node.text or "") if node.tag == qn("w:t") else " "
+            for node in paragraph.iter()
+            if node.tag in {qn("w:t"), qn("w:tab"), qn("w:br"), qn("w:cr")}
+        )
+        total += len(text.split())
+    return total
+
+
+def _references_expected(project: Path, text: str) -> bool:
+    """Citations or nocite request a bibliography even if the output lacks one."""
+    meta, _ = split_front_matter(text)
+    if citekeys_used(text):
+        return True
+    config = project / "_quarto.yml"
+    if config.exists():
+        try:
+            data = yaml.safe_load(read_text(config))
+        except yaml.YAMLError as exc:
+            raise InputError(yaml_error_message("_quarto.yml", exc)) from exc
+        if isinstance(data, dict):
+            meta = {**data, **meta}
+    return bool(meta.get("nocite")) or bool(citekeys_used(str(meta.get("abstract", ""))))
+
+
+def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Check]:
+    """Check sources; the render pipeline can supply its newly staged main DOCX.
+
+    Never pick up an old output implicitly: its bibliography may be stale or
+    edited in Word. The combined count remains a source estimate plus the
+    rendered reference words, not Word's or a submission system's word count.
+    """
     project = Path(project)
     cfg = load_journal_config(project)
     profile = load_profile(cfg["journal"], project)
@@ -325,18 +367,38 @@ def run_checks(project: Path) -> list[Check]:
     wc = word_count(texts["index.qmd"], **mtype.get("word_count", {}))
     limit = mtype.get("word_limit")
     includes_refs = bool(mtype.get("word_limit_includes_references"))
+    reference_words = None
+    missing_references = False
+    if includes_refs and rendered_main is not None:
+        reference_words = _reference_words(rendered_main)
+        missing_references = reference_words == 0 and _references_expected(project, texts["index.qmd"])
+        wc += reference_words
     detail = (f"{wc} words vs limit {limit} for {cfg['ms_type']} "
               f"(rule: {mtype.get('counting_rule', 'unspecified')})")
-    if includes_refs:
+    if missing_references:
+        detail += "; reference-inclusive total unverified: rendered bibliography text was not found"
+    elif reference_words is not None:
+        detail += (f"; estimated total: {wc - reference_words} source + "
+                   f"{reference_words} reference words from this render's main DOCX")
+    elif includes_refs:
         detail += "; lower bound: references are not counted but this limit includes them"
     checks.append(Check("word-limit", "HARD", limit is None or wc <= limit, detail))
-    if includes_refs and limit is not None and wc <= limit:
+    if missing_references:
+        checks.append(Check(
+            "word-limit-references", "HARD", False,
+            "The main manuscript requests references, but this render has no text in "
+            "Bibliography paragraphs. The reference-inclusive count is unverified. "
+            "Enable Quarto's bibliography (remove suppress-bibliography) and preserve "
+            "its Bibliography paragraph style; render --target collab to inspect the output.",
+        ))
+    elif includes_refs and reference_words is None and limit is not None and wc <= limit:
         # body + abstract is only a lower bound here, so a pass is unproven
         checks.append(Check(
             "word-limit-references", "WARN", False,
             f"{wc} words counted without references; the {limit}-word limit "
-            "includes references, so add the reference list's word count "
-            f"(headroom {limit - wc} words) before submitting",
+            f"includes references (headroom {limit - wc} words). Run "
+            "`wongo render --target submission` to check the newly rendered bibliography "
+            "before any deliverable is replaced",
         ))
 
     bib: set[str] = set()

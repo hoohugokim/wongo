@@ -81,6 +81,12 @@ what the Claude plugin reads. A render replaces its output files only when every
 step succeeded; if Word has one of them open, wongo says so and changes
 nothing. For development, `uv tool install --editable .` from a checkout.
 
+For limits that include references, such as Water Research, `wongo check`
+reports the source estimate and remaining headroom. Rendering adds the new
+main bibliography's words; an over-limit or unverified count blocks submission
+before any existing deliverable is replaced. The combined count remains an
+estimate, with its source and reference contributions shown in the report.
+
 `wongo diff` tracks word-level changes in body paragraphs, keeping each
 word's run formatting and rebuilding Quarto's crossref/citation hyperlinks
 around the tracked runs. Changed paragraphs containing fields, drawings,
