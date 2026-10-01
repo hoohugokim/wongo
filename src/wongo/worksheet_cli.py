@@ -109,6 +109,8 @@ def add_parsers(sub, common: argparse.ArgumentParser) -> None:
     )
     p.add_argument("file", help=FILE_HELP)
     p.add_argument("--project", metavar="DIR", default=None, help=PROJECT_HELP)
+    p.add_argument("--row", type=int, metavar="N", default=None, help="review only row N")
+    p.add_argument("--pending-only", action="store_true", help="review only rows whose disposition is PENDING")
     p.set_defaults(fn=cmd_review, command="review")
 
 
@@ -251,7 +253,11 @@ def cmd_review(args: argparse.Namespace) -> int:
     path = resolve_worksheet(args.file)
     project = _project(args.project, path)
     # input/print are looked up now, not bound at import, so tests can patch them.
-    review(path, project, input_fn=input, print_fn=print)
+    review(
+        path, project,
+        row=args.row, pending_only=args.pending_only,
+        input_fn=input, print_fn=print,
+    )
     return 0
 
 

@@ -378,3 +378,29 @@ def test_set_a_decision_over_an_invalid_value_keeps_the_persons_note(project):
     assert run("worksheet", "set", path, 3, "apply") == 0
 
     assert Worksheet.load(path).row(3).disposition.text == f"apply — was {typo}"
+
+
+def test_review_cli_with_row_flag(project, monkeypatch, capsys):
+    path = write_sheet(project, SHEET)
+    monkeypatch.setattr(clitools, "is_interactive", lambda: True)
+    answers = iter(["4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    assert run("review", path, "--row", "3") == 0
+    out = capsys.readouterr().out
+    assert "(1 of 1 to review)" in out
+    ws = Worksheet.load(path)
+    assert ws.row(3).disposition.text == "needs-PI"
+    assert ws.row(2).disposition.text == "PROPOSED fix-code — inline R value"
+
+
+def test_review_cli_with_pending_only_flag(project, monkeypatch, capsys):
+    path = write_sheet(project, SHEET)
+    monkeypatch.setattr(clitools, "is_interactive", lambda: True)
+    answers = iter(["4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    assert run("review", path, "--pending-only") == 0
+    out = capsys.readouterr().out
+    assert "1 of 4 pending row needs a decision" in out
+    ws = Worksheet.load(path)
+    assert ws.row(3).disposition.text == "needs-PI"
+
