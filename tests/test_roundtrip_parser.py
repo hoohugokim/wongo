@@ -31,7 +31,9 @@ PANDOC_MD = (
     'First [recheck this]{.insertion author="Ada Lin" date="2026-07-03T10:00:00Z"} '
     'spot.\n\n'
     'Second [recheck this]{.insertion author="Ada Lin" date="2026-07-03T10:00:00Z"} '
-    'spot too.\n'
+    'spot too.\n\n'
+    'Unmatched [deep [nested [brackets]]] span]{.insertion author="Jane Doe" '
+    'date="2026-07-03T10:00:00Z"} survives.\n'
 )
 
 
@@ -74,6 +76,13 @@ def test_adjacent_different_author_del_ins_stays_two_changes():
     insertion = next(c for c in changes if c.kind == "insertion" and c.new == "latter text")
     assert deletion.author == "Jane Doe"
     assert insertion.author == "John Roe"
+
+
+def test_nested_bracket_citation_parsed_as_insertion():
+    c = next(c for c in _changes() if c.new == "cited work [@doe2020] supports this")
+    assert c.author == "Jane Doe"
+    assert c.kind == "insertion"
+    assert c.old == ""
 
 
 def test_nested_bracket_span_surfaces_as_unparsed_not_dropped():

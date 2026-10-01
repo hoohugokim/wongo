@@ -23,7 +23,7 @@ from wongo.errors import InputError, ToolchainError
 from wongo.textio import read_text, require_docx
 
 SPAN_RE = re.compile(
-    r"\[(?P<text>[^\][]*)\]\{\.(?P<kind>insertion|deletion|comment-start|comment-end)(?P<attrs>[^}]*)\}",
+    r"\[(?P<text>(?:[^\[\]]|\[[^\[\]]*\])*)\]\{\.(?P<kind>insertion|deletion|comment-start|comment-end)(?P<attrs>[^}]*)\}",
     re.DOTALL,
 )
 ATTR_RE = re.compile(r'([\w-]+)="([^"]*)"')
