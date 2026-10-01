@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wongo": {
+      "command": "wongo",
+      "args": [
+        "mcp",
+        "run"
+      ]
+    }
+  }
+}

@@ -7,7 +7,7 @@ of truth; the Word files in `output/` are disposable renders.
 ## Commands
 
 - `wongo status` — where the manuscript stands and the suggested next step
-- `wongo check` — word limit, citations, cross-references, figures
+- `wongo check` — word limit, citations, cross-references, figures (with actionable patch hints)
 - `wongo render --target collab` — Word files for coauthors (Track Changes on)
 - `wongo render --target submission` — refused while a HARD check fails
 - `wongo roundtrip <coauthor.docx>` — coauthor edits into `decisions/merge-*.md`
@@ -16,8 +16,17 @@ of truth; the Word files in `output/` are disposable renders.
   approved edit is applied to the `.qmd`
 - `wongo profile show <journal>` — the journal's verified requirements
 - `wongo doctor` — Quarto, R and this project's configuration
+- `wongo mcp run` / `wongo mcp install` — start or configure native Model Context Protocol (MCP) server
 
 Add `--json` to any command for machine-readable output.
+
+## LLM / MCP Integration
+
+If using Claude Desktop, Cursor, or VS Code with MCP, Wongo exposes 12 deterministic tools:
+- `wongo_status`, `wongo_doctor`, `wongo_profile_get`, `wongo_check`
+- `wongo_render`, `wongo_roundtrip`, `wongo_diff`
+- `wongo_worksheet_status`, `wongo_worksheet_set`, `wongo_worksheet_batch_propose`, `wongo_worksheet_lint`
+Run `wongo mcp install` to configure your editor automatically.
 
 ## Rules
 
@@ -27,3 +36,4 @@ Add `--json` to any command for machine-readable output.
 - wongo never edits the `.qmd` from a worksheet. Apply only rows the author
   approved, and only after `wongo worksheet lint` passes.
 - Journal requirements come from `wongo profile show <journal>`; never guess them.
+- When fixing check failures, inspect the structured `patch_hint` emitted by `wongo check`.

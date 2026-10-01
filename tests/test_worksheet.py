@@ -722,3 +722,64 @@ def test_load_errors_are_actionable(tmp_path):
     bad.write_bytes("## 1. insertion 김민수\n".encode("cp949"))
     with pytest.raises(InputError, match="not UTF-8.*Save with Encoding"):
         Worksheet.load(bad)
+
+
+def test_row_tags_and_delta(tmp_path):
+    ws_file = tmp_path / "ws.md"
+    content = (
+        HEADER
+        + row(1, "replacement", "Alice", "index.qmd:10", "PENDING",
+              old="`r sprintf('%.1f', val)`", new="approximately 25% Hand Typed",
+              context="The rate was `r sprintf('%.1f', val)` during testing.")
+        + row(2, "addition", "Bob", "index.qmd:20", "PENDING",
+              old="—", new="as shown by @smith2024 in recent works",
+              context="Recent results as shown by @smith2024 in recent works.")
+        + UNPARSED
+    )
+    ws_file.write_text(content, encoding="utf-8")
+    ws = Worksheet.load(ws_file)
+
+    r1 = ws.row(1)
+    assert "inline-code" in r1.tags
+    assert r1.word_count_delta > 0
+
+    r2 = ws.row(2)
+    assert "citation" in r2.tags
+    assert "major-length-change" in r2.tags
+
+    r5 = ws.row(5)
+    assert "unparsed" in r5.tags
+    assert "unmatched" in r5.tags
+
+
+def test_worksheet_batch_propose(tmp_path):
+    ws_file = tmp_path / "ws.md"
+    content = (
+        HEADER
+        + row(1, "addition", "Alice", "index.qmd:10", "PENDING")
+        + row(2, "deletion", "Bob", "index.qmd:20", "apply")
+        + row(3, "replacement", "Charlie", "index.qmd:30", "PENDING")
+    )
+    ws_file.write_text(content, encoding="utf-8")
+    ws = Worksheet.load(ws_file)
+
+    proposals = [
+        {"row": 1, "disposition": "apply", "rationale": "clear prose"},
+        {"row": 2, "disposition": "reject", "rationale": "should not overwrite"},  # already final, no force
+        {"row": 3, "disposition": "reject", "rationale": "factual error"},
+    ]
+    updated = ws.batch_propose(proposals, force=False)
+    assert len(updated) == 2  # row 2 was skipped because already final
+
+    r1 = ws.row(1)
+    assert r1.disposition.state == "proposed"
+    assert "clear prose" in r1.disposition.note
+
+    r2 = ws.row(2)
+    assert r2.disposition.state == "final"
+    assert r2.disposition.decision == "apply"
+
+    r3 = ws.row(3)
+    assert r3.disposition.state == "proposed"
+    assert r3.disposition.proposal == "reject"
+    assert "factual error" in r3.disposition.note

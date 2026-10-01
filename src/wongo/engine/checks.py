@@ -289,6 +289,7 @@ class Check:
     ok: bool
     detail: str
     locations: list[str] = field(default_factory=list)  # "index.qmd:12: @key"
+    patch_hint: dict | None = None
 
 
 def _locations(texts: dict[str, str], items: list[str], pattern) -> list[str]:
@@ -382,7 +383,16 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
                    f"{reference_words} reference words from this render's main DOCX")
     elif includes_refs:
         detail += "; lower bound: references are not counted but this limit includes them"
-    checks.append(Check("word-limit", "HARD", limit is None or wc <= limit, detail))
+    wc_ok = limit is None or wc <= limit
+    wc_hint = None
+    if not wc_ok:
+        wc_hint = {
+            "action": "trim_words",
+            "target_words": limit,
+            "excess_words": wc - limit,
+            "hint": f"Trim at least {wc - limit} words from index.qmd or exclude non-counted sections.",
+        }
+    checks.append(Check("word-limit", "HARD", wc_ok, detail, patch_hint=wc_hint))
     if missing_references:
         checks.append(Check(
             "word-limit-references", "HARD", False,
@@ -402,23 +412,41 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
         ))
 
     bib: set[str] = set()
-    for bib_path in bibliography_paths(project, texts["index.qmd"]):
+    bib_paths = bibliography_paths(project, texts["index.qmd"])
+    for bib_path in bib_paths:
         if bib_path.exists():
             bib |= bib_keys(read_text(bib_path))
     used = set().union(*(citekeys_used(t) for t in texts.values()))
     missing = sorted(used - bib)
+    cite_hint = None
+    if missing:
+        cite_hint = {
+            "action": "add_bibtex",
+            "missing_keys": missing,
+            "bib_files": [str(b.name) for b in bib_paths if b.exists()] or ["refs.bib"],
+            "hint": f"Add BibTeX entries for {', '.join(missing)} to refs.bib or remove unused citations.",
+        }
     checks.append(Check(
         "citekeys", "HARD", not missing,
         "all citekeys resolve" if not missing else f"missing from refs.bib: {', '.join(missing)}",
         _locations(texts, [f"@{k}" for k in missing], lambda item: _at_ref(item[1:])),
+        patch_hint=cite_hint,
     ))
 
     defined = set().union(*(labels_defined(t) for t in texts.values()))
     orphans = sorted(set().union(*(crossrefs_used(t) for t in texts.values())) - defined)
+    cross_hint = None
+    if orphans:
+        cross_hint = {
+            "action": "define_labels",
+            "orphan_refs": orphans,
+            "hint": f"Define labels for {', '.join(orphans)} using '#| label: <name>' or '{{#<name>}}'.",
+        }
     checks.append(Check(
         "crossrefs", "HARD", not orphans,
         "all cross-references resolve" if not orphans else f"orphaned: {', '.join(orphans)}",
         _locations(texts, [f"@{o}" for o in orphans], lambda item: _at_ref(item[1:])),
+        patch_hint=cross_hint,
     ))
 
     missing_figs, missing_paths = [], []
@@ -427,11 +455,19 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
             if not (project / rel).exists():
                 missing_figs.append(f"{name} -> {rel}")
                 missing_paths.append(rel)
+    fig_hint = None
+    if missing_figs:
+        fig_hint = {
+            "action": "create_assets",
+            "missing_paths": sorted(set(missing_paths)),
+            "hint": f"Place image files at {', '.join(sorted(set(missing_paths)))} or fix image links.",
+        }
     checks.append(Check(
         "figures", "HARD", not missing_figs,
         "all referenced figures exist" if not missing_figs else "; ".join(missing_figs),
         _locations(texts, sorted(set(missing_paths)),
                    lambda item: re.compile(r"\(" + re.escape(item) + r"[)\s]")),
+        patch_hint=fig_hint,
     ))
 
     days = profile_staleness_days(profile)
@@ -447,9 +483,18 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
     ))
 
     si_expected = (profile.get("si") or {}).get("separate_file")
+    si_ok = not si_expected or "si.qmd" in texts
+    si_hint = None
+    if not si_ok:
+        si_hint = {
+            "action": "create_si",
+            "target": "si.qmd",
+            "hint": "Create si.qmd for Supporting Information expected by journal profile.",
+        }
     checks.append(Check(
-        "si-file", "WARN", not si_expected or "si.qmd" in texts,
+        "si-file", "WARN", si_ok,
         "si.qmd present" if "si.qmd" in texts else "profile expects separate SI but si.qmd is absent",
+        patch_hint=si_hint,
     ))
     return checks
 
@@ -461,3 +506,5 @@ def print_report(checks: list[Check]) -> None:
         if not c.ok:
             for location in c.locations:
                 print(f"      {location}")
+            if c.patch_hint and "hint" in c.patch_hint:
+                print(f"      hint: {c.patch_hint['hint']}")
