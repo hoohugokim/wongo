@@ -10,6 +10,7 @@ keywords = ["quarto", "manuscript", "docx", "journal", "publishing", "reproducib
 dependencies = [
   "PyYAML>=6",
   "python-docx>=1.1",
+  "mcp>=1.0.0",
 ]
 
 [project.scripts]

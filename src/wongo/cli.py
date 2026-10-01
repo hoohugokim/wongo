@@ -23,7 +23,7 @@ from wongo.errors import WongoError
 from wongo.textio import configure_stdio
 
 ISSUES_URL = "https://github.com/hoohugokim/wongo/issues"
-GROUPS = ("profile", "style", "worksheet")  # commands whose name has two words
+GROUPS = ("profile", "style", "worksheet", "mcp")  # commands whose name has two words
 
 
 def _json(args: argparse.Namespace) -> bool:
@@ -363,6 +363,39 @@ def _cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_mcp_run(args: argparse.Namespace) -> int:
+    from wongo.mcp.server import run_mcp_server
+
+    transport = getattr(args, "transport", "stdio")
+    run_mcp_server(transport=transport)
+    return 0
+
+
+def _cmd_mcp_install(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from wongo.mcp.installer import install_client_configs
+
+    clients = args.client if getattr(args, "client", None) else None
+    project_dir = Path(getattr(args, "project", "."))
+    custom_command = getattr(args, "server_command", None)
+
+    results = install_client_configs(
+        clients=clients,
+        project_dir=project_dir,
+        custom_command=custom_command,
+    )
+
+    if _json(args):
+        emit_json("mcp install", True, results=results)
+        return 0
+
+    print("Wongo MCP server configuration:")
+    for client, status in results.items():
+        print(f"  {client}: {status}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # parser
 
@@ -456,6 +489,19 @@ def build_parser() -> argparse.ArgumentParser:
     ssub = p.add_subparsers(dest="style_cmd", required=True, metavar="<action>")
     sl = ssub.add_parser("list", parents=[common], help="List house styles")
     sl.set_defaults(fn=_cmd_style_list, command="style list")
+
+    p = sub.add_parser("mcp", help="Model Context Protocol (MCP) server for LLMs")
+    msub = p.add_subparsers(dest="mcp_cmd", required=True, metavar="<action>")
+    mr = msub.add_parser("run", parents=[common], help="Run the Wongo MCP server (stdio transport)")
+    mr.add_argument("--transport", default="stdio", choices=("stdio",), help="Transport protocol (default: stdio)")
+    mr.set_defaults(fn=_cmd_mcp_run, command="mcp run")
+    mi = msub.add_parser("install", parents=[common], help="Install Wongo MCP server into Claude Desktop, Cursor, or VS Code")
+    mi.add_argument("--client", action="append", choices=("claude", "cursor", "vscode"),
+                    help="Target client (repeatable; default: claude, cursor, vscode)")
+    mi.add_argument("--project", default=".", help="Manuscript project root for workspace configs")
+    mi.add_argument("--command", dest="server_command", default=None,
+                    help="Custom executable command for wongo")
+    mi.set_defaults(fn=_cmd_mcp_install, command="mcp install")
 
     worksheet_cli.add_parsers(sub, common)  # worksheet status|lint|set, review
     return parser
