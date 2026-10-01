@@ -192,6 +192,18 @@ def _compose_affiliation(aff: dict) -> str:
     )
 
 
+def _index_to_label(index: int) -> str:
+    """Excel-style lowercase letter label: 0 -> a, 25 -> z, 26 -> aa, 27 -> ab, etc."""
+    label = ""
+    i = index
+    while True:
+        label = chr(ord("a") + (i % 26)) + label
+        i = (i // 26) - 1
+        if i < 0:
+            break
+    return label
+
+
 def rebuild_title_block(doc: Document, meta: dict, opts: dict) -> None:
     """Replace pandoc's one-name-per-line Author paragraphs with the WR-style
     block: one author line with superscript affiliation letters (* marks the
@@ -210,7 +222,7 @@ def rebuild_title_block(doc: Document, meta: dict, opts: dict) -> None:
             s = _compose_affiliation(aff)
             if s and s not in aff_order:
                 aff_order.append(s)
-    letters = {s: chr(ord("a") + i) for i, s in enumerate(aff_order)}
+    letters = {s: _index_to_label(i) for i, s in enumerate(aff_order)}
 
     first = paras[idx[0]]
     for r in list(first.runs):
@@ -361,6 +373,13 @@ def _spacer_after(tbl) -> None:
     tbl._tbl.addnext(p)
 
 
+def _section_text_width(sec) -> int | None:
+    geometry = (sec.page_width, sec.left_margin, sec.right_margin)
+    if all(g is not None for g in geometry):
+        return (int(geometry[0]) - int(geometry[1]) - int(geometry[2])) // 635
+    return None
+
+
 def fix_tables(doc: Document, style: dict) -> None:
     """WR/booktabs table look when the profile asks for it. Quarto wraps every
     crossref float in a 1x1 outer table; real data tables live nested inside
@@ -368,25 +387,33 @@ def fix_tables(doc: Document, style: dict) -> None:
     the full text column. Data tables: full width, closed 1pt top and bottom
     rules (the style's header midrule stays), no vertical/inner rules, bold
     header row and bold first (label) column."""
-    sec = doc.sections[0]
-    geometry = (sec.page_width, sec.left_margin, sec.right_margin)
-    # pandoc 3.10's default reference.docx carries NO pgSz/pgMar, so a style
-    # without `page:` geometry (e.g. `default`) sees None here. Word then
-    # falls back to its own defaults; we cannot know the text width, so the
-    # grid is left as pandoc emitted it and only the pct width is set.
-    text_w = (
-        (int(geometry[0]) - int(geometry[1]) - int(geometry[2])) // 635
-        if all(g is not None for g in geometry) else None
-    )
+    default_text_w = _section_text_width(doc.sections[0])
     tbl = style.get("tables") or {}
+
+    def text_width_for_table(t) -> int | None:
+        if len(doc.sections) == 1:
+            return default_text_w
+        # In multi-section documents (e.g. landscape sections), find the section
+        # following this table element in document order.
+        tbl_elm = t._tbl
+        # Find following section break in body elements
+        following_sect = tbl_elm.xpath("following::w:sectPr")
+        if following_sect:
+            target_sect_pr = following_sect[0]
+            for s in doc.sections:
+                if s._sectPr == target_sect_pr:
+                    return _section_text_width(s)
+        # If no following sectPr, the table sits in the final document section
+        return _section_text_width(doc.sections[-1])
 
     def walk(tables, width_dxa, top=False):
         for t in tables:
             is_wrapper = len(t.rows) == 1 and len(t.columns) == 1
+            cur_w = text_width_for_table(t) if top else width_dxa
             if tbl.get("width", "full") == "full":
                 _tbl_set_width_pct(t)
-                if width_dxa is not None:
-                    _tbl_rescale_grid(t, width_dxa)
+                if cur_w is not None:
+                    _tbl_rescale_grid(t, cur_w)
             if is_wrapper:
                 if tbl.get("rules") == "booktabs":
                     _tbl_set_borders(t, top=None, bottom=None)
@@ -395,7 +422,7 @@ def fix_tables(doc: Document, style: dict) -> None:
                     for cell in row.cells:
                         if cell.tables:
                             holds_table = True
-                        inner_w = width_dxa - 216 if width_dxa is not None else None
+                        inner_w = cur_w - 216 if cur_w is not None else None
                         walk(cell.tables, inner_w)  # minus cell margins
                 if top and holds_table and tbl.get("spacer_after"):
                     _spacer_after(t)  # table floats only; figure floats keep their flow
@@ -408,7 +435,7 @@ def fix_tables(doc: Document, style: dict) -> None:
                 if top and tbl.get("spacer_after"):
                     _spacer_after(t)
 
-    walk(doc.tables, text_w, top=True)
+    walk(doc.tables, default_text_w, top=True)
 
 
 # ---------------------------------------------------------------------------
