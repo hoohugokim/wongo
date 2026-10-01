@@ -53,11 +53,14 @@ from docx.oxml.ns import qn
 from wongo.errors import InputError
 from wongo.textio import require_docx
 
-_TOKEN_RE = re.compile(r"\s+|\S+")
-_RUN_CHILDREN = {qn("w:rPr"), qn("w:t")}
+_TOKEN_RE = re.compile(r"\t|\n|[^\S\t\n]+|\S+")
+_RUN_CHILDREN = {qn("w:rPr"), qn("w:t"), qn("w:tab"), qn("w:br"), qn("w:cr")}
 # zero-width markers that carry no text and survive a rebuild untouched
 _ZERO_WIDTH = {qn("w:bookmarkStart"), qn("w:bookmarkEnd"), qn("w:proofErr")}
-_REBUILT = {qn("w:r"), qn("w:ins"), qn("w:del"), qn("w:hyperlink")}
+_REBUILT = {
+    qn("w:r"), qn("w:ins"), qn("w:del"), qn("w:hyperlink"),
+    qn("m:oMath"), qn("w:oMath"), qn("m:oMathPara"), qn("w:oMathPara"),
+}
 
 
 def _norm(text: str) -> str:
@@ -71,12 +74,19 @@ def _norm(text: str) -> str:
 def _run_segment(run, container):
     if any(child.tag not in _RUN_CHILDREN for child in run):
         return None
-    text = "".join(t.text or "" for t in run.findall(qn("w:t")))
-    return (text, run.find(qn("w:rPr")), container)
+    pieces = []
+    for child in run:
+        if child.tag == qn("w:t"):
+            pieces.append(child.text or "")
+        elif child.tag == qn("w:tab"):
+            pieces.append("\t")
+        elif child.tag in (qn("w:br"), qn("w:cr")):
+            pieces.append("\n")
+    return ("".join(pieces), run.find(qn("w:rPr")), container, None)
 
 
 def _segments(p_el) -> list | None:
-    """[(text, rPr|None, hyperlink|None)] per run of a rebuildable paragraph,
+    """[(text, rPr|None, hyperlink|None, math_elem|None)] per run/element of a rebuildable paragraph,
     or None when the paragraph holds rich OOXML this writer cannot recreate."""
     segments = []
     for child in p_el:
@@ -97,18 +107,24 @@ def _segments(p_el) -> list | None:
                 if seg is None:
                     return None
                 segments.append(seg)
+        elif child.tag in (qn("m:oMath"), qn("w:oMath"), qn("m:oMathPara"), qn("w:oMathPara")):
+            math_text = f"[{''.join(child.itertext()).strip()}]"
+            segments.append((math_text, None, None, child))
         else:
             return None
     return segments
 
 
-def _tokens(segments) -> list[tuple[str, object, object]]:
+def _tokens(segments) -> list[tuple[str, object, object, object]]:
     """Split each run's text into word/whitespace tokens that remember the
-    run properties and hyperlink container they came from."""
+    run properties, hyperlink container, and any math element they came from."""
     out = []
-    for text, rpr, container in segments:
-        for tok in _TOKEN_RE.findall(text):
-            out.append((tok, rpr, container))
+    for text, rpr, container, math_elem in segments:
+        if math_elem is not None:
+            out.append((text, None, container, math_elem))
+        else:
+            for tok in _TOKEN_RE.findall(text):
+                out.append((tok, rpr, container, None))
     return out
 
 
@@ -124,11 +140,16 @@ def _make_run(text: str, rpr_template, *, deleted: bool):
     r = OxmlElement("w:r")
     if rpr_template is not None:
         r.append(copy.deepcopy(rpr_template))
-    target = OxmlElement("w:delText") if deleted else OxmlElement("w:t")
-    if text != text.strip():
-        target.set(qn("xml:space"), "preserve")
-    target.text = text
-    r.append(target)
+    if text == "\t":
+        r.append(OxmlElement("w:tab"))
+    elif text == "\n":
+        r.append(OxmlElement("w:br"))
+    else:
+        target = OxmlElement("w:delText") if deleted else OxmlElement("w:t")
+        if text != text.strip():
+            target.set(qn("xml:space"), "preserve")
+        target.text = text
+        r.append(target)
     return r
 
 
@@ -144,7 +165,7 @@ def _wrap(kind: str, runs: list, author: str, date: str, counter: list[int]):
 
 
 def _strip_content(p_el) -> None:
-    """Remove runs, hyperlinks, and tracking wrappers; keep pPr and markers."""
+    """Remove runs, hyperlinks, math, and tracking wrappers; keep pPr and markers."""
     for child in list(p_el):
         if child.tag in _REBUILT:
             p_el.remove(child)
@@ -166,20 +187,25 @@ def _safe_original_container(container):
 
 
 def _emit(p_el, items, author: str, date: str, counter: list[int]) -> None:
-    """Append `items` = [(kind, token, rPr, container)] to paragraph `p_el`,
+    """Append `items` = [(kind, token, rPr, container, math_elem)] to paragraph `p_el`,
     grouping consecutive same-kind tokens into one w:ins/w:del and
     consecutive same-container tokens into one rebuilt hyperlink."""
-    groups: list[tuple[str, object, list]] = []  # (kind, container, [(tok, rPr)])
-    for kind, tok, rpr, container in items:
+    groups: list[tuple[str, object, list]] = []  # (kind, container, [(tok, rPr, math_elem)])
+    for kind, tok, rpr, container, math_elem in items:
         if groups and groups[-1][0] == kind and groups[-1][1] is container:
-            groups[-1][2].append((tok, rpr))
+            groups[-1][2].append((tok, rpr, math_elem))
         else:
-            groups.append((kind, container, [(tok, rpr)]))
+            groups.append((kind, container, [(tok, rpr, math_elem)]))
 
     current_container, current_shell = None, None
     for kind, container, toks in groups:
-        runs = [_make_run(tok, rpr, deleted=(kind == "del")) for tok, rpr in toks]
-        element = runs if kind == "equal" else [_wrap(kind, runs, author, date, counter)]
+        elements = []
+        for tok, rpr, math_elem in toks:
+            if math_elem is not None:
+                elements.append(copy.deepcopy(math_elem))
+            else:
+                elements.append(_make_run(tok, rpr, deleted=(kind == "del")))
+        element = elements if kind == "equal" else [_wrap(kind, elements, author, date, counter)]
         if container is None:
             parent = p_el
             current_container, current_shell = None, None
@@ -245,10 +271,37 @@ def diff_documents(original: Path, revised: Path, out: Path,
               "inserted_paragraphs": 0, "deleted_paragraphs": 0,
               "tables_differ": False, "rich_paragraphs_skipped": 0}
 
+    def _elem_text(child) -> str:
+        if child.tag in (qn("m:oMath"), qn("w:oMath"), qn("m:oMathPara"), qn("w:oMathPara")):
+            return f"[{''.join(child.itertext()).strip()}]"
+        if child.tag == qn("w:hyperlink"):
+            return "".join(_elem_text(sub) for sub in child)
+        if child.tag == qn("w:r"):
+            pieces = []
+            for sub in child:
+                if sub.tag == qn("w:t"):
+                    pieces.append(sub.text or "")
+                elif sub.tag == qn("w:tab"):
+                    pieces.append("\t")
+                elif sub.tag in (qn("w:br"), qn("w:cr")):
+                    pieces.append("\n")
+            return "".join(pieces)
+        return ""
+
+    def _para_text(p) -> str:
+        has_math = any(
+            p._p.find(qn(tag)) is not None
+            for tag in ("m:oMath", "w:oMath", "m:oMathPara", "w:oMathPara")
+        )
+        if not has_math:
+            return _norm(p.text or "")
+        pieces = [_elem_text(child) for child in p._p if child.tag != qn("w:pPr") and child.tag not in _ZERO_WIDTH]
+        return _norm("".join(pieces))
+
     o_paras = doc_orig.paragraphs
-    o_texts = [_norm(p.text or "") for p in o_paras]
+    o_texts = [_para_text(p) for p in o_paras]
     r_paras = doc_rev.paragraphs
-    r_texts = [_norm(p.text or "") for p in r_paras]
+    r_texts = [_para_text(p) for p in r_paras]
 
     def count_words(tokens) -> int:
         return len([t for t in tokens if t[0].strip()])
@@ -265,7 +318,7 @@ def diff_documents(original: Path, revised: Path, out: Path,
             return
         tokens = _tokens(_segments(p._p))
         _strip_content(p._p)
-        _emit(p._p, [("ins", tok, rpr, cont) for tok, rpr, cont in tokens],
+        _emit(p._p, [("ins", tok, rpr, cont, math_el) for tok, rpr, cont, math_el in tokens],
               author, date, counter)
         report["inserted_words"] += count_words(tokens)
         report["inserted_paragraphs"] += 1
@@ -279,8 +332,8 @@ def diff_documents(original: Path, revised: Path, out: Path,
         if src_ppr is not None:
             new_p.append(copy.deepcopy(src_ppr))
         tokens = _tokens(_segments(src_para._p))
-        _emit(new_p, [("del", tok, rpr, _safe_original_container(cont))
-                      for tok, rpr, cont in tokens], author, date, counter)
+        _emit(new_p, [("del", tok, rpr, _safe_original_container(cont), math_el)
+                      for tok, rpr, cont, math_el in tokens], author, date, counter)
         report["deleted_words"] += count_words(tokens)
         report["deleted_paragraphs"] += 1
         return new_p
@@ -294,17 +347,17 @@ def diff_documents(original: Path, revised: Path, out: Path,
                                b=[t[0] for t in new_tokens], autojunk=False)
         for op, i1, i2, j1, j2 in sm_w.get_opcodes():
             if op == "equal":
-                items += [("equal", tok, rpr, cont) for tok, rpr, cont in new_tokens[j1:j2]]
+                items += [("equal", tok, rpr, cont, math_el) for tok, rpr, cont, math_el in new_tokens[j1:j2]]
                 continue
             if op in ("delete", "replace"):
                 # deleted words sit in whatever link the preceding revised
                 # text is in (schema allows w:del inside w:hyperlink), so a
                 # link whose text changed is not split in two
                 prev_cont = items[-1][3] if items else None
-                items += [("del", tok, rpr, prev_cont) for tok, rpr, _ in old_tokens[i1:i2]]
+                items += [("del", tok, rpr, prev_cont, math_el) for tok, rpr, _, math_el in old_tokens[i1:i2]]
                 report["deleted_words"] += count_words(old_tokens[i1:i2])
             if op in ("insert", "replace"):
-                items += [("ins", tok, rpr, cont) for tok, rpr, cont in new_tokens[j1:j2]]
+                items += [("ins", tok, rpr, cont, math_el) for tok, rpr, cont, math_el in new_tokens[j1:j2]]
                 report["inserted_words"] += count_words(new_tokens[j1:j2])
         _strip_content(p._p)
         _emit(p._p, items, author, date, counter)

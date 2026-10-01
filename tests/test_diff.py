@@ -287,3 +287,113 @@ def test_output_cannot_overwrite_either_input(tmp_path, output_name):
 
     with pytest.raises(InputError, match="output DOCX must differ"):
         diff_documents(orig, revised, tmp_path / output_name)
+
+
+def _make_math(text: str):
+    omath = OxmlElement("m:oMath")
+    mr = OxmlElement("m:r")
+    mt = OxmlElement("m:t")
+    mt.text = text
+    mr.append(mt)
+    omath.append(mr)
+    return omath
+
+
+def test_paragraph_with_tab_is_rebuilt_and_tracked(tmp_path):
+    orig = Document()
+    p1 = orig.add_paragraph()
+    p1.add_run("Key:")
+    r_tab1 = p1.add_run()
+    r_tab1._r.append(OxmlElement("w:tab"))
+    p1.add_run("old value")
+    orig.save(str(tmp_path / "a.docx"))
+
+    rev = Document()
+    p2 = rev.add_paragraph()
+    p2.add_run("Key:")
+    r_tab2 = p2.add_run()
+    r_tab2._r.append(OxmlElement("w:tab"))
+    p2.add_run("new value")
+    rev.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(tmp_path / "a.docx", tmp_path / "b.docx", tmp_path / "out.docx")
+    assert report["rich_paragraphs_skipped"] == 0
+    out = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    tabs = out._p.findall(f".//{qn('w:tab')}")
+    assert len(tabs) >= 1
+    assert "old" in "".join(_del_texts(out))
+    assert "new" in "".join(_ins_texts(out))
+    assert "value" in out.text
+
+
+def test_paragraph_with_break_is_rebuilt_and_tracked(tmp_path):
+    orig = Document()
+    p1 = orig.add_paragraph()
+    p1.add_run("First line")
+    p1.add_run()._r.append(OxmlElement("w:br"))
+    p1.add_run("Second line")
+    orig.save(str(tmp_path / "a.docx"))
+
+    rev = Document()
+    p2 = rev.add_paragraph()
+    p2.add_run("First line")
+    p2.add_run()._r.append(OxmlElement("w:br"))
+    p2.add_run("Second modified line")
+    rev.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(tmp_path / "a.docx", tmp_path / "b.docx", tmp_path / "out.docx")
+    assert report["rich_paragraphs_skipped"] == 0
+    out = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    brs = out._p.findall(f".//{qn('w:br')}")
+    assert len(brs) >= 1
+    assert "modified" in "".join(_ins_texts(out))
+
+
+def test_paragraph_with_inline_math_preserved_when_words_differ(tmp_path):
+    orig = Document()
+    p1 = orig.add_paragraph()
+    p1.add_run("We observe that ")
+    p1._p.append(_make_math("E = mc^2"))
+    p1.add_run(" holds everywhere.")
+    orig.save(str(tmp_path / "a.docx"))
+
+    rev = Document()
+    p2 = rev.add_paragraph()
+    p2.add_run("We confirm that ")
+    p2._p.append(_make_math("E = mc^2"))
+    p2.add_run(" holds everywhere.")
+    rev.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(tmp_path / "a.docx", tmp_path / "b.docx", tmp_path / "out.docx")
+    assert report["rich_paragraphs_skipped"] == 0
+    out = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    maths = out._p.findall(qn("m:oMath"))
+    assert len(maths) == 1
+    assert "".join(maths[0].itertext()) == "E = mc^2"
+    assert "observe" in "".join(_del_texts(out))
+    assert "confirm" in "".join(_ins_texts(out))
+
+
+def test_paragraph_with_changed_inline_math_is_tracked(tmp_path):
+    orig = Document()
+    p1 = orig.add_paragraph()
+    p1.add_run("Let ")
+    p1._p.append(_make_math("x = 1"))
+    p1.add_run(".")
+    orig.save(str(tmp_path / "a.docx"))
+
+    rev = Document()
+    p2 = rev.add_paragraph()
+    p2.add_run("Let ")
+    p2._p.append(_make_math("x = 2"))
+    p2.add_run(".")
+    rev.save(str(tmp_path / "b.docx"))
+
+    report = diff_documents(tmp_path / "a.docx", tmp_path / "b.docx", tmp_path / "out.docx")
+    assert report["rich_paragraphs_skipped"] == 0
+    out = Document(str(tmp_path / "out.docx")).paragraphs[0]
+    dels = out._p.findall(qn("w:del"))
+    inss = out._p.findall(qn("w:ins"))
+    assert any(d.find(qn("m:oMath")) is not None for d in dels)
+    assert any(i.find(qn("m:oMath")) is not None for i in inss)
+
