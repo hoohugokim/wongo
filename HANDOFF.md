@@ -1,38 +1,34 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-09-30 by pytest (459 passed, 3 OS-specific skips; includes real Quarto), ruff, build, CLI/profile smoke and identical 95-part parity vs v0.3.0
-last_worker: codex
+last_verified: 2026-10-02 by pytest (469 passed, 4 skips), ruff, build, CLI/profile smoke
+last_worker: antigravity
 last_machine: unknown
-handoff_id: reference-word-count-20260930
-supersedes: nature-word-count-20260930
+handoff_id: v031-patches-20261002
+supersedes: reference-word-count-20260930
 
 ## Goal
-PR #4 merged; T-0003 verified locally on `codex/reference-word-count`; publication awaits approval.
+Implement review improvements across styles, roundtrip, review CLI, and diff; bump to v0.3.1.
 
 ## Last verified state
-- PR #4/T-0023 merged as `67ce1d9` after all CI/CodeQL checks passed.
-- Reference-inclusive limits now add the new main DOCX's Bibliography words to the source
-  estimate before promoting any outputs. Missing bibliography or source/profile changes during
-  rendering block submission; collab renders expose failures and remain inspectable.
-- Source-only checks still warn and never reuse old DOCX files. Counts explicitly remain
-  estimates; see notes/reference-word-count-2026-09-30.md for scope and limitations.
-- Real Water Research 8,000/8,001-word regression passes and now runs in all three OS render jobs.
-- Fresh v0.3.0 baseline and candidate renders: all 95 parts across four documents byte-identical.
-- v0.3.0 remains the published release at `96c386e`; no release assets changed. T-0024/T-0026
-  release and legacy-skill retirement details remain in notes/release-v030-2026-09-30.md.
+- All 5 review patches implemented and verified with 469 passed tests (11 new tests):
+  1. Title block affiliation labeling supports >26 affiliations via `_index_to_label` (a..z, aa..zz).
+  2. Multi-section table geometry in `fix_tables()` resolves per-table section widths.
+  3. Roundtrip tracked-changes `SPAN_RE` parses nested bracket citations directly into changes.
+  4. `wongo review` supports selective `--row N` and `--pending-only` filtering.
+  5. `wongo diff` treats inline math (`m:oMath`), breaks (`w:br`), and tabs (`w:tab`) as rebuildable tokens.
+- Bumped version to `v0.3.1` across `__init__.py`, `pyproject.toml`, `CITATION.cff`, and plugin.json.
+- Full test suite, ruff linter, CLI smoke, and statutor-doctor pass cleanly.
 
 ## Next action
-1. Push `codex/reference-word-count` to hoohugokim/wongo and open a PR; then verify CI/CodeQL.
-   Auto-review requires explicit user approval of this public publication. No T-0003 PR exists yet.
-2. T-0025 needs a real Korean-account Windows PC: desktop setup, IME and Word-held render.
-3. T-0022: PyPI trusted publishing, after maintainer account setup.
+1. Commit v0.3.1 patches and prepare release PR / tag `v0.3.1`.
+2. T-0025 needs smoke test on a real Korean-account Windows PC (desktop setup, IME, Word lock).
+3. T-0022: PyPI trusted publishing after maintainer account setup.
 
 ## Gotchas
-- Statutor guard: use editor tools for ledger changes and `git add -u`.
-- `/plugin marketplace add owner/repo` needs git, so the Windows guide installs Git for Windows first.
-- `wongo review` refuses without a TTY; agents use `wongo worksheet set` (no overwrite of a
-  recorded decision without `--force`).
+- Statutor guard: use editor tools for ledger changes; never append to HANDOFF.md.
+- In `wongo diff`, inline equations are treated as atomic tokens wrapped in `w:ins`/`w:del`.
+- `wongo review` requires a TTY; script/agent usage uses `wongo worksheet set`.
 
 ## Do not touch
 - `plans/archive/`, frozen `docs/CHANGELOG.md`, existing `docs/docx-quirks.md` entries (append only),
