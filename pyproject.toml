@@ -1,6 +1,6 @@
 [project]
 name = "wongo"
-version = "0.3.0"
+version = "0.3.1"
 description = "wongo (원고, 'manuscript') — Python package and CLI for a verified Quarto-to-journal manuscript pipeline (journal profiles, submission-grade DOCX, Word-coauthor round-tripping)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -10,6 +10,7 @@ keywords = ["quarto", "manuscript", "docx", "journal", "publishing", "reproducib
 dependencies = [
   "PyYAML>=6",
   "python-docx>=1.1",
+  "mcp>=2.2.0,<3",
 ]
 
 [project.scripts]

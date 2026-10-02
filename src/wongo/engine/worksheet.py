@@ -256,9 +256,37 @@ class Row:
             return True
         return d.decision == "apply" and self.apply_blocker is not None
 
-    def to_dict(self) -> dict:
+    @property
+    def tags(self) -> list[str]:
+        """Hints visible in extracted text; use ``to_dict(project=...)`` for source hints."""
+        combined = f"{self.old or ''} {self.new or ''} {self.context or ''}"
+        out = _text_tags(combined)
+        if self.unmatched:
+            out.append("unmatched")
+        if self.kind == "unparsed":
+            out.append("unparsed")
+        old_words = len((self.old or "").split()) if self.old and self.old != "—" else 0
+        new_words = len((self.new or "").split()) if self.new and self.new != "—" else 0
+        if abs(new_words - old_words) >= 5:
+            out.append("major-length-change")
+        return out
+
+    @property
+    def word_count_delta(self) -> int:
+        old_words = len((self.old or "").split()) if self.old and self.old != "—" else 0
+        new_words = len((self.new or "").split()) if self.new and self.new != "—" else 0
+        return new_words - old_words
+
+    def to_dict(self, *, project: Path | str | None = None, cache: dict | None = None) -> dict:
+        """Serialize without modifying the worksheet, optionally inspecting its source.
+
+        Word contains evaluated values, not the original code or citation keys.
+        Source tags therefore warn about the *current target line*. They do not
+        prove that its stored line number is still aligned with the coauthor edit.
+        Missing source and unverified alignment remain explicit in the result.
+        """
         d = self.disposition
-        return {
+        data = {
             "row": self.number,
             "kind": self.kind,
             "author": self.author,
@@ -277,7 +305,34 @@ class Row:
             "problem": d.problem,
             "needs_decision": self.needs_decision,
             "apply_blocker": self.apply_blocker,
+            "tags": self.tags,
+            "word_count_delta": self.word_count_delta,
         }
+        if project is not None:
+            target = read_target(project, self, cache=cache)
+            if target.text is not None:
+                data["tags"] = list(dict.fromkeys([*data["tags"], *_text_tags(target.text)]))
+            data["source"] = {
+                "path": str(target.path) if target.path is not None else None,
+                "line": target.line,
+                "text": target.text,
+                "reason": target.reason,
+                "problem": target.problem,
+                "alignment": "unverified",
+                "hint": "Tags are review hints; verify the current source location before applying edits.",
+            }
+        return data
+
+
+def _text_tags(text: str) -> list[str]:
+    from wongo.engine.checks import citekeys_used
+
+    tags = []
+    if INLINE_CODE_RE.search(text):
+        tags.append("inline-code")
+    if citekeys_used(text):
+        tags.append("citation")
+    return tags
 
 
 @dataclass(frozen=True)
@@ -627,6 +682,35 @@ class Worksheet:
             self._set_value(index, value)
         self._reindex()
         return self.row(number)
+
+    def batch_propose(self, proposals: list[dict], force: bool = False) -> list[Row]:
+        """Batch-propose dispositions for multiple rows, preserving final decisions unless force=True."""
+        updated: list[Row] = []
+        known = {r.number for r in self._rows}
+        for prop in proposals:
+            num = int(prop.get("row") or prop.get("number", 0))
+            if num not in known:
+                continue
+            r = self.row(num)
+            if not force and r.disposition.state == "final":
+                continue
+            disp = str(prop.get("disposition", "")).strip()
+            rationale = str(prop.get("rationale", "")).strip()
+            if not disp.upper().startswith("PROPOSED "):
+                v_lower = disp.lower()
+                if v_lower.startswith("reject"):
+                    if ":" in disp:
+                        full_disp = f"PROPOSED {disp}"
+                    else:
+                        reason = rationale if rationale else "declined by author"
+                        full_disp = f"PROPOSED reject: {reason}"
+                else:
+                    full_disp = f"PROPOSED {disp}" + (f" — {rationale}" if rationale else "")
+            else:
+                full_disp = disp
+            self.set_disposition(num, full_disp)
+            updated.append(self.row(num))
+        return updated
 
     # -- checks --------------------------------------------------------------
 

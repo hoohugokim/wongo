@@ -353,4 +353,26 @@ def test_failing_checks_carry_file_and_line_locations(tmp_path, capsys):
     print_report(list(checks.values()))
 
     assert checks["citekeys"].locations == ["index.qmd:6: @ghost2099"]
-    assert "      index.qmd:6: @ghost2099" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "      index.qmd:6: @ghost2099" in out
+    assert "hint: Add BibTeX entries for ghost2099" in out
+
+
+def test_failing_checks_carry_patch_hints(tmp_path):
+    project = make_project(
+        tmp_path,
+        index_body="First line with @ghost2099 and @fig-missing and ![](figures/missing.png).\n",
+    )
+    checks = {c.name: c for c in run_checks(project)}
+
+    assert checks["citekeys"].patch_hint is not None
+    assert checks["citekeys"].patch_hint["action"] == "add_bibtex"
+    assert "ghost2099" in checks["citekeys"].patch_hint["missing_keys"]
+
+    assert checks["crossrefs"].patch_hint is not None
+    assert checks["crossrefs"].patch_hint["action"] == "define_labels"
+    assert "fig-missing" in checks["crossrefs"].patch_hint["orphan_refs"]
+
+    assert checks["figures"].patch_hint is not None
+    assert checks["figures"].patch_hint["action"] == "create_assets"
+    assert "figures/missing.png" in checks["figures"].patch_hint["missing_paths"]

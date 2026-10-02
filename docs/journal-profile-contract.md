@@ -43,9 +43,9 @@ manuscript_types:      # word limits are MAIN TEXT unless counting_rule says oth
     word_limit: 0
     counting_rule: ""  # exactly what counts; cite source
     word_limit_includes_references: false  # OPTIONAL: true when the limit counts the
-                       # reference list (e.g. Water Research). `wongo check` counts body +
-                       # abstract only, so it FAILs when that lower bound alone exceeds the
-                       # limit and otherwise WARNs that the pass is unproven.
+                       # reference list (e.g. Water Research). `wongo check` gives a source
+                       # estimate plus WARN; render adds the staged main bibliography count
+                       # and refuses an over-limit submission before promoting any outputs.
     word_count:        # OPTIONAL per-type source-counting policy; shown defaults preserve
                        # existing profiles. `counting_rule` remains the source-backed rule.
       include_abstract: true
@@ -92,6 +92,30 @@ verified_date: ""      # ISO date the numbers were last checked against the jour
 ```
 
 ## Rules
+
+For `word_limit_includes_references: true`, source checks can fail an already
+over-limit manuscript before Quarto runs, but a source-only pass is unproven.
+During rendering, wongo adds the words in the newly staged main DOCX's
+`Bibliography` paragraphs to that source estimate. The report exposes both
+counts and calls their sum an **estimated total**; it does not claim to match
+Word or a submission system's tokenizer. Formatted runs are joined before
+counting, and linked text, tabs and line breaks are included. Only the main
+manuscript's reference list counts; SI and uncited `.bib` entries are not added.
+
+The final HARD gate runs before output/ and its manifest are replaced. Missing
+bibliography text when the main document requests citations or `nocite`, or
+source/profile edits during rendering, leave the count unverified and block
+submission. Collab renders remain available for inspection and report the HARD
+failure. Source-only `wongo check` never silently reuses an old or edited DOCX;
+run `wongo render --target submission` for the final reference-inclusive gate.
+
+This path assumes Quarto/Pandoc's standard `Bibliography` paragraph style. Do
+not apply that style to hand-written prose already counted in the source, or
+strip it from generated references with a custom filter. Manually written
+references in ordinary source paragraphs already enter the source estimate.
+Generated main-text prose, includes, complex markup and citation expansion
+remain limitations of that estimate; this change measures the reference-list
+contribution, not the entire rendered manuscript.
 
 `word_count.exclude_sections` lists exact heading titles, matched without case,
 manual section numbering, emphasis or Pandoc attributes. Both ATX (`# Methods`)

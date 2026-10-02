@@ -1,0 +1,120 @@
+{
+  "verified_date": "2026-10-02",
+  "asset_root": "../examples/workflow-brief_files/libs",
+  "components": [
+    {
+      "name": "Quarto HTML runtime",
+      "version": "1.10.18",
+      "license": "MIT",
+      "license_file": "quarto-1.10.18-MIT.txt",
+      "source_url": "https://raw.githubusercontent.com/quarto-dev/quarto-cli/v1.10.18/COPYING.md",
+      "evidence": "License byte-identical to the installed Quarto 1.10.18 share/COPYING.md. Covers quarto.js, tabsets/tabsets.js and Quarto-generated HTML/CSS runtime.",
+      "license_sha256": "6b985ce085f33a39f96d12321cfbcee03aa2ad4249755f534537f38019dfa123"
+    },
+    {
+      "name": "Bootstrap",
+      "version": "5.3.1",
+      "license": "MIT",
+      "license_file": "bootstrap-5.3.1-MIT.txt",
+      "source_url": "https://raw.githubusercontent.com/twbs/bootstrap/v5.3.1/LICENSE",
+      "evidence_url": "https://raw.githubusercontent.com/twbs/bootstrap/v5.3.1/dist/js/bootstrap.bundle.min.js",
+      "evidence": "Distributed bootstrap.min.js is byte-identical to upstream bootstrap.bundle.min.js; stylesheet headers also identify 5.3.1.",
+      "license_sha256": "3d0b0c88216e4752b9afd3d24e36faaf27873b5a45a61458bb3c83e794c26832"
+    },
+    {
+      "name": "Bootstrap Icons",
+      "version": "1.13.1",
+      "license": "MIT",
+      "license_file": "bootstrap-icons-1.13.1-MIT.txt",
+      "source_url": "https://raw.githubusercontent.com/twbs/icons/v1.13.1/LICENSE",
+      "evidence": "Version and copyright are present in the distributed bootstrap-icons.css header; covers its WOFF icon font too.",
+      "license_sha256": "0fb3e11bd57e896c5a512afd64864d28a37de45d19835016c87ca1ad19ead969"
+    },
+    {
+      "name": "@popperjs/core",
+      "versions": [
+        "2.11.7",
+        "2.11.8"
+      ],
+      "license": "MIT",
+      "license_file": "popper-2.11.7-2.11.8-MIT.txt",
+      "source_urls": [
+        "https://raw.githubusercontent.com/floating-ui/popper-core/v2.11.7/LICENSE.md",
+        "https://raw.githubusercontent.com/floating-ui/popper-core/v2.11.8/LICENSE.md"
+      ],
+      "evidence_url": "https://raw.githubusercontent.com/twbs/bootstrap/v5.3.1/package-lock.json",
+      "evidence": "Standalone popper.min.js declares 2.11.7. Bootstrap 5.3.1 bundle includes 2.11.8 from its lockfile. Both tagged license texts are byte-identical.",
+      "license_sha256": "bf67e2c9b7974543bb18ced3a0b37f53729aaff953b442dd89a3adaf90fd93e8"
+    },
+    {
+      "name": "clipboard.js",
+      "version": "2.0.11",
+      "license": "MIT",
+      "license_file": "clipboard-2.0.11-MIT.txt",
+      "source_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/LICENSE",
+      "evidence_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/dist/clipboard.min.js",
+      "evidence": "Distributed clipboard.min.js is byte-identical to this tagged bundle.",
+      "license_sha256": "a798e7b5fa604117d52d607e05f1cbac3b2fa5da087837f412a1a3c866b4b748"
+    },
+    {
+      "name": "Tippy.js",
+      "version": "6.3.7",
+      "license": "MIT",
+      "license_file": "tippy-6.3.7-MIT.txt",
+      "source_url": "https://raw.githubusercontent.com/atomiks/tippyjs/v6.3.7/LICENSE",
+      "package_url": "https://registry.npmjs.org/tippy.js/-/tippy.js-6.3.7.tgz",
+      "evidence": "Distributed tippy.css is byte-identical to the package CSS. Distributed tippy.umd.min.js matches after removing the upstream sourceMappingURL directive and trimming surrounding whitespace. Package LICENSE is byte-identical to the tagged source.",
+      "license_sha256": "7f4929c55f525ae510a77c361496c5a86a092434a3681c95a4dc89e951c67e98"
+    },
+    {
+      "name": "tiny-emitter",
+      "version": "2.1.0",
+      "license": "MIT",
+      "license_file": "tiny-emitter-2.1.0-MIT.txt",
+      "source_url": "https://registry.npmjs.org/tiny-emitter/-/tiny-emitter-2.1.0.tgz",
+      "source_member": "package/LICENSE",
+      "evidence_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/package-lock.json",
+      "evidence": "Embedded dependency in Clipboard 2.0.11, pinned in its lockfile; complete license copied byte-for-byte from the versioned package.",
+      "license_sha256": "aada4c7da6a5be46beadf9d4f40d7dba9e222e57180d46289b2bb9112e65daae"
+    },
+    {
+      "name": "good-listener",
+      "version": "1.2.2",
+      "license": "MIT",
+      "license_file": "clipboard-2.0.11-MIT.txt",
+      "notice_file": "good-listener-1.2.2-NOTICE.txt",
+      "source_url": "https://registry.npmjs.org/good-listener/-/good-listener-1.2.2.tgz",
+      "source_member": "package/readme.md, section ## License",
+      "evidence_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/package-lock.json",
+      "evidence": "Embedded Clipboard dependency pinned in its lockfile. Package includes an MIT license link and Zeno Rocha attribution but no separate LICENSE. Its exact README license section is preserved; the full Zeno Rocha MIT text is shared with Clipboard.",
+      "license_sha256": "a798e7b5fa604117d52d607e05f1cbac3b2fa5da087837f412a1a3c866b4b748",
+      "notice_sha256": "b5c1314cb13edfc32da671ee9ae1ddf069d626e6b1d51f40bb7bac608626ed8f"
+    },
+    {
+      "name": "delegate",
+      "version": "3.2.0",
+      "license": "MIT",
+      "license_file": "clipboard-2.0.11-MIT.txt",
+      "notice_file": "delegate-3.2.0-NOTICE.txt",
+      "source_url": "https://registry.npmjs.org/delegate/-/delegate-3.2.0.tgz",
+      "source_member": "package/readme.md, section ## License",
+      "evidence_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/package-lock.json",
+      "evidence": "Embedded Clipboard dependency pinned in its lockfile. Package includes an MIT license link and Zeno Rocha attribution but no separate LICENSE. Its exact README license section is preserved; the full Zeno Rocha MIT text is shared with Clipboard.",
+      "license_sha256": "a798e7b5fa604117d52d607e05f1cbac3b2fa5da087837f412a1a3c866b4b748",
+      "notice_sha256": "b5c1314cb13edfc32da671ee9ae1ddf069d626e6b1d51f40bb7bac608626ed8f"
+    },
+    {
+      "name": "select",
+      "version": "1.1.2",
+      "license": "MIT",
+      "license_file": "clipboard-2.0.11-MIT.txt",
+      "notice_file": "select-1.1.2-NOTICE.txt",
+      "source_url": "https://registry.npmjs.org/select/-/select-1.1.2.tgz",
+      "source_member": "package/readme.md, section ## License",
+      "evidence_url": "https://raw.githubusercontent.com/zenorocha/clipboard.js/v2.0.11/package-lock.json",
+      "evidence": "Embedded Clipboard dependency pinned in its lockfile. Package includes an MIT license link and Zeno Rocha attribution but no separate LICENSE. Its exact README license section is preserved; the full Zeno Rocha MIT text is shared with Clipboard.",
+      "license_sha256": "a798e7b5fa604117d52d607e05f1cbac3b2fa5da087837f412a1a3c866b4b748",
+      "notice_sha256": "b5c1314cb13edfc32da671ee9ae1ddf069d626e6b1d51f40bb7bac608626ed8f"
+    }
+  ]
+}

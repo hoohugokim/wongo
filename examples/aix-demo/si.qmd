@@ -1,0 +1,28 @@
+---
+title: "Supporting Information: Accelerated Extracellular Electron Transfer in Geobacter sulfurreducens Biofilms via Surface-Modified Conductive Substrates"
+author:
+  - name: Hoo Hugo Kim
+  - name: Alice M. Smith
+  - name: Min-Soo Park
+---
+
+# Supplementary Methods
+
+## S1. Carbon Cloth Functionalization Protocol
+
+Carbon cloth substrates (WOS1009, CeTech) were sequentially washed in acetone, ethanol, and deionized water under ultrasonic agitation for 20 minutes each.
+Following solvent cleaning, electrodes were exposed to air plasma for 5 minutes at 100 W to introduce oxygen-containing functional groups.
+Amine functionalization was achieved by immersing oxidized substrates in a 2% (v/v) ethanolic solution of (3-aminopropyl)triethoxysilane (APTES) at 60 °C for 4 hours.
+The treated substrates were rinsed thoroughly with absolute ethanol and cured at 110 °C for 1 hour under vacuum.
+
+## S2. Supplementary Table S1
+
+| Component | Concentration (g/L) | Supplier |
+|:---|:---:|:---:|
+| Sodium acetate | 1.64 | Sigma-Aldrich |
+| NaH₂PO₄·H₂O | 2.45 | Fisher Scientific |
+| Na₂HPO₄ | 4.58 | Fisher Scientific |
+| NH₄Cl | 0.31 | Sigma-Aldrich |
+| KCl | 0.13 | Sigma-Aldrich |
+
+: Composition of synthetic growth medium used in dual-chamber bioelectrochemical reactors. {#tbl-medium}

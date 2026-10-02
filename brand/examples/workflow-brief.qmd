@@ -1,0 +1,105 @@
+---
+title: ""
+pagetitle: "Wongo — workflow brief"
+lang: en
+brand: ../_brand.yml
+format:
+  html:
+    theme: example.scss
+    title-block-style: none
+    embed-resources: false
+    toc: false
+    anchor-sections: false
+    code-copy: true
+    code-overflow: wrap
+    smooth-scroll: false
+    respect-user-color-scheme: false
+execute:
+  enabled: false
+---
+
+::: {.masthead}
+::: {.brand-lockup}
+{{< brand logo medium light >}}
+:::
+
+[WORKFLOW BRIEF · 01]{.eyebrow}
+:::
+
+# An orderly path from analysis to manuscript. {.hero-title}
+
+::: {.standfirst}
+Write in Quarto. Check journal requirements. Share a Word document with coauthors. Review their changes before updating the source.
+:::
+
+::: {.korean-intro lang="ko"}
+원고를 쓰고, 검토하고, 함께 다듬습니다.
+:::
+
+## The manuscript remains connected
+
+Wongo connects a reproducible source with the document a research team reviews.
+Analysis, references and cross-references live in Quarto; collaborators work in
+Word. Checks and explicit review decisions help keep the two in step.
+
+::: {.workflow-grid}
+::: {.workflow-step}
+[01 / SOURCE]{.eyebrow}
+
+### Write
+
+Keep the argument, citations and analysis together in a `.qmd` manuscript.
+:::
+
+::: {.workflow-step}
+[02 / DOCUMENT]{.eyebrow}
+
+### Check & render
+
+Apply the journal profile and inspect checks before creating the document.
+:::
+
+::: {.workflow-step}
+[03 / REVIEW]{.eyebrow}
+
+### Resolve
+
+Read coauthor edits, record a decision for each change, then update the source.
+:::
+:::
+
+## Evidence before submission
+
+Status labels should state what happened and what a person can do next. Color
+supports the label; it never carries the meaning on its own.
+
+| Status | Example message | Next step |
+|:--|:--|:--|
+| [PASS]{.status .status-pass} | Bibliography file found. | Continue to the next check. |
+| [REVIEW]{.status .status-review} | A coauthor changed an interpretation. | Decide whether the change belongs in the source. |
+| [ACTION]{.status .status-action} | A cited figure file is missing. | Restore the file or correct its path. |
+
+: Illustrative interface copy. These rows are design examples, not live check results. {.table-caption}
+
+::: {.callout-note appearance="simple" icon="false"}
+## Decisions remain explicit
+
+An agent may propose a response to a coauthor edit. A person confirms the
+decision before an approved change is applied to the manuscript.
+:::
+
+### A quiet technical surface
+
+Keep commands brief and the result actionable. For example, inspect a
+manuscript project from its directory:
+
+```fish
+wongo check
+wongo worksheet status decisions/merge-YYYYMMDD-coauthor.md
+```
+
+::: {.colophon}
+Wongo · 원고
+
+Brand application example · Source Serif 4 / Source Sans 3 / Noto Sans KR / Source Code Pro
+:::

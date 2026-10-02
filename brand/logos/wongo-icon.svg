@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 190" width="232" height="190" role="img" aria-labelledby="title desc">
+<title id="title">Wongo manuscript-grid emblem</title>
+<desc id="desc">Wongo: an abstract two-column manuscript, with a header, annotation square, text bars, figure panel and captions. Identity v1.0.0.</desc>
+<g transform="translate(20 20)">
+<rect x="0" y="0" width="164" height="20" fill="#21313D"/>
+<rect x="172" y="0" width="20" height="20" fill="#C56852"/>
+<rect x="0" y="38" width="84" height="24" fill="#21313D"/>
+<rect x="0" y="80" width="84" height="24" fill="#21313D"/>
+<rect x="0" y="118" width="60" height="24" fill="#21313D"/>
+<rect x="96" y="32" width="96" height="74" fill="#416C78"/>
+<rect x="96" y="114" width="96" height="14" fill="#21313D"/>
+<rect x="96" y="136" width="68" height="14" fill="#21313D"/>
+</g>
+</svg>

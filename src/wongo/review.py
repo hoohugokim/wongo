@@ -77,6 +77,8 @@ def review(
     path: Path | str,
     project: Path | str,
     *,
+    row: int | None = None,
+    pending_only: bool = False,
     input_fn: Callable[[str], str] = input,
     print_fn: Callable[..., object] = print,
 ) -> ReviewSummary:
@@ -99,13 +101,35 @@ def review(
             "the rows so each number is unique, then run wongo review again"
         )
     summary = ReviewSummary(path=path, total=len(ws.rows))
-    queue = [row.number for row in ws.rows if row.needs_decision]
+    if row is not None:
+        target_row = ws.row(row)
+        if not target_row.needs_decision:
+            print_fn(f"Nothing to review: row {row} already has a decision ({target_row.disposition.label}).")
+            summary.remaining = [r.number for r in ws.rows if r.needs_decision]
+            _print_summary(summary, print_fn)
+            return summary
+        if pending_only and target_row.disposition.state != "pending":
+            print_fn(f"Nothing to review: row {row} is not pending ({target_row.disposition.label}).")
+            summary.remaining = [r.number for r in ws.rows if r.needs_decision]
+            _print_summary(summary, print_fn)
+            return summary
+        queue = [row]
+    else:
+        queue = [
+            r.number for r in ws.rows
+            if (r.disposition.state == "pending" if pending_only else r.needs_decision)
+        ]
     if not ws.rows:
         print_fn(f"Nothing to review: {path} has no rows.")
     elif not queue:
-        print_fn(f"Nothing to review: every row in {path} has a decision ({len(ws.rows)} rows).")
+        if pending_only:
+            print_fn(f"Nothing to review: no pending rows in {path} ({len(ws.rows)} rows).")
+        else:
+            print_fn(f"Nothing to review: every row in {path} has a decision ({len(ws.rows)} rows).")
     else:
-        print_fn(f"Reviewing {path}: {len(queue)} of {len(ws.rows)} rows need a decision.")
+        label = "pending row" if pending_only else "row"
+        plural = "s need" if len(queue) > 1 else " needs"
+        print_fn(f"Reviewing {path}: {len(queue)} of {len(ws.rows)} {label}{plural} a decision.")
         print_fn("Type a digit and press Enter; ? shows help. Each decision is saved at once.")
         session = _Session(path, project, input_fn, print_fn, summary, len(queue))
         try:

@@ -479,3 +479,28 @@ need manual checking. Raw-XML verification: fresh renders against v0.3.0 of the
 private reference manuscript have 95 byte-identical parts across four documents,
 including document.xml, styles.xml and settings.xml; no allowlist entries.
 Versions: wongo 0.3.0 baseline, Quarto 1.10.18, Pandoc 3.10.
+
+## Reference-inclusive limits had no gate on the rendered bibliography
+
+2026-09-30 / Through wongo 0.3.0, Water Research's reference-inclusive limit
+was enforced only against source prose. A WARN disclosed the missing reference
+count, but submission rendering could still promote a manuscript whose generated
+reference list exceeded the remaining headroom. Fix: after post-processing in
+staging, add the main DOCX's `Bibliography` paragraph words to the source estimate
+and apply the HARD gate before promoting either DOCX files or their manifest.
+Raw XML is needed: join formatted runs, include `w:hyperlink` text, and treat
+`w:tab`/`w:br`/`w:cr` as separators. Missing expected bibliography text or
+source/profile changes during rendering block submission as unverified; collab
+renders remain inspectable with the failed check.
+Raw-XML verification with Quarto 1.10.18/Pandoc 3.10 and the shipped Water
+Research CSL: a synthetic reference is a `w:pStyle=Bibliography` paragraph,
+its DOI is inside `w:hyperlink`, and the joined text is ten words. The real
+render regression passes with 7,990 source words and fails with 7,991,
+preserving previous output and manifest bytes. Pinned by
+`tests/test_reference_word_count.py` and `tests/test_reference_word_count_quarto.py`;
+the latter runs in all three OS render jobs. This is explicitly a source estimate
+plus measured reference words, not an exact count of all rendered prose.
+Design and limits: `notes/reference-word-count-2026-09-30.md`.
+Private-reference render parity against a fresh v0.3.0 baseline is byte-identical
+for all 95 parts across four DOCX files, including document.xml, styles.xml and
+settings.xml; no allowlist entries.

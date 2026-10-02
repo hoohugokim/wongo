@@ -18,14 +18,14 @@ See `plans/archive/HANDOFF-wongo-uplift.md` for the full migration map and `docs
 CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: ruff and pytest on Linux (Python 3.11–3.13), Windows (3.11, 3.13) and macOS (3.12), a CLI smoke, an end-to-end job that installs Quarto 1.10.18 and R on all three platforms and renders `wongo scaffold --example` inside a Hangul-named folder (doctor, check, both renders, status, roundtrip, diff), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. Tests never need Quarto or R: `tests/stub_quarto.py` stands in for Quarto (see `tests/conftest.py`). CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
 - Fish for shell snippets; public repo `hoohugokim/wongo` on GitHub, MIT
 
-```sh
+```fish
 uv sync --all-extras
 uv run pytest -q
 uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools
 uv build
 uv run wongo --version && uv run wongo profile verify est --offline
 uv run tools/bytecompare.py selftest --target collab   # noise floor must be zero
-git worktree add --detach /tmp/wongo-prev v0.2.0        # the last release renders the baseline
+git worktree add --detach /tmp/wongo-prev v0.3.0        # the last release renders the baseline
 uv run tools/bytecompare.py baseline --repo /tmp/wongo-prev
 uv run tools/bytecompare.py check --allow tools/bytecompare-allow.txt
 ```
@@ -79,6 +79,36 @@ src/wongo/profiles/<slug>/
 ## Styles
 
 House looks are data-driven YAML in `src/wongo/styles/` (`kist-wcr.yml` is KIST-WCR, `default.yml` is the no-taste baseline). Fields: `font`, `page_geometry`, `spacing`, `heading_look`, `title_block` (`wr` title-block rebuild), `caption`, `tables`. `wongo.styles.apply_style()` applies them; `wongo.docxpatch` never reads them.
+
+## Project identity
+
+Use the [Wongo design system](../brand/README.md) for repository documentation,
+web pages, presentations and project communications. The canonical palette and
+type values live in [brand/tokens.json](../brand/tokens.json); reusable assets,
+local fonts, licenses and a visual specimen live alongside it. Use the supplied
+outlined logos instead of recreating the wordmark. For Markdown that supports
+`picture`, pair the color lockup with its reverse variant for dark backgrounds,
+and supply meaningful alt text.
+
+Edit the brand sources and regenerate assets from the repository root:
+
+```fish
+uv run brand/build.py
+```
+
+The build declares its Python dependencies; PNG export also needs `rsvg-convert`.
+Use `--svg-only` when regenerating SVG and CSS without that executable. Inspect
+the [specimen](../brand/design-system.html), reverse and monochrome artwork,
+and smallest exports after a change. Preserve bundled font licenses and keep
+[brand/_brand.yml](../brand/_brand.yml) synchronized with the tokens.
+
+Styling is opt-in: use `brand: <relative path>/brand/_brand.yml` for a Quarto
+communication, or load `brand/wongo.css` and apply the `wongo` class to an HTML
+container. The [workflow brief](../brand/examples/workflow-brief.qmd) shows a
+complete Quarto example. Copy the entire `brand/` folder when reusing its CSS or
+Quarto setup so relative font and asset paths continue to work. Journal DOCX
+appearance remains controlled by its profile and selected manuscript style;
+repository branding does not change those outputs.
 
 ## DOCX quirks
 

@@ -389,3 +389,41 @@ def test_an_editor_resaving_with_crlf_does_not_block_a_decision(project):
     run(project, editor_saves_as_crlf, "0")
     ws = Worksheet.load(sheet_of(project))
     assert ws.row(1).disposition.text == f"fix-code — was {PROPOSE_APPLY}"
+
+
+def test_review_filter_single_row(project):
+    script, out = Script("2", "placeholder removed"), Output()
+    summary = review(sheet_of(project), project, row=2, input_fn=script, print_fn=out)
+    assert len(summary.decided) == 1
+    assert summary.decided[0].row == 2
+    assert "(1 of 1 to review)" in out.text
+    # row 1 still needs decision
+    assert disposition(project, 1) == PROPOSE_APPLY
+    assert disposition(project, 2) == "reject: placeholder removed — was " + PROPOSE_REJECT
+
+
+def test_review_filter_row_already_decided(project):
+    ws = Worksheet.load(sheet_of(project))
+    ws.set_disposition(1, "apply")
+    ws.save()
+    script, out = Script(), Output()
+    summary = review(sheet_of(project), project, row=1, input_fn=script, print_fn=out)
+    assert len(summary.decided) == 0
+    assert "row 1 already has a decision" in out.text
+
+
+def test_review_filter_row_not_in_worksheet(project):
+    with pytest.raises(InputError, match="row 99 is not in"):
+        review(sheet_of(project), project, row=99, input_fn=Script(), print_fn=Output())
+
+
+def test_review_filter_pending_only(project):
+    # Rows 1..3 are PROPOSED, rows 4..6 are PENDING.
+    # Answer '0' (quit) on the first row offered; it must be row 4, not row 1!
+    script, out = Script("0"), Output()
+    summary = review(sheet_of(project), project, pending_only=True, input_fn=script, print_fn=out)
+    assert "Reviewing" in out.text
+    assert "3 of 6 pending rows need a decision" in out.text
+    assert "Row 4/6" in out.text
+    assert "Row 1" not in out.text
+    assert summary.total == 6

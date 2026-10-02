@@ -1,0 +1,10 @@
+project:
+  type: default
+
+bibliography: refs.bib
+
+format:
+  docx:
+    toc: false
+    number-sections: false
+    highlight-style: github

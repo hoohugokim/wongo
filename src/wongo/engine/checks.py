@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from docx import Document
+from docx.oxml.ns import qn
 
 from wongo.errors import InputError
 from wongo.profiles import (
@@ -287,6 +289,7 @@ class Check:
     ok: bool
     detail: str
     locations: list[str] = field(default_factory=list)  # "index.qmd:12: @key"
+    patch_hint: dict | None = None
 
 
 def _locations(texts: dict[str, str], items: list[str], pattern) -> list[str]:
@@ -304,7 +307,47 @@ def _at_ref(item: str):
     return re.compile(r"(?<![\w@.\\])-?@" + re.escape(item) + r"(?![\w:.#$%&+?<>~/-]*[\w])")
 
 
-def run_checks(project: Path) -> list[Check]:
+def _reference_words(path: Path) -> int:
+    """Read Quarto/Pandoc's Bibliography paragraphs, including hyperlink text.
+
+    Join runs before splitting words: italic titles and linked DOIs can split
+    a word across XML elements. Tabs and line breaks are word separators.
+    """
+    doc = Document(path)
+    total = 0
+    for paragraph in doc.element.xpath(".//w:p[w:pPr/w:pStyle[@w:val='Bibliography']]"):
+        text = "".join(
+            (node.text or "") if node.tag == qn("w:t") else " "
+            for node in paragraph.iter()
+            if node.tag in {qn("w:t"), qn("w:tab"), qn("w:br"), qn("w:cr")}
+        )
+        total += len(text.split())
+    return total
+
+
+def _references_expected(project: Path, text: str) -> bool:
+    """Citations or nocite request a bibliography even if the output lacks one."""
+    meta, _ = split_front_matter(text)
+    if citekeys_used(text):
+        return True
+    config = project / "_quarto.yml"
+    if config.exists():
+        try:
+            data = yaml.safe_load(read_text(config))
+        except yaml.YAMLError as exc:
+            raise InputError(yaml_error_message("_quarto.yml", exc)) from exc
+        if isinstance(data, dict):
+            meta = {**data, **meta}
+    return bool(meta.get("nocite")) or bool(citekeys_used(str(meta.get("abstract", ""))))
+
+
+def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Check]:
+    """Check sources; the render pipeline can supply its newly staged main DOCX.
+
+    Never pick up an old output implicitly: its bibliography may be stale or
+    edited in Word. The combined count remains a source estimate plus the
+    rendered reference words, not Word's or a submission system's word count.
+    """
     project = Path(project)
     cfg = load_journal_config(project)
     profile = load_profile(cfg["journal"], project)
@@ -325,38 +368,85 @@ def run_checks(project: Path) -> list[Check]:
     wc = word_count(texts["index.qmd"], **mtype.get("word_count", {}))
     limit = mtype.get("word_limit")
     includes_refs = bool(mtype.get("word_limit_includes_references"))
+    reference_words = None
+    missing_references = False
+    if includes_refs and rendered_main is not None:
+        reference_words = _reference_words(rendered_main)
+        missing_references = reference_words == 0 and _references_expected(project, texts["index.qmd"])
+        wc += reference_words
     detail = (f"{wc} words vs limit {limit} for {cfg['ms_type']} "
               f"(rule: {mtype.get('counting_rule', 'unspecified')})")
-    if includes_refs:
+    if missing_references:
+        detail += "; reference-inclusive total unverified: rendered bibliography text was not found"
+    elif reference_words is not None:
+        detail += (f"; estimated total: {wc - reference_words} source + "
+                   f"{reference_words} reference words from this render's main DOCX")
+    elif includes_refs:
         detail += "; lower bound: references are not counted but this limit includes them"
-    checks.append(Check("word-limit", "HARD", limit is None or wc <= limit, detail))
-    if includes_refs and limit is not None and wc <= limit:
+    wc_ok = limit is None or wc <= limit
+    wc_hint = None
+    if not wc_ok:
+        wc_hint = {
+            "action": "trim_words",
+            "target_words": limit,
+            "excess_words": wc - limit,
+            "hint": f"Trim at least {wc - limit} words from index.qmd or exclude non-counted sections.",
+        }
+    checks.append(Check("word-limit", "HARD", wc_ok, detail, patch_hint=wc_hint))
+    if missing_references:
+        checks.append(Check(
+            "word-limit-references", "HARD", False,
+            "The main manuscript requests references, but this render has no text in "
+            "Bibliography paragraphs. The reference-inclusive count is unverified. "
+            "Enable Quarto's bibliography (remove suppress-bibliography) and preserve "
+            "its Bibliography paragraph style; render --target collab to inspect the output.",
+        ))
+    elif includes_refs and reference_words is None and limit is not None and wc <= limit:
         # body + abstract is only a lower bound here, so a pass is unproven
         checks.append(Check(
             "word-limit-references", "WARN", False,
             f"{wc} words counted without references; the {limit}-word limit "
-            "includes references, so add the reference list's word count "
-            f"(headroom {limit - wc} words) before submitting",
+            f"includes references (headroom {limit - wc} words). Run "
+            "`wongo render --target submission` to check the newly rendered bibliography "
+            "before any deliverable is replaced",
         ))
 
     bib: set[str] = set()
-    for bib_path in bibliography_paths(project, texts["index.qmd"]):
+    bib_paths = bibliography_paths(project, texts["index.qmd"])
+    for bib_path in bib_paths:
         if bib_path.exists():
             bib |= bib_keys(read_text(bib_path))
     used = set().union(*(citekeys_used(t) for t in texts.values()))
     missing = sorted(used - bib)
+    cite_hint = None
+    if missing:
+        cite_hint = {
+            "action": "add_bibtex",
+            "missing_keys": missing,
+            "bib_files": [str(b.name) for b in bib_paths if b.exists()] or ["refs.bib"],
+            "hint": f"Add BibTeX entries for {', '.join(missing)} to refs.bib or remove unused citations.",
+        }
     checks.append(Check(
         "citekeys", "HARD", not missing,
         "all citekeys resolve" if not missing else f"missing from refs.bib: {', '.join(missing)}",
         _locations(texts, [f"@{k}" for k in missing], lambda item: _at_ref(item[1:])),
+        patch_hint=cite_hint,
     ))
 
     defined = set().union(*(labels_defined(t) for t in texts.values()))
     orphans = sorted(set().union(*(crossrefs_used(t) for t in texts.values())) - defined)
+    cross_hint = None
+    if orphans:
+        cross_hint = {
+            "action": "define_labels",
+            "orphan_refs": orphans,
+            "hint": f"Define labels for {', '.join(orphans)} using '#| label: <name>' or '{{#<name>}}'.",
+        }
     checks.append(Check(
         "crossrefs", "HARD", not orphans,
         "all cross-references resolve" if not orphans else f"orphaned: {', '.join(orphans)}",
         _locations(texts, [f"@{o}" for o in orphans], lambda item: _at_ref(item[1:])),
+        patch_hint=cross_hint,
     ))
 
     missing_figs, missing_paths = [], []
@@ -365,11 +455,19 @@ def run_checks(project: Path) -> list[Check]:
             if not (project / rel).exists():
                 missing_figs.append(f"{name} -> {rel}")
                 missing_paths.append(rel)
+    fig_hint = None
+    if missing_figs:
+        fig_hint = {
+            "action": "create_assets",
+            "missing_paths": sorted(set(missing_paths)),
+            "hint": f"Place image files at {', '.join(sorted(set(missing_paths)))} or fix image links.",
+        }
     checks.append(Check(
         "figures", "HARD", not missing_figs,
         "all referenced figures exist" if not missing_figs else "; ".join(missing_figs),
         _locations(texts, sorted(set(missing_paths)),
                    lambda item: re.compile(r"\(" + re.escape(item) + r"[)\s]")),
+        patch_hint=fig_hint,
     ))
 
     days = profile_staleness_days(profile)
@@ -385,9 +483,18 @@ def run_checks(project: Path) -> list[Check]:
     ))
 
     si_expected = (profile.get("si") or {}).get("separate_file")
+    si_ok = not si_expected or "si.qmd" in texts
+    si_hint = None
+    if not si_ok:
+        si_hint = {
+            "action": "create_si",
+            "target": "si.qmd",
+            "hint": "Create si.qmd for Supporting Information expected by journal profile.",
+        }
     checks.append(Check(
-        "si-file", "WARN", not si_expected or "si.qmd" in texts,
+        "si-file", "WARN", si_ok,
         "si.qmd present" if "si.qmd" in texts else "profile expects separate SI but si.qmd is absent",
+        patch_hint=si_hint,
     ))
     return checks
 
@@ -399,3 +506,5 @@ def print_report(checks: list[Check]) -> None:
         if not c.ok:
             for location in c.locations:
                 print(f"      {location}")
+            if c.patch_hint and "hint" in c.patch_hint:
+                print(f"      hint: {c.patch_hint['hint']}")

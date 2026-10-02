@@ -1,31 +1,39 @@
-# wongo (원고)
+# Wongo · 원고
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/logos/wongo-lockup-reverse.svg">
+  <img src="brand/logos/wongo-lockup.svg" alt="Wongo · 원고" width="420">
+</picture>
+
+**A connected path from Quarto source to Word review.**
+
+[Get started](docs/getting-started.md) · [Documentation](docs/README.md) ·
+[Claude integration](integrations/claude-code/README.md) · [Design system](brand/README.md)
 
 [![CI](https://github.com/hoohugokim/wongo/actions/workflows/ci.yml/badge.svg)](https://github.com/hoohugokim/wongo/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/hoohugokim/wongo/actions/workflows/codeql.yml/badge.svg)](https://github.com/hoohugokim/wongo/actions/workflows/codeql.yml)
 
-*Wongo* is Korean for **manuscript** — and this is a manuscript pipeline:
+*Wongo* is Korean for **manuscript**. It is a Python package and command-line
+pipeline for writing in Quarto, checking journal requirements, producing Word
+documents, and resolving coauthor edits. Journal profiles and house styles form
+its extension surface. See the [product definition](docs/product-definition.md)
+for the package, software, framework and library interfaces.
 
-> **What it is:** a **Python package** (`pip install` / `uv tool install`, `wongo-0.3.0-py3-none-any.whl`) that ships a **CLI research-software pipeline** (`wongo scaffold` / `doctor` / `status` / `check` / `render` / `roundtrip` / `review` / `diff` / `profile`) and an **extensible pipeline framework** (verified journal profiles + house styles satisfying `docs/journal-profile-contract.md`). See `docs/product-definition.md` for the canonical taxonomy (package vs software vs framework vs library).
+| Write & check | Render & share | Review & revise |
+|:---|:---|:---|
+| Keep prose, citations and analysis connected in `.qmd`. Check the target journal's recorded requirements. | Create main and supporting-information DOCX files with the selected journal profile and house style. | Extract Word Track Changes, inspect source context and record author-approved decisions before updating the source. |
 
-Write a journal article as a Quarto `.qmd` with every inferential number wired
-to committed analysis artifacts, render **submission-grade DOCX** against
-**verified journal profiles**, keep **Word-native coauthors** in the loop with
-tracked-changes round-tripping, and never let a hand-typed number or a stale
-journal rule reach a submission portal.
-
-> **Status: v0.3.0** (Windows support, all-or-nothing renders, doctor/status, JSON output, the coauthor review loop, and the Claude plugin; v0.1.0 was the first shareable release). The engine is battle-tested — it produced a real ES&T
-> submission — and has been migrated into `src/wongo/`
-> (`docxpatch`/`styles`/`profiles`/`engine`) per `plans/archive/HANDOFF-wongo-uplift.md`.
-> `legacy/` shims were removed in v0.1.0; the lab's reference manuscript pins
-> `style: kist-wcr` and renders through `wongo`. The CLI `wongo` is installed
-> as a wheel/editable package.
+**Latest tagged release:** [v0.3.0](https://github.com/hoohugokim/wongo/releases/tag/v0.3.0).
+The source on `main` is **v0.3.1**, including the native MCP integration and its
+[verified demo](examples/aix-demo/README.md). A v0.3.1 release tag and PyPI
+publication are pending; the source-archive installation below installs the
+current code from `main`.
 
 ## Why this exists
 
 Labs full of Word users reject source-based writing tools for two reasons:
 the output doesn't look like *their* manuscripts, and coauthor feedback has
-nowhere to go. wongo answers both, and adds a third discipline nobody else
-has:
+nowhere to go. Wongo brings three parts of the workflow together:
 
 1. **Verified journal profiles.** Every journal requirement (word limits and
    their exact counting rules, abstract length, TOC-art specs, SI packaging,
@@ -60,7 +68,7 @@ CI renders the example manuscript on all three.
 
 ## Quickstart
 
-```sh
+```fish
 uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip  # no git needed
 wongo doctor                                 # is Quarto/R ready? (prints the fix if not)
 wongo scaffold demo --example && cd demo     # a small manuscript that renders right away
@@ -80,6 +88,12 @@ Every command accepts `--json` and then prints a single JSON object, which is
 what the Claude plugin reads. A render replaces its output files only when every
 step succeeded; if Word has one of them open, wongo says so and changes
 nothing. For development, `uv tool install --editable .` from a checkout.
+
+For limits that include references, such as Water Research, `wongo check`
+reports the source estimate and remaining headroom. Rendering adds the new
+main bibliography's words; an over-limit or unverified count blocks submission
+before any existing deliverable is replaced. The combined count remains an
+estimate, with its source and reference contributions shown in the report.
 
 `wongo diff` tracks word-level changes in body paragraphs, keeping each
 word's run formatting and rebuilding Quarto's crossref/citation hyperlinks
@@ -101,10 +115,23 @@ all of them and prints the install command for your platform.
 | `src/wongo/` | The package and library: `cli`, `engine`/`checks`/`roundtrip`/`diff`/`worksheet`, `review`, `doctor`, `status`, `scaffold`, `toolchain`, `docxpatch`, `styles` (`kist-wcr`/`default`), `profiles/` (7 journals), `assets/scaffold` |
 | `integrations/claude-code/`, `.claude-plugin/` | The Claude Code plugin (the wongo skill) and the marketplace that serves it |
 | `docs/` | Product definition (`docs/product-definition.md`), profile contract (`docs/journal-profile-contract.md`), DOCX quirks bestiary (`docs/docx-quirks.md`), contributing guide (`docs/CONTRIBUTING.md`), frozen changelog (`docs/CHANGELOG.md`), legacy spine docs |
+| [`brand/`](brand/README.md) | Wongo design system: vector and PNG logos, offline fonts, design tokens, CSS, Quarto branding and a visual guide |
 | `AGENTS.md`, `HANDOFF.md`, `TASKS.md`, `DECISIONS.md`, `ROADMAP.md` | Statutor ledger for agent sessions (`CLAUDE.md` imports `AGENTS.md`) |
 | `plans/archive/` | Frozen historical records of the 2026-08 skill→package uplift |
 | `tests/` | Regression tests pinning every shipped OOXML fix, the diff/roundtrip engines, and the validation checks |
 | `tools/` | Verification harness (`tools/bytecompare.py`) — byte-compare `main`/`si` × `collab`/`submission` vs baseline |
+
+## Project identity
+
+The [Wongo design system](brand/README.md) supplies the manuscript-grid emblem,
+serif wordmark, light/dark artwork, local fonts and reusable HTML/Quarto styling.
+Open the [visual guide](brand/design-system.html) locally to inspect the system,
+or use the [workflow brief](brand/examples/workflow-brief.qmd) as a branded document
+example. GitHub controls Markdown typography; repository pages use the supplied
+artwork and a consistent reading hierarchy.
+
+Branding is for Wongo's documentation and communications. Journal output keeps
+the requirements and typography of its selected profile and manuscript style.
 
 ## Provenance
 
