@@ -25,7 +25,7 @@ uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools
 uv build
 uv run wongo --version && uv run wongo profile verify est --offline
 uv run tools/bytecompare.py selftest --target collab   # noise floor must be zero
-git worktree add --detach /tmp/wongo-prev v0.3.0        # the last release renders the baseline
+git worktree add --detach /tmp/wongo-prev v0.3.1        # the last release renders the baseline
 uv run tools/bytecompare.py baseline --repo /tmp/wongo-prev
 uv run tools/bytecompare.py check --allow tools/bytecompare-allow.txt
 ```

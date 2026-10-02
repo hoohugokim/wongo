@@ -17,9 +17,8 @@ journal DOCX pages readable in their original appearance.
 
 ## Before recording
 
-Use a current `main` checkout containing the v0.3.1 source. The latest tagged
-release is v0.3.0; a v0.3.1 release tag and PyPI publication are pending. From the
-repository root:
+Use the tagged v0.3.1 source for a reproducible recording. PyPI publication is
+pending. From the repository root:
 
 ```fish
 uv sync --all-extras
@@ -30,9 +29,9 @@ uv run wongo mcp install --client vscode --project examples/aix-demo
 
 Open the demo project in VS Code and enable the configured MCP server. Check its
 tool list before recording. The
-[main source archive](https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip)
-also includes the MCP integration; use the checkout above to run the benchmark
-and regenerate the demo fixtures.
+[v0.3.1 source archive](https://github.com/hoohugokim/wongo/archive/refs/tags/v0.3.1.zip)
+includes the MCP integration, benchmark and demo fixtures; extract it and run
+the commands above from its root.
 
 The manuscript, measurements, figure and coauthor edits are synthetic examples,
 not KIST experimental results. The fixture contains exactly two tracked edits:

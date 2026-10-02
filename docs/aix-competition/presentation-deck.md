@@ -24,8 +24,8 @@ rules and explicit Pass/Review/Action required labels. This is Wongo's project
 identity; presenter affiliation does not imply institutional endorsement.
 
 This is a slide-content outline. All numerical results must come from the latest
-[generated scorecard](scorecard.md). The MCP integration is available in v0.3.1
-source on `main`; the latest tagged release is v0.3.0.
+[generated scorecard](scorecard.md). The MCP integration is available in the
+[v0.3.1 release](https://github.com/hoohugokim/wongo/releases/tag/v0.3.1).
 
 ---
 
@@ -175,7 +175,7 @@ is not a publication-ready account of real KIST experiments.
 
 ## Slide 10 — Reproduce, then pilot
 
-From a current `main` checkout containing the v0.3.1 source:
+From a v0.3.1 checkout or extracted source archive:
 
 ```fish
 uv sync --all-extras
@@ -183,14 +183,14 @@ uv run wongo doctor --project examples/aix-demo
 uv run python tools/aix_eval.py
 ```
 
-To install the current engine and MCP integration from the `main` source archive:
+To install the released engine and MCP integration from the v0.3.1 source archive:
 
 ```fish
-uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip
+uv tool install https://github.com/hoohugokim/wongo/archive/refs/tags/v0.3.1.zip
 ```
 
-A v0.3.1 release tag and PyPI publication are pending; do not advertise
-`uv tool install wongo` until publication is verified.
+PyPI publication is pending; do not advertise `uv tool install wongo` until
+publication is verified.
 
 Next evaluation: test with real coauthor feedback, record review time and error
 rates, and complete the planned Windows workflow smoke test.

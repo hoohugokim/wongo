@@ -23,11 +23,10 @@ for the package, software, framework and library interfaces.
 |:---|:---|:---|
 | Keep prose, citations and analysis connected in `.qmd`. Check the target journal's recorded requirements. | Create main and supporting-information DOCX files with the selected journal profile and house style. | Extract Word Track Changes, inspect source context and record author-approved decisions before updating the source. |
 
-**Latest tagged release:** [v0.3.0](https://github.com/hoohugokim/wongo/releases/tag/v0.3.0).
-The source on `main` is **v0.3.1**, including the native MCP integration and its
-[verified demo](examples/aix-demo/README.md). A v0.3.1 release tag and PyPI
-publication are pending; the source-archive installation below installs the
-current code from `main`.
+**Latest tagged release:** [v0.3.1](https://github.com/hoohugokim/wongo/releases/tag/v0.3.1),
+including the native MCP integration and its
+[verified demo](examples/aix-demo/README.md). PyPI publication is pending; the
+source-archive installation below installs the tagged v0.3.1 release.
 
 ## Why this exists
 
@@ -69,7 +68,7 @@ CI renders the example manuscript on all three.
 ## Quickstart
 
 ```fish
-uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip  # no git needed
+uv tool install https://github.com/hoohugokim/wongo/archive/refs/tags/v0.3.1.zip  # no git needed
 wongo doctor                                 # is Quarto/R ready? (prints the fix if not)
 wongo scaffold demo --example && cd demo     # a small manuscript that renders right away
 wongo status                                 # where things stand + the next command
