@@ -396,4 +396,3 @@ def test_paragraph_with_changed_inline_math_is_tracked(tmp_path):
     inss = out._p.findall(qn("w:ins"))
     assert any(d.find(qn("m:oMath")) is not None for d in dels)
     assert any(i.find(qn("m:oMath")) is not None for i in inss)
-

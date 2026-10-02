@@ -427,4 +427,3 @@ def test_review_filter_pending_only(project):
     assert "Row 4/6" in out.text
     assert "Row 1" not in out.text
     assert summary.total == 6
-
