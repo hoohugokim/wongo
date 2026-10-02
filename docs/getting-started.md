@@ -1,4 +1,11 @@
-# Getting started with wongo
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../brand/logos/wongo-lockup-reverse.svg">
+  <img src="../brand/logos/wongo-lockup.svg" alt="Wongo · 원고" width="320">
+</picture>
+
+# Getting started with Wongo
+
+[Documentation](README.md) · [Repository](../README.md)
 
 wongo (원고, "manuscript") turns a manuscript written in Quarto into Word files
 that follow your journal's rules. Your coauthors keep working in Word with

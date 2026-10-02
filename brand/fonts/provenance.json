@@ -1,0 +1,118 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "fonts": [
+    {
+      "file": "SourceSerif4-Roman.woff2",
+      "family": "Source Serif 4",
+      "version": "Version 4.004;hotconv 1.0.116;makeotfexe 2.5.65601",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf",
+      "source_sha256": "97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b",
+      "sha256": "4453d73855919eb67a8291bf2bad07782ecaf8af0e4e363d58948ff993209d51",
+      "axes": {
+        "wght": [
+          200.0,
+          400.0,
+          900.0
+        ],
+        "opsz": [
+          8.0,
+          20.0,
+          60.0
+        ]
+      },
+      "license": "licenses/sourceserif4-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    },
+    {
+      "file": "SourceSerif4-Italic.woff2",
+      "family": "Source Serif 4",
+      "version": "Version 4.004;hotconv 1.0.116;makeotfexe 2.5.65601",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/sourceserif4/SourceSerif4-Italic%5Bopsz%2Cwght%5D.ttf",
+      "source_sha256": "15fbc7e4679489a501998c3669272637a6646388ef7e4bd77eebb5bf967a1f42",
+      "sha256": "a5e93099350c2768f7939fa51503641c961550830fb2a02083f5cf11adf227b5",
+      "axes": {
+        "wght": [
+          200.0,
+          400.0,
+          900.0
+        ],
+        "opsz": [
+          8.0,
+          20.0,
+          60.0
+        ]
+      },
+      "license": "licenses/sourceserif4-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    },
+    {
+      "file": "SourceSans3-Roman.woff2",
+      "family": "Source Sans 3 ExtraLight",
+      "version": "Version 3.052;hotconv 1.1.0;makeotfexe 2.6.0",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/sourcesans3/SourceSans3%5Bwght%5D.ttf",
+      "source_sha256": "042fe2cc0b933e328410d7acbd0aa6a1873dca5aef81875f4bc214b08825c7b9",
+      "sha256": "707229357fb90c9c5da177826aac06c6da031f569a9a520bfa7fcca5cd03355a",
+      "axes": {
+        "wght": [
+          200.0,
+          200.0,
+          900.0
+        ]
+      },
+      "license": "licenses/sourcesans3-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    },
+    {
+      "file": "SourceSans3-Italic.woff2",
+      "family": "Source Sans 3 ExtraLight",
+      "version": "Version 3.052;hotconv 1.1.0;makeotfexe 2.6.0",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/sourcesans3/SourceSans3-Italic%5Bwght%5D.ttf",
+      "source_sha256": "39e3ab05ccd7cb94907c31005bb5bec1d5432f0b096a2b782976e217a540eb6c",
+      "sha256": "eb7dbec8b9897c3706f368b181f890737e1ec700cdd2ca5421fda504362e3442",
+      "axes": {
+        "wght": [
+          200.0,
+          200.0,
+          900.0
+        ]
+      },
+      "license": "licenses/sourcesans3-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    },
+    {
+      "file": "SourceCodePro-Roman.woff2",
+      "family": "Source Code Pro ExtraLight",
+      "version": "Version 1.026;hotconv 1.1.0;makeotfexe 2.6.0",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/sourcecodepro/SourceCodePro%5Bwght%5D.ttf",
+      "source_sha256": "b400fc584e10aff25d0e775ce181b4fc1c5ea1b5dc37b81aeb2084375b945790",
+      "sha256": "d5354036d08c4a7cea27a1e02bd3c1bc2fbfdd8c85818a35ee890068eb4a4217",
+      "axes": {
+        "wght": [
+          200.0,
+          200.0,
+          900.0
+        ]
+      },
+      "license": "licenses/sourcecodepro-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    },
+    {
+      "file": "NotoSansKR-Roman.woff2",
+      "family": "Noto Sans KR Thin",
+      "version": "Version 2.004-H2;hotconv 1.0.118;makeotfexe 2.5.65603",
+      "source_url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+      "source_sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+      "sha256": "f484190a87503ac2af2cf9771ec35122128453fe0cd92f4368117562d99547e6",
+      "axes": {
+        "wght": [
+          100.0,
+          100.0,
+          900.0
+        ]
+      },
+      "license": "licenses/notosanskr-OFL.txt",
+      "conversion": "Lossless WOFF2 packaging; no glyph or naming changes."
+    }
+  ]
+}

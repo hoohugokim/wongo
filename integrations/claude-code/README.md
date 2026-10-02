@@ -1,4 +1,9 @@
-# wongo plugin for Claude Code
+# Wongo plugin for Claude Code
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../brand/logos/wongo-lockup-reverse.svg">
+  <img src="../../brand/logos/wongo-lockup.svg" width="280" alt="Wongo · 원고">
+</picture>
 
 This folder is a Claude Code plugin. It teaches Claude how to run
 [wongo](https://github.com/hoohugokim/wongo) for you. You talk to Claude in
@@ -166,6 +171,10 @@ wongo's main branch.
 - wongo itself: `uv tool uninstall wongo`.
 
 ## For maintainers
+
+Project artwork follows the [Wongo design system](../../brand/README.md).
+Use its supplied logos for plugin documentation; manuscript formatting stays
+with the journal profile and selected Wongo style.
 
 ```text
 .claude-plugin/marketplace.json          marketplace "wongo" (repository root)

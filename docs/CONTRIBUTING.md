@@ -80,6 +80,36 @@ src/wongo/profiles/<slug>/
 
 House looks are data-driven YAML in `src/wongo/styles/` (`kist-wcr.yml` is KIST-WCR, `default.yml` is the no-taste baseline). Fields: `font`, `page_geometry`, `spacing`, `heading_look`, `title_block` (`wr` title-block rebuild), `caption`, `tables`. `wongo.styles.apply_style()` applies them; `wongo.docxpatch` never reads them.
 
+## Project identity
+
+Use the [Wongo design system](../brand/README.md) for repository documentation,
+web pages, presentations and project communications. The canonical palette and
+type values live in [brand/tokens.json](../brand/tokens.json); reusable assets,
+local fonts, licenses and a visual specimen live alongside it. Use the supplied
+outlined logos instead of recreating the wordmark. For Markdown that supports
+`picture`, pair the color lockup with its reverse variant for dark backgrounds,
+and supply meaningful alt text.
+
+Edit the brand sources and regenerate assets from the repository root:
+
+```fish
+uv run brand/build.py
+```
+
+The build declares its Python dependencies; PNG export also needs `rsvg-convert`.
+Use `--svg-only` when regenerating SVG and CSS without that executable. Inspect
+the [specimen](../brand/design-system.html), reverse and monochrome artwork,
+and smallest exports after a change. Preserve bundled font licenses and keep
+[brand/_brand.yml](../brand/_brand.yml) synchronized with the tokens.
+
+Styling is opt-in: use `brand: <relative path>/brand/_brand.yml` for a Quarto
+communication, or load `brand/wongo.css` and apply the `wongo` class to an HTML
+container. The [workflow brief](../brand/examples/workflow-brief.qmd) shows a
+complete Quarto example. Copy the entire `brand/` folder when reusing its CSS or
+Quarto setup so relative font and asset paths continue to work. Journal DOCX
+appearance remains controlled by its profile and selected manuscript style;
+repository branding does not change those outputs.
+
 ## DOCX quirks
 
 When you solve a new Quarto/pandoc/Word pathology, **append** it to `docs/docx-quirks.md` with: date / symptom / cause / fix / affected versions / verification (dump raw `word/document.xml` via `unzip -p`, never rely on `python-docx` introspection alone). Pin the fix with a regression test in `tests/`.

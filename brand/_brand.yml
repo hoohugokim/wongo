@@ -1,0 +1,155 @@
+# Wongo identity v1.0 — approved manuscript-grid C / serif direction.
+# Opt in from a document with `brand: path/to/brand/_brand.yml`.
+# Paths below are relative to this file. No network fonts are required.
+# For project communications; journal manuscript styles remain in wongo's profiles.
+
+meta:
+  name:
+    short: Wongo
+    full: Wongo · 원고
+
+logo:
+  images:
+    lockup:
+      path: logos/wongo-lockup.svg
+      alt: Wongo · 원고
+    lockup-reverse:
+      path: logos/wongo-lockup-reverse.svg
+      alt: Wongo · 원고
+    icon:
+      path: logos/wongo-icon.svg
+      alt: Wongo manuscript-grid emblem
+    icon-reverse:
+      path: logos/wongo-icon-reverse.svg
+      alt: Wongo manuscript-grid emblem
+  # Light is the default document theme. Reverse artwork is available by name
+  # for deliberate placement on ink backgrounds, without enabling a dark theme.
+  small: icon
+  medium: lockup
+  large: lockup
+
+color:
+  palette:
+    ink: "#21313D"
+    petrol: "#416C78"
+    annotation: "#C56852"
+    paper: "#FFFFFF"
+    surface: "#F3F5F5"
+    muted: "#52636D"
+    rule: "#CCD5D9"
+    success: "#3B705C"
+    warning: "#8A651D"
+    danger: "#A0413C"
+  foreground: ink
+  background: paper
+  primary: petrol
+  secondary: muted
+  tertiary: surface
+  success: success
+  info: petrol
+  warning: warning
+  danger: danger
+  light: paper
+  dark: ink
+
+typography:
+  # Quarto 1.10 file-font declarations accept a single weight, so the bundled
+  # variable files are listed at each weight used by the identity.
+  fonts:
+    - family: Source Serif 4
+      source: file
+      files:
+        - path: fonts/SourceSerif4-Roman.woff2
+          weight: 400
+          style: normal
+        - path: fonts/SourceSerif4-Roman.woff2
+          weight: 500
+          style: normal
+        - path: fonts/SourceSerif4-Roman.woff2
+          weight: 600
+          style: normal
+        - path: fonts/SourceSerif4-Italic.woff2
+          weight: 400
+          style: italic
+    - family: Source Sans 3
+      source: file
+      files:
+        - path: fonts/SourceSans3-Roman.woff2
+          weight: 400
+          style: normal
+        - path: fonts/SourceSans3-Roman.woff2
+          weight: 600
+          style: normal
+        - path: fonts/SourceSans3-Italic.woff2
+          weight: 400
+          style: italic
+    - family: Noto Sans KR
+      source: file
+      files:
+        - path: fonts/NotoSansKR-Roman.woff2
+          weight: 400
+          style: normal
+        - path: fonts/NotoSansKR-Roman.woff2
+          weight: 600
+          style: normal
+    - family: Source Code Pro
+      source: file
+      files:
+        - path: fonts/SourceCodePro-Roman.woff2
+          weight: 400
+          style: normal
+  base:
+    family: Source Sans 3
+    size: 1.0625rem
+    weight: 400
+    line-height: 1.6
+  headings:
+    family: Source Serif 4
+    weight: 600
+    line-height: 1.2
+    color: ink
+  monospace:
+    family: Source Code Pro
+    size: 0.875em
+    weight: 400
+  monospace-inline:
+    color: ink
+    background-color: surface
+  monospace-block:
+    color: ink
+    background-color: surface
+    line-height: 1.5
+  link:
+    color: petrol
+    weight: 600
+    decoration: underline
+
+defaults:
+  bootstrap:
+    defaults:
+      border-color: $brand-rule
+      border-radius: 0
+      border-radius-sm: 0
+      border-radius-lg: 0
+      link-decoration: underline
+      callout-color-note: $brand-petrol
+      callout-color-tip: $brand-success
+      callout-color-warning: $brand-warning
+      callout-color-caution: $brand-danger
+      callout-color-important: $brand-danger
+    rules: |
+      body {
+        font-family: "Source Sans 3", "Noto Sans KR", sans-serif;
+      }
+      h1, h2, h3, h4, h5, h6, .title {
+        font-family: "Source Serif 4", "Noto Sans KR", serif;
+        font-optical-sizing: auto;
+      }
+      pre, code, kbd, samp {
+        font-family: "Source Code Pro", "Noto Sans KR", monospace;
+      }
+      strong, b { font-weight: 600; }
+      :focus-visible {
+        outline: 2px solid $brand-petrol;
+        outline-offset: 3px;
+      }

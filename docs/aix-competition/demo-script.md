@@ -6,6 +6,15 @@
 
 **Recording plan:** Korean narration with English captions; capture actual outputs.
 
+**Visual treatment:** Follow the [Wongo design system](../../brand/README.md)
+for title cards and captions. Place the [bilingual lockup](../../brand/logos/wongo-lockup.svg)
+on white, or its [reverse variant](../../brand/logos/wongo-lockup-reverse.svg)
+on ink `#21313D`, retaining the artwork's clear space. Use Source Serif 4 for
+English titles, Source Sans 3 for English captions and Noto Sans KR for Korean
+text. Keep captions in ink on white and petrol `#416C78` for restrained emphasis.
+Use opening and closing cards for branding; keep captured code, checks and
+journal DOCX pages readable in their original appearance.
+
 ## Before recording
 
 Use this development checkout: the MCP changes are not yet in the published

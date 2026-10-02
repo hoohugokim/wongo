@@ -1,0 +1,50 @@
+/* Opt-in styles: add class="wongo" to the containing surface. */
+.wongo {
+  color: var(--wongo-ink);
+  background: var(--wongo-paper);
+  font-family: var(--wongo-font-sans);
+  font-size: var(--wongo-body-size);
+  line-height: var(--wongo-body-leading);
+}
+.wongo *, .wongo *::before, .wongo *::after { box-sizing: border-box; }
+.wongo :is(h1, h2, h3, h4) {
+  font-family: var(--wongo-font-serif);
+  font-weight: var(--wongo-heading-weight);
+  line-height: var(--wongo-heading-leading);
+  font-optical-sizing: auto;
+}
+.wongo :is(strong, b) { font-weight: 600; }
+.wongo :is(a, .wongo-link) {
+  color: var(--wongo-petrol);
+  text-decoration: underline;
+  text-underline-offset: .16em;
+}
+.wongo :focus-visible { outline: 2px solid var(--wongo-petrol); outline-offset: 4px; }
+.wongo :is(code, pre, kbd, samp) { font-family: var(--wongo-font-mono); font-size: .875em; }
+.wongo pre { padding: 24px; background: var(--wongo-surface); overflow-x: auto; }
+.wongo code { overflow-wrap: anywhere; }
+.wongo-button {
+  display: inline-block;
+  border: 1px solid var(--wongo-petrol);
+  border-radius: var(--wongo-radius);
+  padding: 10px 20px;
+  background: var(--wongo-petrol);
+  color: var(--wongo-paper);
+  font: 600 1rem var(--wongo-font-sans);
+  cursor: pointer;
+}
+.wongo a.wongo-button { color: var(--wongo-paper); text-decoration: none; }
+.wongo-button:hover { background: var(--wongo-ink); border-color: var(--wongo-ink); }
+.wongo-button--secondary { background: var(--wongo-paper); color: var(--wongo-petrol); }
+.wongo a.wongo-button--secondary { color: var(--wongo-petrol); }
+.wongo .wongo-button--secondary:hover { color: var(--wongo-paper); }
+.wongo-status { display: inline-block; border: 1px solid currentColor; padding: 2px 8px; font-weight: 600; }
+.wongo-status--success { color: var(--wongo-success); }
+.wongo-status--warning { color: var(--wongo-warning); }
+.wongo-status--danger { color: var(--wongo-danger); }
+.wongo table { width: 100%; border-collapse: collapse; text-align: left; }
+.wongo :is(th, td) { padding: 12px 16px 12px 0; border-bottom: 1px solid var(--wongo-rule); vertical-align: top; }
+.wongo th { font-weight: 600; border-top: 1px solid var(--wongo-ink); border-bottom-color: var(--wongo-ink); }
+.wongo caption { text-align: left; margin-bottom: 12px; }
+.wongo figcaption, .wongo-small { font-size: .875rem; color: var(--wongo-muted); }
+@media (prefers-reduced-motion: reduce) { .wongo * { scroll-behavior: auto !important; } }

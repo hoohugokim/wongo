@@ -1,0 +1,89 @@
+/*-- scss:defaults --*/
+
+$content-padding-top: 2rem;
+
+/*-- scss:rules --*/
+
+main.content {
+  max-width: 960px;
+  margin-inline: auto;
+  padding-bottom: 2.5rem;
+}
+
+/* This specimen uses the paper/ink theme only. */
+body .quarto-color-scheme-toggle { display: none; }
+
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  border-top: 3px solid $brand-ink;
+  border-bottom: 1px solid $brand-rule;
+  padding: 1.5rem 0;
+  margin-bottom: 3rem;
+}
+
+.masthead p,
+.brand-lockup p { margin: 0; }
+.brand-lockup img { display: block; width: 240px; height: auto; }
+.eyebrow {
+  font-family: "Source Sans 3", "Noto Sans KR", sans-serif;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: $brand-muted;
+}
+
+h1.hero-title {
+  max-width: 760px;
+  font-size: clamp(2.35rem, 5vw, 3.8rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -.025em;
+  margin: 0 0 1.5rem;
+}
+
+.standfirst { max-width: 680px; font-size: 1.28rem; line-height: 1.5; }
+.korean-intro { color: $brand-muted; margin: 1.5rem 0 3rem; }
+h2 { margin-top: 2.5rem; padding-bottom: .6rem; }
+h3 { margin-top: 1.5rem; }
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+  margin: 2rem 0 3rem;
+}
+.workflow-step { border-top: 3px solid $brand-petrol; padding-top: .8rem; }
+.workflow-step:first-child { border-top-color: $brand-ink; }
+.workflow-step:last-child { border-top-color: $brand-annotation; }
+.workflow-step h3 { margin: .45rem 0 .7rem; font-size: 1.4rem; }
+.workflow-step > :last-child { margin-bottom: 0; }
+
+table { font-variant-numeric: tabular-nums; font-size: .95rem; }
+th { color: $brand-ink; font-weight: 600; }
+.status { font-size: .7rem; font-weight: 600; letter-spacing: .06em; white-space: nowrap; }
+.status-pass { color: $brand-success; }
+.status-review { color: $brand-warning; }
+.status-action { color: $brand-danger; }
+.table-caption { color: $brand-muted; font-size: .84rem; }
+
+.callout.callout-note { border-left-color: $brand-petrol; background: $brand-surface; }
+.callout.callout-note .callout-title { color: $brand-ink; }
+div.sourceCode { border: 1px solid $brand-rule; border-radius: 0; }
+.colophon {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid $brand-rule;
+  color: $brand-muted;
+  font-size: .8rem;
+}
+.colophon p { margin-bottom: .3rem; }
+
+@media (max-width: 650px) {
+  .masthead { display: block; }
+  .masthead > p { margin-top: 1rem; }
+  .workflow-grid { grid-template-columns: 1fr; gap: 1.2rem; }
+  .workflow-step h3 { margin-top: .2rem; }
+}

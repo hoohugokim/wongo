@@ -1,0 +1,10 @@
+# Preserve upstream notices verbatim, including their original line endings.
+fonts/licenses/* -text -whitespace
+vendor-licenses/*.txt -text -whitespace
+
+# Generated and vendored files retain their generator's whitespace.
+examples/workflow-brief.html linguist-generated=true -whitespace
+examples/workflow-brief_files/** linguist-vendored=true -whitespace
+logos/* linguist-generated=true
+exports/* linguist-generated=true
+wongo.css linguist-generated=true -whitespace

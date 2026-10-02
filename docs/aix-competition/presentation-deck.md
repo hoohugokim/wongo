@@ -1,10 +1,27 @@
 # KIST AIX presentation outline
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../brand/logos/wongo-lockup-reverse.svg">
+  <img src="../../brand/logos/wongo-lockup.svg" width="280" alt="Wongo · 원고">
+</picture>
+
 **Project:** Wongo (원고) — verified tools for LLM-assisted manuscript review
 
 **Presenter:** Hoo Hugo Kim, Center for Water Cycle Research, KIST
 
-**Visual system:** Pretendard, KIST Red `#E44126`, Near Black `#1A1A1A`, Soft Gray `#F7F7F7`.
+**Visual system:** [Wongo identity v1.0](../../brand/README.md), with canonical
+[tokens](../../brand/tokens.json) and a [visual specimen](../../brand/design-system.html).
+Use white paper, ink `#21313D` for text, petrol `#416C78` for primary emphasis,
+and surface `#F3F5F5` for code or evidence panels. Reserve annotation `#C56852`
+for a small accent, not body text or a failure label. Source Serif 4 headings,
+Source Sans 3 body text, Noto Sans KR Korean text, and Source Code Pro commands
+follow the bundled type system.
+
+Keep the manuscript-grid lockup on the opening and closing slides, outside
+figures and screenshots. Use the supplied reverse artwork on an ink background;
+retain its padding and aspect ratio. Use aligned content, square corners, thin
+rules and explicit Pass/Review/Action required labels. This is Wongo's project
+identity; presenter affiliation does not imply institutional endorsement.
 
 This is a slide-content outline. All numerical results must come from the latest
 [generated scorecard](scorecard.md). The MCP work is a development preview.
@@ -165,7 +182,7 @@ uv run wongo doctor --project examples/aix-demo
 uv run python tools/aix_eval.py
 ```
 
-For the available release engine, the documented source-archive installation is:
+For the current main-branch engine, the documented source-archive installation is:
 
 ```fish
 uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The Wongo identity system: manuscript-grid emblem, serif wordmark, colors, typography and reusable assets.">
+  <title>Wongo — Design system 1.0</title>
+  <link rel="icon" href="logos/wongo-icon-square.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wongo.css">
+  <style>
+    body { margin: 0; }
+    .page { max-width: var(--wongo-page-max); margin: auto; padding: 0 40px; }
+    .topline { padding: 24px 0; border-bottom: 1px solid var(--wongo-ink); display: flex; justify-content: space-between; gap: 16px; font-size: 14px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .13em; font-size: 12px; font-weight: 600; color: var(--wongo-muted); }
+    .hero { padding: 76px 0 64px; }
+    .hero-logo { display: block; width: 760px; max-width: 100%; margin: 0 0 32px -16px; }
+    h1 { font-size: clamp(36px, 5vw, 56px); margin: 12px 0 16px; font-weight: 500 !important; letter-spacing: -.02em; }
+    .lead { font-size: 21px; max-width: 46ch; line-height: 1.5; }
+    .hero-note { max-width: 70ch; color: var(--wongo-muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .section { border-top: 1px solid var(--wongo-ink); padding: 32px 0 56px; }
+    .section-head { display: flex; gap: 20px; align-items: baseline; margin-bottom: 24px; }
+    .index { color: var(--wongo-petrol); font: 400 14px var(--wongo-font-mono); }
+    h2 { font-size: 30px; margin: 0; letter-spacing: -.012em; }
+    h3 { font-size: 23px; margin: 0 0 12px; }
+    p { margin: 0 0 18px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .specimen { min-width: 0; }
+    .symbol-stage { padding: 24px 0; min-height: 286px; display: flex; align-items: center; justify-content: center; background: var(--wongo-surface); }
+    .symbol-stage img { width: 260px; max-width: 85%; }
+    .caption { margin-top: 14px; color: var(--wongo-muted); font-size: 14px; }
+    .fine { font-size: 14px; color: var(--wongo-muted); }
+    .geometry { display: grid; grid-template-columns: auto 1fr; gap: 8px 20px; font-size: 15px; }
+    .geometry dt { color: var(--wongo-muted); }
+    .geometry dd { margin: 0; }
+    .samples { margin-top: 32px; }
+    .logo-strip { padding: 32px 20px; min-height: 124px; display: flex; align-items: center; background: var(--wongo-surface); }
+    .logo-strip img { width: 100%; }
+    .logo-strip.dark { background: var(--wongo-ink); }
+    .swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 24px; }
+    .swatch { height: 94px; margin-bottom: 12px; }
+    .swatch-label { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+    .swatch-label code { font-size: 12px; }
+    .neutrals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding-top: 8px; }
+    .neutrals .swatch { height: 40px; border: 1px solid var(--wongo-rule); }
+    .neutrals .swatch-label { display: block; }
+    .font-display { font: 500 46px/1.2 var(--wongo-font-serif); font-optical-sizing: auto; margin-bottom: 16px; }
+    .font-body { font: 400 21px/1.5 var(--wongo-font-sans); }
+    .font-ko { font: 400 22px/1.7 "Noto Sans KR", sans-serif; }
+    .font-code { font: 400 15px/1.7 var(--wongo-font-mono); padding: 20px; background: var(--wongo-surface); }
+    .font-row { border-top: 1px solid var(--wongo-rule); padding-top: 24px; margin-top: 24px; }
+    .list { padding-left: 20px; margin-top: 0; }
+    .list li { margin-bottom: 10px; }
+    .sample-sizes { display: flex; align-items: center; gap: 36px; flex-wrap: wrap; min-height: 112px; }
+    .size-item { text-align: center; font-size: 12px; color: var(--wongo-muted); }
+    .size-item img { display: block; margin: 0 auto 8px; }
+    .status-list { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+    .system-table { font-size: 15px; }
+    .table-wrap { overflow-x: auto; }
+    .rule-example { border-top: 1px solid var(--wongo-ink); border-bottom: 1px solid var(--wongo-rule); padding: 20px 0; }
+    .footer { border-top: 1px solid var(--wongo-ink); padding: 24px 0 40px; font-size: 14px; color: var(--wongo-muted); display: flex; justify-content: space-between; gap: 20px; }
+    @media (max-width: 680px) {
+      .page { padding: 0 24px; }
+      .topline, .footer { flex-direction: column; gap: 8px; }
+      .hero { padding-top: 48px; }
+      .hero-logo { margin-left: -6px; }
+      .two, .three { grid-template-columns: 1fr; gap: 28px; }
+      .swatches { gap: 14px; }
+      .swatch { height: 72px; }
+      .swatch-label { display: block; }
+      .swatch-label code { display: block; font-size: 11px; }
+      .neutrals { grid-template-columns: repeat(2, 1fr); }
+      .font-display { font-size: 36px; }
+      .sample-sizes { gap: 24px; }
+    }
+    @media print {
+      .page { max-width: none; padding: 0; }
+      .hero { padding-top: 28px; }
+      .section, .specimen { break-inside: avoid; }
+      .actions { display: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body class="wongo">
+  <div class="page">
+    <header class="topline"><span>WONGO / IDENTITY SYSTEM</span><span>Version 1.0.0 · 02 October 2026</span></header>
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <img class="hero-logo" src="logos/wongo-lockup.svg" alt="wongo · 원고">
+        <div class="eyebrow">The manuscript, made systematic</div>
+        <h1 id="title">A considered identity for research.</h1>
+        <p class="lead">An abstract journal page. A scholarly serif. A quiet accent that marks the detail worth noticing.</p>
+        <p class="hero-note">Wongo brings Quarto manuscripts, journal requirements and coauthor review into a connected workflow. Its identity follows the same discipline: ordered parts, clear relationships and precise output.</p>
+        <nav class="actions" aria-label="Brand assets">
+          <a class="wongo-button" href="logos/wongo-lockup.svg" download>Download primary SVG</a>
+          <a class="wongo-button wongo-button--secondary" href="logos/wongo-lockup.png" download>Download PNG</a>
+          <a class="wongo-button wongo-button--secondary" href="examples/workflow-brief.html">Open Quarto example</a>
+        </nav>
+      </section>
+
+      <section class="section" aria-labelledby="emblem-title">
+        <div class="section-head"><span class="index">01</span><h2 id="emblem-title">The manuscript grid</h2></div>
+        <div class="two">
+          <figure class="specimen" style="margin:0">
+            <div class="symbol-stage"><img src="logos/wongo-icon.svg" alt="An abstract manuscript: heading and annotation above a text column and a figure with captions."></div>
+            <figcaption class="caption">Eight aligned rectangles. Square corners. Flat color.</figcaption>
+          </figure>
+          <div>
+            <p>The emblem preserves the selected C composition: a header, three text bars, a landscape figure and two captions. Shortened endings give it a distinct silhouette while retaining the logic of a manuscript.</p>
+            <dl class="geometry">
+              <dt>Construction</dt><dd>192 × 150 units</dd>
+              <dt>Clear space</dt><dd>20 units minimum; 40 preferred</dd>
+              <dt>Smallest standard icon</dt><dd>24 px artwork width; 32 px preferred</dd>
+              <dt>Print emblem</dt><dd>6 mm artwork width minimum</dd>
+              <dt>English lockup</dt><dd>160 px artwork width minimum</dd>
+              <dt>Bilingual lockup</dt><dd>220 px artwork width minimum</dd>
+            </dl>
+            <p class="fine">Use the supplied assets. Keep their proportions and clear space; do not rebuild the logo using typed letters. Regular SVG canvases already include 20 units of padding.</p>
+          </div>
+        </div>
+        <div class="three samples">
+          <div><div class="logo-strip"><img src="logos/wongo-lockup-en.svg" alt="English Wongo logo"></div><p class="caption">English lockup · Color</p></div>
+          <div><div class="logo-strip"><img src="logos/wongo-lockup-mono.svg" alt="Black bilingual Wongo logo"></div><p class="caption">Bilingual lockup · One-color black</p></div>
+          <div><div class="logo-strip dark"><img src="logos/wongo-lockup-reverse.svg" alt="White bilingual Wongo logo on ink background"></div><p class="caption">Bilingual lockup · Reversed white</p></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="color-title">
+        <div class="section-head"><span class="index">02</span><h2 id="color-title">Color with a purpose</h2></div>
+        <div class="swatches">
+          <div><div class="swatch" style="background:var(--wongo-ink)"></div><div class="swatch-label"><strong>Ink</strong><code>#21313D</code></div><p class="caption">Text, structure, wordmark.</p></div>
+          <div><div class="swatch" style="background:var(--wongo-petrol)"></div><div class="swatch-label"><strong>Petrol</strong><code>#416C78</code></div><p class="caption">Figures, links, primary action.</p></div>
+          <div><div class="swatch" style="background:var(--wongo-annotation)"></div><div class="swatch-label"><strong>Annotation</strong><code>#C56852</code></div><p class="caption">The small, deliberate accent.</p></div>
+        </div>
+        <div class="two">
+          <p>Let paper and ink lead. Petrol carries functional emphasis. Use the warm annotation color sparingly, echoing the single square in the emblem. This small accent is the subtle nod to Wongo’s KIST origins.</p>
+          <p>Ink and petrol on white provide approximately <strong>13.36:1</strong> and <strong>5.77:1</strong> contrast. Annotation is <strong>3.83:1</strong>: use it for accents rather than small text. Use labeled functional colors for status.</p>
+        </div>
+        <div class="neutrals">
+          <div><div class="swatch" style="background:var(--wongo-paper)"></div><div class="swatch-label">Paper <code>#FFFFFF</code></div></div>
+          <div><div class="swatch" style="background:var(--wongo-surface)"></div><div class="swatch-label">Surface <code>#F3F5F5</code></div></div>
+          <div><div class="swatch" style="background:var(--wongo-muted)"></div><div class="swatch-label">Muted <code>#52636D</code></div></div>
+          <div><div class="swatch" style="background:var(--wongo-rule)"></div><div class="swatch-label">Rule <code>#CCD5D9</code></div></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="type-title">
+        <div class="section-head"><span class="index">03</span><h2 id="type-title">Scholarly voice, practical reading</h2></div>
+        <div class="two">
+          <div><p class="eyebrow">Source Serif 4 / Headings</p><div class="font-display">Research, clearly expressed.</div><p class="fine">Headings 600. The outlined wordmark uses weight 500 and optical size 60.</p></div>
+          <div><p class="eyebrow">Source Sans 3 / Body and interface</p><p class="font-body">Write a manuscript. Check the requirements. Review the changes. Keep the reasoning visible.</p><p class="fine">Body 400; emphasis 600. Start at 17 px with a 1.6 line height.</p></div>
+        </div>
+        <div class="two font-row">
+          <div><p class="eyebrow">Noto Sans KR / Korean</p><p class="font-ko" lang="ko">연구의 흐름을 정돈하다.<br>원고 작성, 검증, 공동저자 검토.</p><p class="fine">An explicit Korean font keeps the bilingual system consistent.</p></div>
+          <div><p class="eyebrow">Source Code Pro / Code</p><div class="font-code">wongo check<br>wongo render --target collab</div><p class="fine" style="margin-top:12px">Commands stay distinct from explanatory prose.</p></div>
+        </div>
+        <p class="fine">Fonts are bundled locally with their Open Font Licenses. Logo lettering is outlined and needs no font installation. The production wordmark is a reproducible interpretation of the approved generated draft.</p>
+      </section>
+
+      <section class="section" aria-labelledby="layout-title">
+        <div class="section-head"><span class="index">04</span><h2 id="layout-title">A manuscript approach to layout</h2></div>
+        <div class="two">
+          <div><h3>Alignment before decoration</h3><ul class="list"><li>Use a 4 px spacing unit: 4, 8, 12, 16, 24, 32, 48, 64 and 96.</li><li>Keep reading columns near 68 characters; use a 1120 px maximum page and 32 px gutters.</li><li>Use square corners, flat fills and thin rules. Keep captions close to their figures.</li><li>Use sentence case and a clear heading hierarchy.</li></ul></div>
+          <div><h3>Data remains the main subject</h3><ul class="list"><li>Use direct labels, readable units and consistent panel lettering.</li><li>Use petrol for a main series and annotation for a selected comparison.</li><li>Distinguish series with markers or line styles as well as color.</li><li>Keep branding outside the data area. Journal rules determine manuscript presentation.</li></ul></div>
+        </div>
+        <div class="rule-example"><span class="eyebrow">Interface status specimens — not live checks</span><div class="status-list"><span class="wongo-status wongo-status--success">Pass</span><span class="wongo-status wongo-status--warning">Review</span><span class="wongo-status wongo-status--danger">Action required</span></div><p class="fine">Status colors supplement words. Links are underlined; keyboard focus remains visible. Light rules are decorative separators, not the sole boundary of a control.</p></div>
+      </section>
+
+      <section class="section" aria-labelledby="scale-title">
+        <div class="section-head"><span class="index">05</span><h2 id="scale-title">At working sizes</h2></div>
+        <div class="sample-sizes">
+          <div class="size-item"><img src="exports/wongo-icon-16.png" width="16" height="16" alt="Wongo icon at 16 pixels">16 · favicon</div>
+          <div class="size-item"><img src="exports/wongo-icon-32.png" width="32" height="32" alt="Wongo icon at 32 pixels">32</div>
+          <div class="size-item"><img src="exports/wongo-icon-48.png" width="48" height="48" alt="Wongo icon at 48 pixels">48</div>
+          <div class="size-item"><img src="exports/wongo-icon-192.png" width="72" height="72" alt="Wongo icon at 72 pixels">72</div>
+          <div class="size-item"><img src="exports/wongo-icon-192.png" width="96" height="96" alt="Wongo icon at 96 pixels">96</div>
+        </div>
+        <p class="fine">Square export sizes include padding. At 16 px the full emblem is a recognition cue; use 32 px or larger wherever space allows. Inspect the destination at its actual display size.</p>
+      </section>
+
+      <section class="section" aria-labelledby="use-title">
+        <div class="section-head"><span class="index">06</span><h2 id="use-title">Ready for the project</h2></div>
+        <div class="table-wrap"><table class="system-table"><thead><tr><th>Need</th><th>Use</th><th>Format</th></tr></thead><tbody>
+          <tr><td>Default identity</td><td><a href="logos/wongo-lockup.svg">Bilingual horizontal logo</a></td><td>SVG + transparent PNG</td></tr>
+          <tr><td>English identity</td><td><a href="logos/wongo-lockup-en.svg">English horizontal logo</a></td><td>SVG + transparent PNG</td></tr>
+          <tr><td>Compact identity</td><td><a href="logos/wongo-icon.svg">Emblem</a> · <a href="exports/wongo-icon-512.png">Square icon</a></td><td>SVG + PNG at six sizes</td></tr>
+          <tr><td>Quarto document</td><td><a href="_brand.yml">Brand configuration</a> · <a href="examples/workflow-brief.html">Rendered example</a></td><td>YAML + QMD + HTML</td></tr>
+          <tr><td>Application styling</td><td><a href="tokens.json">Design tokens</a> · <a href="wongo.css">Stylesheet</a></td><td>JSON + CSS</td></tr>
+          <tr><td>Usage and provenance</td><td><a href="README.md">Full guidelines</a> · <a href="fonts/provenance.json">Font sources</a> · <a href="reference/approved-c.png">Approved C draft</a></td><td>Source and reference files</td></tr>
+        </tbody></table></div>
+        <p style="margin-top:24px">Copy the complete <code>brand/</code> folder to reuse the system. In a Quarto HTML document, add <code>brand: brand/_brand.yml</code> to its front matter. For an application, link <code>brand/wongo.css</code> and apply the <code>wongo</code> class to the branded surface.</p>
+        <p class="fine">This is Wongo’s product identity. Use it for software, documentation and presentations; manuscript typography continues to follow the chosen journal profile and manuscript style. Quarto HTML is the validated integration in this kit.</p>
+      </section>
+    </main>
+    <footer class="footer"><span>Wongo · 원고 / Design system 1.0.0</span><span>Direction C · Abstract manuscript + serif</span></footer>
+  </div>
+</body>
+</html>
