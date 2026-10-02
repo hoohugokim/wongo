@@ -190,10 +190,9 @@ integrations/claude-code/
 
 - The marketplace entry's `source` is `./integrations/claude-code`, resolved
   from the repository root (the folder that contains `.claude-plugin/`).
-- Neither `plugin.json` nor the marketplace entry sets `version`, so Claude
-  Code versions the plugin by git commit and users who update track `main`. To
-  switch to explicit releases, set `version` in `plugin.json` only and change it
-  on every release; users stay on a cached copy until it changes.
+- `plugin.json` declares the plugin release version, currently `0.3.1`.
+  Keep it aligned with the package and citation version on each release.
+  The marketplace entry does not duplicate the version.
 - Journal judgment is not copied into the skill: Claude reads it from the paths
   `wongo profile show <slug> --json` returns.
 - Check the files after every edit, from the repository root:

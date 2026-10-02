@@ -28,9 +28,9 @@ coauthor decisions back to the source.
 | [Presentation outline](aix-competition/presentation-deck.md) | The workflow and evidence for a Wongo presentation. |
 | [Demo script](aix-competition/demo-script.md) | A three-minute recording sequence using actual tool outputs. |
 
-These materials describe v0.3.1 source on `main`; the latest tagged release is
-v0.3.0, and PyPI publication is pending. The scorecard identifies what was
-measured; it does not establish scientific validity or LLM accuracy.
+These materials describe the [v0.3.1 release](https://github.com/hoohugokim/wongo/releases/tag/v0.3.1).
+PyPI publication is pending. The scorecard identifies what was measured; it does
+not establish scientific validity or LLM accuracy.
 
 ## Extend and maintain Wongo
 

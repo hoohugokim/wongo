@@ -5,9 +5,10 @@ synthetic data and illustrative scientific prose. It is software demonstration
 material, not evidence of real experiments or a manuscript ready for submission.
 Verify all science and references before adapting it to research.
 
-Use a current `main` checkout containing the v0.3.1 source and MCP integration.
-The latest tagged release is v0.3.0; a v0.3.1 release tag and PyPI publication are
-pending. From the repository root:
+Use a v0.3.1 checkout or the extracted
+[tagged source archive](https://github.com/hoohugokim/wongo/archive/refs/tags/v0.3.1.zip),
+which includes the MCP integration. PyPI publication is pending. From the
+repository root:
 
 ```fish
 uv sync --all-extras
