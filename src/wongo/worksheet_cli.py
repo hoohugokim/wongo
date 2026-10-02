@@ -125,9 +125,11 @@ def cmd_status(args: argparse.Namespace) -> int:
     file = shell_arg(path)
     step = f"wongo review {file}" if counts.needs_decision else f"wongo worksheet lint {file}"
     if args.json:
+        project = default_project(path)
+        cache: dict = {}
         clitools.emit_json(
             "worksheet status", True, file=str(path), counts=counts,
-            rows=[row.to_dict() for row in ws.rows], next=step,
+            rows=[row.to_dict(project=project, cache=cache) for row in ws.rows], next=step,
         )
         return 0
     plural = "" if counts.total == 1 else "s"
@@ -215,7 +217,7 @@ def cmd_set(args: argparse.Namespace) -> int:
     if args.json:
         clitools.emit_json(
             "worksheet set", True, file=str(path), row=args.row, changed=changed,
-            changes=changes, disposition=row.to_dict(),
+            changes=changes, disposition=row.to_dict(project=default_project(path)),
         )
         return 0
     for key, change in changes.items():

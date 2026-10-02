@@ -1,108 +1,123 @@
-# Wongo-AIX 3-Minute Video Demo Script
+# Wongo-AIX three-minute demo script
 
-**Project Title:** Wongo (원고) — Zero-Hallucination LLM Work Surfaces for Verified Scientific Publishing  
-**Presenter:** Hoo Hugo Kim (Center for Water Cycle Research, KIST)  
-**Target Duration:** 3 minutes (180 seconds)  
-**Language:** Bilingual (Korean primary narration with English subtitles / cues)  
+**Presenter:** Hoo Hugo Kim, Center for Water Cycle Research, KIST
 
----
+**Working title:** Verified manuscript tools for LLM-assisted review
 
-## Video Production Overview
+**Recording plan:** Korean narration with English captions; capture actual outputs.
 
-| Timecode | Scene / Screen Capture | Primary Narration (Korean) | English Subtitle / Visual Cue |
+## Before recording
+
+Use this development checkout: the MCP changes are not yet in the published
+release or PyPI. From the repository root:
+
+```fish
+uv sync --all-extras
+uv run wongo doctor --project examples/aix-demo
+uv run python tools/aix_eval.py
+uv run wongo mcp install --client vscode --project examples/aix-demo
+```
+
+Open the demo project in VS Code and enable the configured MCP server. Check its
+tool list before recording. A supported release engine can be installed from the
+[source archive](https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip),
+but that archive does not include these unpublished MCP changes yet.
+
+The manuscript, measurements, figure and coauthor edits are synthetic examples,
+not KIST experimental results. The fixture contains exactly two tracked edits:
+row 1 inserts a methods clarification; row 2 replaces an R-generated current
+density. Regenerate it with `uv run python examples/aix-demo/generate_coauthor_fixture.py`
+if the manuscript changes. Use the returned worksheet path and URI; dates and
+source line numbers may change. `scorecard.md` records this machine's latest
+benchmark results; do not substitute rehearsed timings or pass labels.
+
+## 00:00–00:25 — Source and Word review
+
+Show `index.qmd`, its inline R expression, and `coauthor-edits.docx` in Word.
+
+> **KR:** “재현 가능한 Quarto 원고를 작성해도 공동저자는 Word의 변경 내용 추적으로
+> 의견을 줍니다. Wongo는 이 두 작업 방식을 연결하고, AI의 수정 제안을 연구자가
+> 검토할 수 있는 기록으로 남깁니다. 화면의 데이터는 시연용 합성 데이터입니다.”
+
+**Caption:** Quarto source → Word review → an auditable decision worksheet.
+
+## 00:25–01:05 — Audit and a bounded repair hint
+
+Call `wongo_status(project="<absolute demo path>")`, then
+`wongo_check(project="<absolute demo path>", strict=True)`.
+Show the actual checks, including the warning that the WR reference-inclusive
+word count is finalized during submission rendering.
+
+In a scratch copy, append `A demonstration defect [@ghostCite2029].` to the
+manuscript and rerun the check. Highlight the returned `add_bibtex` patch hint.
+Explain that the researcher must verify a real reference or remove the invalid
+citation; a missing-key hint does not establish that a paper exists.
+Return to the clean project for the rest of the recording.
+
+> **KR:** “검증 도구는 누락된 인용 키처럼 확인 가능한 문제와 수정 범위를 알려줍니다.
+> AI가 제안한 참고문헌의 실재 여부와 과학적 타당성은 연구자가 확인해야 합니다.”
+
+**Caption:** Structured evidence bounds the repair; scientific judgment remains with the author.
+
+## 01:05–02:05 — Extract, propose, and decide
+
+Call `wongo_roundtrip` with both the fixture's absolute `docx_path` and the
+absolute `project` path. Read its returned `worksheet_uri` and call
+`wongo_worksheet_status(file="<returned worksheet path>")`.
+
+Show the measured rows:
+
+| Row | Tracked edit | Source-aware tag | Proposed decision |
 |:---|:---|:---|:---|
-| **00:00 - 00:30** | Slide 1 & Split Screen: Quarto `.qmd` vs messy Word Track Changes | "연구자들이 논문을 쓸 때 겪는 가장 큰 고통은 Quarto의 재현성과 공동저자의 워드 '변경 내용 추적' 사이의 괴리입니다. AI에게 수정을 맡기면 코드를 임의로 지우거나 거짓 인용구를 만들어냅니다." | *The Scientific Publishing Dilemma: Markdown reproducibility vs. Word track changes chaos vs. AI hallucinations.* |
-| **00:30 - 01:15** | Claude Desktop / Cursor connecting to `wongo mcp run`, calling `wongo_status` & `wongo_check` | "Wongo는 LLM을 위한 네이티브 MCP 서버를 제공합니다. 12개의 결정론적 도구를 통해 저널 프로필을 검증합니다. 검증 실패 시 모호한 에러 대신 정확한 `patch_hint`를 제공하여 AI가 자가 치유할 수 있게 합니다." | *Native MCP Server in action: 12 tools, instant audit, structured self-healing patch hints.* |
-| **01:15 - 02:15** | Running `wongo_roundtrip` on `coauthor-edits.docx`, showing tagged rows and calling `wongo_worksheet_batch_propose` | "공동저자가 보낸 워드 수정본을 `wongo_roundtrip`으로 한 번에 추출합니다. Wongo는 인라인 R 코드나 계산값이 손상되지 않도록 의미론적 태그를 부여합니다. AI는 배치 제안을 작성하고, 연구자는 1분 만에 승인합니다." | *Lossless Roundtrip: Semantic tagging protects inline R calculations; batch proposal speeds up review.* |
-| **02:15 - 02:45** | Terminal running `wongo_render(target="submission")`, opening resulting Word DOCX with KIST-WCR styling | "HARD 게이트를 통과하면 *Water Research* 규격에 완벽히 부합하는 투고용 DOCX가 생성됩니다. 줄 번호, 북탭 표, Elsevier CSL이 오차 없이 렌더링됩니다." | *Zero-defect Submission Render: Booktabs tables, line numbering, and Elsevier-Harvard citation parity.* |
-| **02:45 - 03:00** | Slide 10: Summary & GitHub repository | "Wongo는 연구자의 논문 투고 준비 시간을 3일에서 15분으로 단축합니다. `uv tool install wongo`로 지금 바로 사용하실 수 있습니다. 감사합니다." | *Ready for all KIST researchers: Fast, deterministic, and 100% open-source.* |
+| 1 | Insert “under steady-state potentiostatic polarization” | None | `apply` after methodological review |
+| 2 | Replace `12.4` with “approximately 13.1” | `inline-code` | `fix-code` pending verification of the calculation |
 
----
+Call `wongo_worksheet_batch_propose` using that file and these proposals:
 
-## Detailed Step-by-Step Screenplay & Narration Cues
+```json
+[
+  {"row": 1, "disposition": "apply", "rationale": "methodological clarification; author must confirm accuracy"},
+  {"row": 2, "disposition": "fix-code", "rationale": "inspect the R calculation before changing its generated value"}
+]
+```
 
-### Scene 1: Introduction & The Core Bottleneck (00:00 - 00:30)
-- **Visual [Screen]:** Split-screen display.
-  - Left: Terminal running Quarto with clean math and inline R code (`index.qmd`).
-  - Right: Microsoft Word cluttered with 45 overlapping red tracked changes and comment bubbles.
-- **Audio Cue:** Subtle, confident tech background music fades in.
-- **Narration (KR):**
-  > "KIST 연구원 여러분, 최상위 저널에 논문을 투고할 때 마크다운의 재현성과 선임 교수님의 워드 '변경 내용 추적' 사이에서 밤새워 수작업 하신 적 있으신가요? 
-  > 기존 LLM에게 논문 수정을 맡기면 본문의 R 계산 코드를 임의로 덮어쓰거나, 존재하지 않는 가짜 인용구를 만들어내는 치명적인 문제가 있었습니다."
+Show that both rows remain proposals and lint requires decisions. Demonstrate
+explicit author confirmation in `wongo review`, then lint again. No manuscript
+edit is applied by Wongo. Do not approve real research changes for the recording.
 
----
+> **KR:** “Word에는 계산식 대신 결과 숫자만 남습니다. Wongo는 연결된 원고의 소스도
+> 확인해 인라인 계산이 포함된 줄을 표시합니다. AI는 제안만 기록하고, 연구자가
+> 승인하거나 바꿉니다. 승인 기록을 남겨도 Wongo가 원고를 자동 수정하지는 않습니다.”
 
-### Scene 2: Wongo Native MCP Server in Action (00:30 - 01:15)
-- **Visual [Screen]:** Claude Desktop interface with MCP connected (`wongo` server active).
-- **Action 1:** Type: *"Please audit the manuscript in `examples/aix-demo` for Water Research submission."*
-- **Tool Call Animation:**
-  - `wongo_status(project="examples/aix-demo")` $\rightarrow$ returns JSON showing journal: `wr`, style: `kist-wcr`.
-  - `wongo_check(project="examples/aix-demo", strict=True)` $\rightarrow$ runs 6 validation checks.
-- **Visual Focus:** Zoom in on a failing check with `patch_hint`:
-  ```json
-  "patch_hint": {
-    "action": "add_bibtex",
-    "missing_keys": ["park2025"],
-    "hint": "Add BibTeX entries for park2025 to refs.bib"
-  }
-  ```
-- **Narration (KR):**
-  > "Wongo는 이러한 한계를 극복하기 위해 네이티브 Model Context Protocol(MCP) 서버를 탑재했습니다. 
-  > Claude나 Cursor 같은 AI 도구는 Wongo가 제공하는 12개의 도구를 통해 *Water Research*의 공식 투고 규격을 즉시 파악합니다. 
-  > 인용구나 단어 수 초과 등 문제가 발견되면 Wongo는 AI에게 정확한 `patch_hint`를 제공하여, 환각 없이 정확한 수정안만을 도출하도록 통제합니다."
+**Caption:** Source-aware tags flag review risks; proposals require author decisions.
 
----
+## 02:05–02:40 — Submission output and refusal evidence
 
-### Scene 3: Lossless Coauthor Roundtrip & Batch Propose (01:15 - 02:15)
-- **Visual [Screen]:** Primary author receives `coauthor-edits.docx` from senior collaborator.
-- **Action 2:** Claude calls `wongo_roundtrip(docx_path="examples/aix-demo/from-coauthors/coauthor-edits.docx")`.
-- **Tool Call Output:** Shows `merge-20261002-coauthor-edits.md` created with 2 changes.
-- **Visual Focus:** Highlight row with semantic tags:
-  - `Row 1: replacement 12.4 -> approximately 13.1` (tagged with `inline-code`).
-  - Claude explains: *"Row 1 modifies a calculated current density. Proposing `fix-code` to preserve computational reproducibility."*
-- **Action 3:** Claude executes `wongo_worksheet_batch_propose`:
-  ```json
-  [
-    {"row": 1, "disposition": "fix-code", "rationale": "update R calculation"},
-    {"row": 2, "disposition": "apply", "rationale": "methodological clarity"}
-  ]
-  ```
-- **Narration (KR):**
-  > "공동저자가 피드백을 담아 보낸 워드 문서는 `wongo_roundtrip` 도구로 단 1초 만에 무손실 마크다운 워크시트로 추출됩니다. 
-  > 특히 Wongo는 변경 사항을 분석하여 인라인 계산 코드를 건드리는지 자동으로 감지합니다. 
-  > AI는 계산된 수치를 하드코딩하지 않고 코드 수정을 제안하며, 50개의 수정 사항을 일괄 검토하여 연구자의 승인을 기다립니다."
+Call `wongo_render(project="<absolute demo path>", target="submission")`.
+Open the returned main and SI DOCX paths. Water Research submission output must
+**omit line numbering**; the kist-wcr collaboration output may retain it. Show
+references and tables without claiming complete journal compliance from those
+visual checks alone.
 
----
+Show the current scorecard's gate result: the benchmark injects an invalid
+citation into a scratch copy, requires the expected `GateError`, and compares
+hashes of existing outputs and their manifest before and after the refusal.
+Render parity against a previous release is a separate `tools/bytecompare.py`
+check, not a claim made by this demo benchmark.
 
-### Scene 4: Zero-Defect Submission Render & Parity (02:15 - 02:45)
-- **Visual [Screen]:** Claude executes `wongo_render(target="submission")`.
-- **Action 4:** Terminal log displays clean compilation:
-  ```bash
-  [PASS] HARD word-limit: 1008 words vs limit 8000
-  [PASS] HARD citekeys: all citekeys resolve
-  [PASS] HARD crossrefs: all cross-references resolve
-  [PASS] HARD figures: all referenced figures exist
-  wrote output/main-submission.docx
-  wrote output/si-submission.docx
-  ```
-- **Visual Focus:** Open Microsoft Word showing `main-submission.docx`:
-  - Double spacing, continuous line numbers (mandated by *Water Research*).
-  - Perfect booktabs tables without vertical borders.
-  - Formatted Elsevier-Harvard references and separate Supporting Information document.
-- **Narration (KR):**
-  > "검증을 통과한 원고는 저널 맞춤형 투고 등급 워드 파일로 렌더링됩니다. 
-  > 하드 게이트가 걸려 있을 때는 투고용 파일 생성을 원천 차단하여 부실 투고를 방지하며, 규정에 부합하는 줄 번호, 북탭 표, 참고문헌 CSL이 완벽하게 적용됩니다."
+> **KR:** “투고용 렌더링은 새로 생성한 참고문헌까지 포함해 단어 수를 검사합니다.
+> Water Research 규정에 따라 투고 파일의 줄 번호는 제거합니다. 시연 검증에서는
+> 잘못된 인용을 넣었을 때 기존 출력과 검증 기록이 보존되는지도 확인합니다.”
 
----
+## 02:40–03:00 — Evidence and availability
 
-### Scene 5: Researcher Impact & Open Availability (02:45 - 03:00)
-- **Visual [Screen]:** Final slide with terminal installation command and GitHub QR code.
-  - `uv tool install wongo`
-  - `https://github.com/hoohugokim/wongo`
-- **Narration (KR):**
-  > "Wongo는 연구자가 포맷팅과 공동저자 피드백 정리에 낭비하던 3일을 단 15분으로 줄여줍니다. 
-  > 지금 바로 `uv tool install wongo`로 여러분의 연구실에 도입하십시오. 
-  > KIST의 뛰어난 연구 성과가 세계 최고의 저널에 더 빠르고 완벽하게 게재되도록 Wongo가 지원하겠습니다. 감사합니다."
+Show the generated scorecard with its timestamp and pass/fail results, then the
+repository URL. State that this is a development preview and invite a pilot
+with real coauthor workflows. Do not claim measured time savings, zero
+hallucinations, or performance beyond the tested fixture.
 
----
-*Production notes: Recorded at 1080p60 on macOS Sonoma using OBS Studio and Claude Desktop.*
+> **KR:** “현재 결과는 이 합성 원고를 이용한 회귀 검증입니다. 실제 연구자의 시간
+> 절감 효과는 앞으로 측정할 계획입니다. 개발 버전의 설치와 재현 절차는 저장소에
+> 있습니다. 감사합니다.”
+
+**Caption:** [Source and setup](https://github.com/hoohugokim/wongo) · development preview.

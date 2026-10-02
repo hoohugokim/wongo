@@ -258,13 +258,9 @@ class Row:
 
     @property
     def tags(self) -> list[str]:
-        """Tags characterizing the nature of this change for LLM review."""
-        out: list[str] = []
+        """Hints visible in extracted text; use ``to_dict(project=...)`` for source hints."""
         combined = f"{self.old or ''} {self.new or ''} {self.context or ''}"
-        if INLINE_CODE_RE.search(combined):
-            out.append("inline-code")
-        if re.search(r"(?<![\w@.\\])-?@\w+", combined):
-            out.append("citation")
+        out = _text_tags(combined)
         if self.unmatched:
             out.append("unmatched")
         if self.kind == "unparsed":
@@ -281,9 +277,16 @@ class Row:
         new_words = len((self.new or "").split()) if self.new and self.new != "—" else 0
         return new_words - old_words
 
-    def to_dict(self) -> dict:
+    def to_dict(self, *, project: Path | str | None = None, cache: dict | None = None) -> dict:
+        """Serialize without modifying the worksheet, optionally inspecting its source.
+
+        Word contains evaluated values, not the original code or citation keys.
+        Source tags therefore warn about the *current target line*. They do not
+        prove that its stored line number is still aligned with the coauthor edit.
+        Missing source and unverified alignment remain explicit in the result.
+        """
         d = self.disposition
-        return {
+        data = {
             "row": self.number,
             "kind": self.kind,
             "author": self.author,
@@ -305,6 +308,31 @@ class Row:
             "tags": self.tags,
             "word_count_delta": self.word_count_delta,
         }
+        if project is not None:
+            target = read_target(project, self, cache=cache)
+            if target.text is not None:
+                data["tags"] = list(dict.fromkeys([*data["tags"], *_text_tags(target.text)]))
+            data["source"] = {
+                "path": str(target.path) if target.path is not None else None,
+                "line": target.line,
+                "text": target.text,
+                "reason": target.reason,
+                "problem": target.problem,
+                "alignment": "unverified",
+                "hint": "Tags are review hints; verify the current source location before applying edits.",
+            }
+        return data
+
+
+def _text_tags(text: str) -> list[str]:
+    from wongo.engine.checks import citekeys_used
+
+    tags = []
+    if INLINE_CODE_RE.search(text):
+        tags.append("inline-code")
+    if citekeys_used(text):
+        tags.append("citation")
+    return tags
 
 
 @dataclass(frozen=True)

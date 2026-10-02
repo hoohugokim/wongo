@@ -88,6 +88,20 @@ def write_sheet(project, text):
     return path
 
 
+def test_json_status_and_set_include_source_derived_tags(project, capsys, monkeypatch, tmp_path):
+    path = write_sheet(project, SHEET)
+    # Infer from decisions/, even when invoked outside the manuscript directory.
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    assert run("worksheet", "status", path, "--json") == 0
+    data = json.loads(capsys.readouterr().out)
+    assert "inline-code" in data["rows"][1]["tags"]
+    assert run("worksheet", "set", path, "2", "PROPOSED fix-code", "--json") == 0
+    data = json.loads(capsys.readouterr().out)
+    assert "inline-code" in data["disposition"]["tags"]
+
+
 # ---------------------------------------------------------------------------
 # Wiring
 
@@ -403,4 +417,3 @@ def test_review_cli_with_pending_only_flag(project, monkeypatch, capsys):
     assert "1 of 4 pending row needs a decision" in out
     ws = Worksheet.load(path)
     assert ws.row(3).disposition.text == "needs-PI"
-

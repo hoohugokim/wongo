@@ -32,6 +32,14 @@ keywords:
   - Electrode modification
 ---
 
+<!-- Synthetic demonstration manuscript; all numerical results are illustrative. -->
+
+```{r}
+#| include: false
+# Synthetic current (A) divided by electrode area (m²), not experimental data.
+demo_peak_density <- 0.00496 / 4e-4
+```
+
 ## Introduction
 
 Bioelectrochemical systems (BES) have emerged as a versatile platform for sustainable wastewater treatment and renewable resource recovery [@logan2006].
@@ -106,7 +114,7 @@ These observations align with previous spectroscopic reports indicating that pos
 ## Conclusion
 
 This study demonstrates that targeted surface functionalization of carbon cloth anodes substantially enhances extracellular electron transfer kinetics in *G. sulfurreducens* biofilms.
-Under continuous flow conditions, functionalized electrodes sustained a peak current density of 12.4 A/m² with a marked reduction in interfacial charge-transfer resistance.
+Under continuous flow conditions, functionalized electrodes sustained a peak current density of `r sprintf("%.1f", demo_peak_density)` A/m² with a marked reduction in interfacial charge-transfer resistance.
 These quantitative insights provide actionable design criteria for scaling bioelectrochemical reactors in practical wastewater treatment and resource recovery applications.
 
 ::: {#refs}

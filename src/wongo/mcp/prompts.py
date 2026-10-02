@@ -14,10 +14,10 @@ def register_prompts(server: MCPServer) -> None:
     def prompt_pre_submission_audit(project: str = ".") -> str:
         return (
             f"Please conduct a comprehensive pre-submission audit for the Wongo manuscript in '{project}':\n\n"
-            "1. Run `wongo_status` to see current readiness and configured journal.\n"
-            "2. Run `wongo_check` (strict mode) to validate against journal word limits, headings, citekeys, and crossrefs.\n"
-            "3. If any checks fail, review their `actionable_patch_hints` and propose exact minimal fixes to the .qmd or refs.bib.\n"
-            "4. Once checks pass, execute `wongo_render(target='submission')` to generate the journal-ready DOCX.\n"
+            f"1. Run `wongo_status(project={project!r})` to see current readiness and configured journal.\n"
+            f"2. Run `wongo_check(project={project!r}, strict=True)` to validate journal word limits, headings, citekeys, and crossrefs.\n"
+            "3. If any checks fail, review each check's `patch_hint` and propose exact minimal fixes to the .qmd or refs.bib.\n"
+            f"4. Once checks pass, execute `wongo_render(project={project!r}, target='submission')` to generate the journal-ready DOCX.\n"
             "5. Verify that line numbering, booktabs table formatting, and abstract rules match journal requirements."
         )
 
@@ -26,14 +26,17 @@ def register_prompts(server: MCPServer) -> None:
         return (
             f"Please process the coauthor edits in '{docx_path}' for manuscript project '{project}':\n\n"
             f"1. Run `wongo_roundtrip(docx_path='{docx_path}', project='{project}')` to extract changes.\n"
-            "2. Inspect the resulting merge worksheet with `wongo_worksheet_status`.\n"
+            "2. Inspect the resulting merge worksheet with `wongo_worksheet_status`, or read its returned `worksheet_uri`.\n"
             "3. For each pending row, evaluate the edit:\n"
             "   - If the edit alters an auto-generated R calculation or inline value, propose `fix-code`.\n"
             "   - If the edit adds/modifies citations, verify the citekey exists.\n"
             "   - If the edit is a sound prose improvement, propose `apply`.\n"
             "   - If the edit introduces errors or conflicts, propose `reject: <rationale>`.\n"
+            "   - Inspect each row's source context. Tags are review hints, and stored source locations may be stale.\n"
             "4. Use `wongo_worksheet_batch_propose` to record all reasoned proposals.\n"
-            "5. Present an executive summary table of proposed resolutions to the author for final confirmation."
+            "5. Present proposed resolutions to the author for explicit per-row confirmation.\n"
+            "6. Record only the author's approved decisions, then run `wongo_worksheet_lint`. "
+            "Resolve source warnings before applying edits; Wongo never edits the .qmd."
         )
 
     @server.prompt(name="wongo-revision-diff", description="Compare revised manuscript against original submission and produce Word tracked-changes revision.")

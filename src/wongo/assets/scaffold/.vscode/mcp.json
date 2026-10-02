@@ -1,6 +1,7 @@
 {
-  "mcpServers": {
+  "servers": {
     "wongo": {
+      "type": "stdio",
       "command": "wongo",
       "args": [
         "mcp",

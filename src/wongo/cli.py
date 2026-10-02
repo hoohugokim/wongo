@@ -385,15 +385,18 @@ def _cmd_mcp_install(args: argparse.Namespace) -> int:
         project_dir=project_dir,
         custom_command=custom_command,
     )
+    ok = all(result["ok"] for result in results.values())
 
     if _json(args):
-        emit_json("mcp install", True, results=results)
-        return 0
+        emit_json("mcp install", ok, results=results)
+        return 0 if ok else 1
 
     print("Wongo MCP server configuration:")
-    for client, status in results.items():
+    for client, result in results.items():
+        status = (f"configured: {result['path']}" if result["ok"]
+                  else f"error: {result['error']['message']}")
         print(f"  {client}: {status}")
-    return 0
+    return 0 if ok else 1
 
 
 # ---------------------------------------------------------------------------

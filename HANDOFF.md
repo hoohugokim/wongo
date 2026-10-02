@@ -1,31 +1,34 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-10-02 by pytest (480 passed, 4 skips), ruff, build, aix_eval
-last_worker: antigravity
+last_verified: 2026-10-02 by pytest (528 passed, 6 skips), real Quarto/MCP tests, ruff, build, aix_eval, 95-part parity
+last_worker: codex
 last_machine: unknown
-handoff_id: aix-phases-1-4-20261002
-supersedes: v031-patches-20261002
+handoff_id: aix-audit-revision-20261002
+supersedes: aix-phases-1-4-20261002
 
 ## Goal
-Implement Phases 1-4 of Wongo LLM Work Surfaces (Wongo-AIX) for the KIST internal AIX competition.
+Address and verify all 14 findings in the audit of Wongo-AIX (T-0032, D-0014).
 
 ## Last verified state
-- Phase 1: Native MCP server (MCP 2.x standard, `wongo mcp run`, `wongo mcp install`, 12 tools, 3 prompts, resources).
-- Phase 2: Actionable patch hints on `Check`, worksheet batch propose with semantic change tagging, `.vscode/mcp.json`.
-- Phase 3: Turnkey showcase manuscript (`examples/aix-demo`, *Water Research*, `kist-wcr` style) & benchmark (`tools/aix_eval.py`).
-- Phase 4: KIST presentation deck (`presentation-deck.md`), 3-min video script (`demo-script.md`), scorecard (`scorecard.md`).
-- Verified: 480 passed tests, ruff green, `uv run python tools/aix_eval.py` passed 100%, `statutor-doctor .` clean.
+- MCP render/default roundtrip/resource URI fixed; Quarto diagnostics stay on stderr; SDK pinned to tested >=2.2.0,<3.
+- Client-specific schemas, BOM preservation, atomic config writes and truthful failure status verified.
+- Source-aware row tags, proposal history, source lint and structured error details preserved.
+- Real Quarto/R computed-value fixture; benchmark fails on unmet checks; demo/script/scorecard claims revised.
+- 528 default tests passed; 2 opt-in real Quarto/MCP tests passed; Ruff, build and minimum-SDK wheel smoke passed.
+- Fresh v0.3.0 reference comparison: 95 parts across four DOCX files byte-identical; live manuscript unchanged.
+- Evidence map and limitations: notes/aix-audit-revision-2026-10-02.md.
 
 ## Next action
-1. Commit branch `feat/v0.3.1-review-patches` with clean split commits.
-2. Record 3-minute video presentation following `docs/aix-competition/demo-script.md`.
-3. T-0022: Publish v0.3.1 to PyPI after maintainer credentials setup.
+1. Review the local AIX revision before publication; prior T-0003 publication approval remains outstanding.
+2. Record the demo from actual outputs; complete T-0025 native Windows/client smoke.
+3. T-0022: PyPI publishing needs maintainer setup; these MCP changes are not in a published release.
 
 ## Gotchas
-- MCP 2.x server runs via `wongo.mcp.server.create_mcp_server()`; tools catch `WongoError` and return `{ok, ...}`.
-- Worksheet batch propose preserves established final decisions unless `force=True`.
-- Word track-changes extraction requires pandoc installed and accessible via toolchain.
+- SDK version and MCP protocol version are different; use the returned worksheet_uri verbatim.
+- Row source alignment is explicitly unverified; tags are review hints, never scientific approval.
+- JSONC client configs are preserved unchanged with manual-edit guidance.
+- Reference parity scratch copies use substantial space; this verification used independent APFS clones.
 
 ## Do not touch
 - `plans/archive/`, frozen `docs/CHANGELOG.md`, existing `docs/docx-quirks.md` entries, reference manuscripts.

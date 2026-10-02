@@ -783,3 +783,60 @@ def test_worksheet_batch_propose(tmp_path):
     assert r3.disposition.state == "proposed"
     assert r3.disposition.proposal == "reject"
     assert "factual error" in r3.disposition.note
+
+
+def test_rendered_value_tags_use_current_source_without_changing_worksheet(tmp_path):
+    source = tmp_path / "index.qmd"
+    source.write_text("Current density was `r current / area` A/m² [@smith2023].\n", encoding="utf-8")
+    raw = HEADER + row(1, "replacement", "A", "index.qmd:1", "PENDING",
+                       old="12.4", new="approximately 13.1", context="Current density was")
+    ws = parse(raw)
+    before = ws.serialize()
+    data = ws.row(1).to_dict(project=tmp_path)
+    assert data["tags"] == ["inline-code", "citation"]
+    assert data["word_count_delta"] == 1
+    assert data["source"]["text"] == source.read_text(encoding="utf-8").strip()
+    assert data["source"]["alignment"] == "unverified"
+    assert ws.serialize() == before
+    assert ws.row(1).tags == []  # No source access without an explicit project.
+
+
+@pytest.mark.parametrize(("location", "reason"), [
+    ("missing.qmd:1", "missing-file"),
+    ("index.qmd:99", "beyond-end"),
+    ("index.qmd:UNMATCHED — find manually", "unmatched"),
+])
+def test_source_tags_report_unavailable_and_stale_locations(tmp_path, location, reason):
+    (tmp_path / "index.qmd").write_text("Current density was `r current / area`.\n", encoding="utf-8")
+    ws = parse(HEADER + row(1, "replacement", "A", location, "PENDING",
+                            old="12.4", new="13.1"))
+    data = ws.row(1).to_dict(project=tmp_path)
+    assert "inline-code" not in data["tags"]
+    assert data["source"]["reason"] == reason
+    assert data["source"]["text"] is None
+
+
+def test_source_tags_do_not_claim_a_stale_location_is_verified(tmp_path):
+    source = tmp_path / "index.qmd"
+    source.write_text("A different sentence after an author edit.\n", encoding="utf-8")
+    ws = parse(HEADER + row(1, "replacement", "A", "index.qmd:1", "PENDING",
+                            old="12.4", new="13.1", context="Current density was"))
+    data = ws.row(1).to_dict(project=tmp_path)
+    assert data["tags"] == []
+    assert data["source"]["alignment"] == "unverified"
+    assert "verify" in data["source"]["hint"]
+
+
+def test_cross_references_are_not_citation_tags(tmp_path):
+    (tmp_path / "index.qmd").write_text("As shown in @fig-demo and @tbl-values.\n", encoding="utf-8")
+    ws = parse(HEADER + row(1, "replacement", "A", "index.qmd:1", "PENDING",
+                            old="@fig-demo", new="@fig-other"))
+    assert "citation" not in ws.row(1).to_dict(project=tmp_path)["tags"]
+
+
+def test_source_inspection_failure_keeps_extracted_tags(tmp_path):
+    (tmp_path / "index.qmd").write_bytes(b"\xff")
+    ws = parse(HEADER + row(1, "insertion", "A", "index.qmd:1", "PENDING", new="[@smith2023]"))
+    data = ws.row(1).to_dict(project=tmp_path)
+    assert data["source"]["reason"] == "unreadable"
+    assert data["tags"] == ["citation"]

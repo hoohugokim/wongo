@@ -96,6 +96,8 @@ def main(argv: list[str]) -> int:
         print("1.10.18")
         return 0
     if argv[:1] == ["render"]:
+        if message := os.environ.get("WONGO_STUB_QUARTO_STDOUT"):
+            print(message)
         qmd = argv[1]
         name = argv[argv.index("--output") + 1]
         if os.environ.get("WONGO_STUB_QUARTO_FAIL") == qmd:

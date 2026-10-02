@@ -1,250 +1,180 @@
-# KIST AIX Competition 2026: Presentation Deck
+# KIST AIX presentation outline
 
-**Project Name:** Wongo (원고) — Zero-Hallucination LLM Work Surfaces for Verified Quarto-to-Journal Pipelines  
-**Presenter:** Hoo Hugo Kim (`hookim@kist.re.kr`), Center for Water Cycle Research, KIST  
-**Visual System:** KIST Minimal Scientific Design System (Pretendard, KIST Red `#E44126`, Near Black `#1A1A1A`, Soft Gray `#F7F7F7`)  
+**Project:** Wongo (원고) — verified tools for LLM-assisted manuscript review
 
----
+**Presenter:** Hoo Hugo Kim, Center for Water Cycle Research, KIST
 
-## Slide 1: Title Slide (Cover)
+**Visual system:** Pretendard, KIST Red `#E44126`, Near Black `#1A1A1A`, Soft Gray `#F7F7F7`.
 
-<!-- Layout: TITLE_MASTER | Background: WHITE -->
-<div align="center">
-
-### KIST Internal AIX Competition 2026
-
-# Wongo (원고)
-## Zero-Hallucination LLM Work Surfaces for Verified Quarto-to-Journal Scientific Pipelines
-
-**Hoo Hugo Kim** (`hookim@kist.re.kr`)  
-Center for Water Cycle Research, KIST  
-*Division of Water Resources & Environment*
-
-</div>
-
-> **Speaker Notes:**  
-> Good morning, esteemed judges and colleagues. I am Hoo Hugo Kim from the Center for Water Cycle Research. Today, I am proud to present **Wongo (원고)**—a production-grade, behavior-pinned manuscript compiler and native Model Context Protocol (MCP) engine that provides zero-hallucination, deterministic work surfaces for Large Language Models in scientific publishing.
+This is a slide-content outline. All numerical results must come from the latest
+[generated scorecard](scorecard.md). The MCP work is a development preview.
 
 ---
 
-## Slide 2: The Core Friction in AI-Assisted Research Publishing
+## Slide 1 — Reproducible manuscripts, reviewable AI proposals
 
-<!-- Layout: CONTENT_MASTER | Headline: THE FRICTION -->
+Wongo connects Quarto source, Word coauthor edits, and author-approved decisions.
 
-### Why Current AI Assistants Fail at Top-Tier Journal Submissions
-
-Researchers at KIST spend hundreds of hours formatting manuscripts for journals like *Water Research*, *ES&T*, and *Nature Water*. While LLMs write plausible prose, applying them to scientific publishing fails due to three compounding frictions:
-
-```
-┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-│   1. Hallucination Risk │     │  2. Collaboration Void  │     │ 3. Strict Gate Rejection│
-│                         │     │                         │     │                         │
-│ LLMs mutate source .qmd │     │ Senior coauthors only   │     │ Journals enforce strict │
-│ files directly, corrupt │     │ review in Microsoft     │     │ word limits, booktabs,  │
-│ inline R analysis codes,│     │ Word Track Changes;     │     │ and CSL citation styles.│
-│ and invent citekeys.    │     │ diffing is manual hell. │     │ Minor bugs trigger desk │
-│                         │     │                         │     │ rejection.              │
-└─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
-```
-
-> **Speaker Notes:**  
-> When researchers ask an AI agent to edit their Quarto manuscript, the agent often alters raw code chunks, over-writes calculated kinetic values with arbitrary numbers, or introduces citation keys not in the bibliography. Furthermore, senior coauthors exclusively edit via Word Track Changes, leaving the primary author to manually transcribe dozens of tracked bubbles back into Markdown.
+**Speaker note:** Introduce the workflow through a synthetic biofilm manuscript.
+The example illustrates software behavior, not validated experimental findings.
 
 ---
 
-## Slide 3: The Wongo Philosophy: Deterministic Compiler Boundary
+## Slide 2 — The coordination problem
 
-<!-- Layout: CONTENT_MASTER | Headline: ARCHITECTURAL PRINCIPLE -->
+- Quarto retains source calculations and references.
+- Coauthors return Word Track Changes and comments.
+- An AI assistant needs source context and explicit boundaries before recommending edits.
 
-### Separation of Concern: The LLM Proposes, Wongo Verifies, The Human Decides
+**Speaker note:** Missing citekeys and altered generated values are concrete
+failure modes that software can help expose. Do not imply that every scientific
+error is mechanically detectable or every assistant makes the same mistakes.
 
-Wongo treats manuscript authoring with the same rigor as safety-critical software compilation:
+---
+
+## Slide 3 — Decisions remain visible
 
 ```mermaid
 flowchart LR
-    A[Quarto Sources\nindex.qmd / refs.bib] -->|Read Only| B[Wongo Engine]
-    C[Coauthor DOCX\nTracked Changes] -->|Lossless Extract| B
-    B -->|Verified Render| D[output/*.docx\nCollab / Submission]
-    B -->|Lossless Worksheet| E[decisions/merge-*.md]
-    F[LLM Agent via MCP] <-->|Batch Propose & Hints| E
-    G[Author Approval] -->|wongo review| E
-    E -.->|Human-approved edits| A
+    Q[Quarto source] --> R[Wongo render]
+    R --> W[Word coauthor review]
+    W --> E[Extract worksheet]
+    E --> P[AI proposals]
+    P --> A[Author decisions]
+    A --> L[Worksheet lint]
+    L --> H[Approved edits applied separately]
+    H --> Q
 ```
 
-- **Inviolable Boundary:** Wongo *never* overwrites `.qmd` source files directly.
-- **Deterministic Staging:** All outputs are written to disposable `output/` and auditable `decisions/`.
-- **Zero Hallucination:** Every recommendation from the LLM is captured as a `PROPOSED` disposition that requires human confirmation before touching the manuscript.
-
-> **Speaker Notes:**  
-> Wongo establishes an unbreakable architectural boundary: the engine never modifies source `.qmd` files. Instead, Wongo provides verified, deterministic work surfaces. The LLM acts as an assistant that inspects project readiness, receives exact patch hints, and proposes review resolutions, while the human author retains 100% provenance and approval control.
+Wongo does not apply worksheet edits to `.qmd`. Proposals and overriding decisions
+remain in the worksheet. Source-aware tags identify lines needing closer review;
+they do not establish the scientific correctness of a proposed change.
 
 ---
 
-## Slide 4: Wongo-AIX Architecture: Native Model Context Protocol (MCP)
+## Slide 4 — MCP exposes the existing engine
 
-<!-- Layout: CONTENT_MASTER | Headline: MCP INTEGRATION -->
+| Surface | Capabilities |
+|:---|:---|
+| 12 tools | Status, doctor, scaffold, profile, checks, render, roundtrip, worksheet status/set/batch/lint, diff |
+| 3 resource surfaces | Current project status, journal profiles, worksheet contents |
+| 3 prompts | Pre-submission audit, coauthor review, revision diff |
 
-### 12 Deterministic Tools, 3 Dynamic Resources, 3 High-Impact Prompts
+The server uses stdio. The benchmark records the negotiated **MCP protocol
+version** and the installed **Python SDK version** separately; the SDK's major
+number is not a protocol standard. Discovery and schema checks use a real client
+connection. Client installation supports Claude Desktop, Cursor, and VS Code.
 
-Wongo natively implements the **Model Context Protocol (MCP 2.x standard)**, turning any MCP client (Claude Desktop, Cursor, VS Code) into a full-scale journal editorial office.
-
-| Category | Capability | Surface Names |
-|:---|:---|:---|
-| **Inspection & Doctor** | Environment & Project Health | `wongo_status`, `wongo_doctor`, `wongo_profile_get` |
-| **Strict Verification** | Actionable Pre-submission Gates | `wongo_check` (with `patch_hint` payloads) |
-| **Verified Compilation** | Collab & Submission Rendering | `wongo_render`, `wongo_scaffold`, `wongo_diff` |
-| **Lossless Roundtrip** | Track Changes & Batch Review | `wongo_roundtrip`, `wongo_worksheet_status`, `wongo_worksheet_set`, `wongo_worksheet_batch_propose`, `wongo_worksheet_lint` |
-| **Dynamic Resources** | Instant Read Surfaces | `wongo://project/status`, `wongo://profile/{slug}`, `wongo://worksheet/{path}` |
-| **Packaged Workflows** | One-Click Workflow Prompts | `wongo-pre-submission-audit`, `wongo-coauthor-review`, `wongo-revision-diff` |
-
-> **Speaker Notes:**  
-> Wongo exposes 12 specialized tools. Through simple commands like `wongo mcp install`, Claude or Cursor automatically connects to the local Wongo server. The LLM can retrieve the journal profile rules for Water Research or ES&T, run diagnostic checks, and inspect merge worksheets via structured JSON-RPC.
+**Speaker note:** Show the live discovery result. Launch the server in the
+manuscript's project directory or supply explicit project paths to tools.
 
 ---
 
-## Slide 5: Work Surface 1: Pre-Submission Audit with Actionable Patch Hints
+## Slide 5 — Checks supply bounded repair evidence
 
-<!-- Layout: CONTENT_MASTER | Headline: ACTIONABLE REMEDIATION -->
+| Injected defect | Expected hint action |
+|:---|:---|
+| Missing citekey | `add_bibtex` with the missing key |
+| Undefined cross-reference | `define_labels` with the orphan label |
+| Missing image file | `create_assets` with the missing path |
+| Source count exceeding WR's limit | `trim_words` with positive excess words |
 
-### Eliminating Vague Compiler Warnings: Self-Healing Patch Guidance
-
-When a validation check fails, Wongo doesn't just print an error. It emits an actionable `patch_hint` dictionary instructing the LLM on the exact corrective operation.
-
-```json
-{
-  "name": "citekeys",
-  "level": "HARD",
-  "ok": false,
-  "detail": "missing from refs.bib: park2025",
-  "locations": ["index.qmd:28: @park2025"],
-  "patch_hint": {
-    "action": "add_bibtex",
-    "missing_keys": ["park2025"],
-    "bib_files": ["refs.bib"],
-    "hint": "Add BibTeX entries for park2025 to refs.bib or remove unused citations."
-  }
-}
-```
-
-- **Deterministic Remediation:** The LLM receives the exact missing key, file path, and suggested action.
-- **Zero Guesswork:** Prevents LLM context hallucination by providing bounded repair scopes.
-
-> **Speaker Notes:**  
-> Notice the structured `patch_hint` object. When a citation key or figure is missing, or the word count exceeds the journal's 8,000-word limit, Wongo calculates the exact excess words and indicates the required action. The LLM can immediately draft the minimal fix without guessing.
+The benchmark injects each defect and verifies its returned fields. A hint to
+add a reference is not evidence that the referenced work exists. For Water
+Research, the final submission count also includes the newly rendered bibliography.
 
 ---
 
-## Slide 6: Work Surface 2: Coauthor Word Roundtrip with Semantic Tagging
+## Slide 6 — Read generated values in their source context
 
-<!-- Layout: CONTENT_MASTER | Headline: COAUTHOR HARMONIZATION -->
+The synthetic demo computes the current density in R. Word shows only `12.4`.
+The coauthor fixture changes it to “approximately 13.1”.
 
-### Protecting Generated Science: Semantic Tagging of Word Track Changes
+| Extracted change | Expected source-aware result |
+|:---|:---|
+| Generated value replacement | `inline-code`, word delta `+1` |
+| Four-word methods insertion | No semantic tag, word delta `+4` |
 
-When senior coauthors return `coauthor-edits.docx`, `wongo roundtrip` parses all tracked insertions, deletions, and comments, tagging each change with semantic properties:
+The fixture is built from an actual Quarto/R render and Word tracked edits.
+Tagging consults the matched source line. The assistant should propose reviewing
+the calculation, not assume the new value or the old value is scientifically right.
 
-```
-Change Row #1: "maximum current density of approximately 13.1 A/m²"
-  - Location: index.qmd:109
-  - Tags: ["inline-code", "major-length-change"]
-  - AI Warning: Coauthor hand-typed a number next to an inline R variable!
-  - Recommended Disposition: PROPOSED fix-code — update calculation model in R, not prose
-```
-
-- **Tagging Engine:** Automatically detects touches on inline code (`inline-code`), literature keys (`citation`), or unmatched paragraph lines.
-- **Provenance Safety:** Prevents accidental overwriting of empirical experimental data.
-
-> **Speaker Notes:**  
-> This is a game changer for scientific teams. When a coauthor edits a paragraph with an inline R calculation, Wongo tags the change with `inline-code`. The LLM immediately knows *not* to replace the R formula with hard-coded text, but instead proposes `fix-code` to keep the data pipeline reproducible.
+**Speaker note:** Open the source line and worksheet together. If source files
+changed after extraction, inspect alignment again before applying any edit.
 
 ---
 
-## Slide 7: Work Surface 3: Batch Disposition & Word-Native Diff Stamping
+## Slide 7 — Proposal, author decision, lint
 
-<!-- Layout: CONTENT_MASTER | Headline: WORKFLOW SPEED -->
+1. The agent proposes `apply` for the methods clarification and `fix-code` for the generated value.
+2. The worksheet remains unresolved until the author confirms or overrides each proposal.
+3. Lint checks readiness and source risks before approved edits are applied separately.
 
-### From 50 Tracked Bubbles to Clean Approvals in Seconds
+A revision diff can produce Word tracked changes; special or unsupported content
+must be inspected using the diff report and Word Compare where appropriate.
 
-1. **Batch Proposals:** The agent analyzes the entire worksheet and calls `wongo_worksheet_batch_propose`:
-   - High-confidence prose edits $\rightarrow$ `PROPOSED apply`
-   - Generated numbers $\rightarrow$ `PROPOSED fix-code`
-   - Conflicting or unsupported claims $\rightarrow$ `PROPOSED reject: <reason>`
-2. **Author Final Sign-off:** Author runs `wongo review` in terminal or IDE to approve or override with a single keystroke.
-3. **Word Revision Diff (`wongo diff`):** Stamps revisions directly into genuine Word Track Changes (`w:ins` / `w:del`) for peer review resubmission.
-
-> **Speaker Notes:**  
-> Instead of manually clicking 50 comment bubbles in Word, the agent reviews all rows in one pass, attaches sound scientific rationale, and saves the worksheet. The author spends 2 minutes reviewing the summary, runs `wongo worksheet lint`, and generates the submission deliverable.
+**Speaker note:** Show the transition from two pending rows to two proposals,
+then simulated final decisions. Do not substitute automated test decisions for
+approval of a real manuscript.
 
 ---
 
-## Slide 8: Empirical Benchmark: The Wongo-AIX Scorecard
+## Slide 8 — What the benchmark measures
 
-<!-- Layout: CONTENT_MASTER | Headline: BENCHMARK RESULTS -->
+| Dimension | Passing evidence |
+|:---|:---|
+| Discovery | Exact tool/prompt/resource contracts and actual resource/prompt reads over stdio |
+| Audit | Clean HARD checks plus four injected defects with expected hints |
+| Roundtrip | Exactly two expected edits, source tags/deltas, proposal and decision states, clean final lint, unchanged source |
+| Submission refusal | Expected citation GateError; all existing outputs and manifest retain their hashes |
 
-### Rigorous Evaluation on Showcase Manuscript (`examples/aix-demo`)
+Insert the latest `scorecard.md` results, timestamp, and local timings here before
+presentation. Failures remain visible and return a nonzero benchmark exit code.
 
-Evaluated using our automated benchmark harness (`tools/aix_eval.py`):
-
-| Evaluation Dimension | Metric Tested | Benchmark Target | Wongo Result | Verdict |
-|:---|:---|:---:|:---:|:---:|
-| **Discovery & Startup** | Tool & Resource Initialization | $< 100\text{ ms}$ | **$0.0\text{ ms}$** (12 tools ready) | **PASS** |
-| **Audit & Patch Hints** | Defect Detection & Hint Precision | $100\%$ accuracy | **$100\%$** (6/6 gates verified) | **PASS** |
-| **Coauthor Extraction** | Word Track Changes Lossless Parse | $\ge 2$ changes | **$2$ changes ($867\text{ ms}$)** | **PASS** |
-| **Semantic Tagging** | Inline Code & Citation Protection | No false negatives | **$100\%$ tagged** | **PASS** |
-| **Gate Enforcement** | HARD Submission Gate Integrity | Block defective renders | **$100\%$ blocked** | **PASS** |
-
-> **Speaker Notes:**  
-> We built an empirical benchmark harness, `tools/aix_eval.py`. Across all dimensions—discovery latency, defect injection detection, tracked change parsing, and gate enforcement—Wongo achieved a 100% pass rate. Defective renders never leak into submission deliverables.
+**Not measured by this harness:** LLM accuracy, hallucination rate, researcher
+time savings, scientific validity, journal acceptance, or release-to-release XML
+parity. The separate `tools/bytecompare.py` gate measures reference-manuscript parity.
 
 ---
 
-## Slide 9: Turnkey Showcase: Water Research Biofilm Manuscript
+## Slide 9 — Synthetic Water Research showcase
 
-<!-- Layout: CONTENT_MASTER | Headline: LIVE DEMONSTRATION -->
+- Journal profile: `wr`, research-paper, 8,000-word limit including references.
+- Style: `kist-wcr`; collaboration output can carry line numbers.
+- Water Research **submission output omits line numbering**, following the profile.
+- Main manuscript, separate SI, example figure and table, bibliography, real inline R calculation.
 
-### Real-World KIST Biofilm Research Pipeline (`examples/aix-demo/`)
-
-A publication-ready manuscript on *Geobacter sulfurreducens* extracellular electron transfer:
-
-- **Target Journal:** *Water Research* (`wr` profile: 8,000 word cap, CSL Elsevier-Harvard).
-- **House Style:** `kist-wcr` (double-spaced, line-numbered, KIST standard title block).
-- **Features Tested:**
-  - Automated booktabs table generation (`@tbl-kinetics`).
-  - High-resolution polarization curve visualization (`@fig-polarization`).
-  - Separate Supporting Information pipeline (`si.qmd`).
-  - Pre-baked coauthor review document with realistic track changes.
-
-```bash
-# Complete end-to-end execution in 3 commands:
+```fish
 uv run wongo check --project examples/aix-demo
 uv run wongo roundtrip examples/aix-demo/from-coauthors/coauthor-edits.docx --project examples/aix-demo
 uv run wongo render --target submission --project examples/aix-demo
 ```
 
-> **Speaker Notes:**  
-> The showcase manuscript in `examples/aix-demo` represents authentic KIST research from our center. It models extracellular electron transfer kinetics, renders booktabs tables, validates reference links, and demonstrates full round-trip extraction of coauthor feedback.
+**Speaker note:** The figure, data and scenario are demonstration material. This
+is not a publication-ready account of real KIST experiments.
 
 ---
 
-## Slide 10: Conclusion & Researcher Impact
+## Slide 10 — Reproduce, then pilot
 
-<!-- Layout: END_MASTER | Headline: IMPACT -->
+For this unpublished MCP development checkout:
 
-<div align="center">
+```fish
+uv sync --all-extras
+uv run wongo doctor --project examples/aix-demo
+uv run python tools/aix_eval.py
+```
 
-### Transforming Scientific Publishing at KIST
+For the available release engine, the documented source-archive installation is:
 
-# Wongo (원고)
-### *Bridging Quarto Precision with Word-Native Collaboration & LLM Agility*
+```fish
+uv tool install https://github.com/hoohugokim/wongo/archive/refs/heads/main.zip
+```
 
-</div>
+The public main archive does not yet include this MCP revision. PyPI publication
+is pending; do not advertise `uv tool install wongo` until publication is verified.
 
-- **Time Saved:** Reduces paper submission prep time from **3 days to under 15 minutes**.
-- **Zero Hallucination:** Bounded compiler guarantees scientific provenance and data integrity.
-- **Immediate Availability:** Open-source Python package (`uv tool install wongo`), ready for all KIST researchers on macOS, Linux, and Windows.
+Next evaluation: test with real coauthor feedback, record review time and error
+rates, and complete the planned Windows workflow smoke test.
 
-**Contact & Repository:**  
-- Hoo Hugo Kim (`hookim@kist.re.kr`)  
-- GitHub: `https://github.com/hoohugokim/wongo`
-
-> **Speaker Notes:**  
-> In conclusion, Wongo solves the fundamental bottleneck in modern scientific publishing: uniting the reproducibility of Quarto with the unavoidable reality of Microsoft Word collaboration, while empowering LLMs through safe, deterministic work surfaces. Thank you for your attention, and I welcome any questions.
+[Repository and setup](https://github.com/hoohugokim/wongo) · Hoo Hugo Kim (`hookim@kist.re.kr`).

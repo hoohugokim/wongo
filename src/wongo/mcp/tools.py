@@ -12,6 +12,7 @@ from mcp.server.mcpserver import MCPServer
 
 from wongo.clitools import to_jsonable
 from wongo.errors import WongoError
+from wongo.mcp.resources import worksheet_uri
 
 
 def _safe_call(fn, *args, **kwargs) -> dict[str, Any]:
@@ -28,9 +29,10 @@ def _safe_call(fn, *args, **kwargs) -> dict[str, Any]:
         return {
             "ok": False,
             "error": {
-                "kind": type(err).__name__,
+                "kind": err.kind,
                 "message": str(err),
             },
+            **to_jsonable(err.details),
         }
     except Exception as err:
         return {
@@ -159,12 +161,12 @@ def register_tools(server: MCPServer) -> None:
         target: str = "submission",
         project: str = ".",
         style: str | None = None,
-        force: bool = False,
     ) -> dict[str, Any]:
         from wongo.engine import render_project
 
         def _run():
-            res = render_project(Path(project), target, style_override=style, force=force)
+            # stdout belongs exclusively to the MCP JSON-RPC transport.
+            res = render_project(Path(project), target, style_override=style, quarto_stdout=2)
             return {
                 "ok": True,
                 "target": res.target,
@@ -181,7 +183,7 @@ def register_tools(server: MCPServer) -> None:
     def wongo_roundtrip(
         docx_path: str,
         project: str = ".",
-        qmd: str | None = None,
+        qmd: str = "index.qmd",
     ) -> dict[str, Any]:
         from wongo.engine.roundtrip import extract
 
@@ -190,6 +192,7 @@ def register_tools(server: MCPServer) -> None:
             return {
                 "ok": True,
                 "worksheet": str(res.worksheet),
+                "worksheet_uri": worksheet_uri(res.worksheet),
                 "changes": res.changes,
                 "kinds": res.kinds,
                 "unmatched": res.unmatched,
@@ -199,19 +202,23 @@ def register_tools(server: MCPServer) -> None:
         return _safe_call(_run)
 
     @server.tool(name="wongo_worksheet_status", description="Inspect merge worksheet counts, decision states, and rows.")
-    def wongo_worksheet_status(file: str) -> dict[str, Any]:
+    def wongo_worksheet_status(file: str, project: str | None = None) -> dict[str, Any]:
         from wongo.engine.worksheet import Worksheet
-        from wongo.worksheet_cli import resolve_worksheet
+        from wongo.worksheet_cli import _project, resolve_worksheet
 
         def _run():
             path = resolve_worksheet(file)
+            root = _project(project, path)
             ws = Worksheet.load(path)
             counts = ws.counts()
+            cache: dict = {}
             return {
                 "ok": True,
                 "file": str(path),
+                "project": str(root),
+                "worksheet_uri": worksheet_uri(path),
                 "counts": to_jsonable(counts),
-                "rows": [r.to_dict() for r in ws.rows],
+                "rows": [r.to_dict(project=root, cache=cache) for r in ws.rows],
             }
 
         return _safe_call(_run)
@@ -223,12 +230,15 @@ def register_tools(server: MCPServer) -> None:
         disposition: str,
         force: bool = False,
         location: int | None = None,
+        project: str | None = None,
     ) -> dict[str, Any]:
-        from wongo.engine.worksheet import Worksheet
-        from wongo.worksheet_cli import _holds_a_decision, resolve_worksheet
+        from wongo.engine.worksheet import Worksheet, check_disposition
+        from wongo.worksheet_cli import _holds_a_decision, _project, resolve_worksheet
 
         def _run():
+            chosen = check_disposition(disposition)
             path = resolve_worksheet(file)
+            root = _project(project, path)
             ws = Worksheet.load(path)
             target_row = ws.row(row)
             if not force and _holds_a_decision(target_row.disposition):
@@ -240,14 +250,17 @@ def register_tools(server: MCPServer) -> None:
                 )
             if location is not None:
                 ws.set_location(row, location)
-            ws.set_disposition(row, disposition)
+            if chosen.state == "final":
+                ws.decide(row, disposition)
+            else:
+                ws.set_disposition(row, disposition)
             ws.save()
             updated = ws.row(row)
             return {
                 "ok": True,
                 "file": str(path),
                 "row": row,
-                "disposition": updated.to_dict(),
+                "disposition": updated.to_dict(project=root),
             }
 
         return _safe_call(_run)
@@ -257,39 +270,44 @@ def register_tools(server: MCPServer) -> None:
         file: str,
         proposals: list[dict[str, Any]],
         force: bool = False,
+        project: str | None = None,
     ) -> dict[str, Any]:
         from wongo.engine.worksheet import Worksheet
-        from wongo.worksheet_cli import resolve_worksheet
+        from wongo.worksheet_cli import _project, resolve_worksheet
 
         def _run():
             path = resolve_worksheet(file)
+            root = _project(project, path)
             ws = Worksheet.load(path)
             updated_rows = ws.batch_propose(proposals, force=force)
             if updated_rows:
                 ws.save()
+            cache: dict = {}
             return {
                 "ok": True,
                 "file": str(path),
                 "updated_count": len(updated_rows),
-                "rows": [r.to_dict() for r in updated_rows],
+                "rows": [r.to_dict(project=root, cache=cache) for r in updated_rows],
             }
 
         return _safe_call(_run)
 
     @server.tool(name="wongo_worksheet_lint", description="Check merge worksheet for unapproved rows, malformed values, or syntax problems.")
-    def wongo_worksheet_lint(file: str) -> dict[str, Any]:
+    def wongo_worksheet_lint(file: str, project: str | None = None) -> dict[str, Any]:
         from wongo.engine.worksheet import Worksheet
-        from wongo.worksheet_cli import resolve_worksheet
+        from wongo.worksheet_cli import _project, resolve_worksheet
 
         def _run():
             path = resolve_worksheet(file)
+            root = _project(project, path)
             ws = Worksheet.load(path)
-            problems = ws.lint()
+            problems = ws.lint(project=root)
             errors = [to_jsonable(p) for p in problems if p.severity == "error"]
             warnings = [to_jsonable(p) for p in problems if p.severity == "warning"]
             return {
                 "ok": len(errors) == 0,
                 "file": str(path),
+                "project": str(root),
                 "errors": errors,
                 "warnings": warnings,
                 "problems": [to_jsonable(p) for p in problems],

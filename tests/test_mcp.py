@@ -1,7 +1,10 @@
 """Tests for Wongo Model Context Protocol (MCP) server, tools, resources, prompts, and installer."""
 import asyncio
 import json
+import sys
 from pathlib import Path
+
+import pytest
 
 from wongo.cli import main
 from wongo.errors import InputError
@@ -70,7 +73,7 @@ def test_safe_call_wrapper():
 
     res3 = _safe_call(_raise_wongo)
     assert res3["ok"] is False
-    assert res3["error"]["kind"] == "InputError"
+    assert res3["error"]["kind"] == "input"
     assert "bad user input" in res3["error"]["message"]
 
     # Internal Exception case
@@ -224,13 +227,13 @@ def test_mcp_worksheet_tools(tmp_path):
 def test_installer_config_merging(tmp_path):
     assert isinstance(get_claude_desktop_config_path(), Path)
     cfg_path = tmp_path / "test-config.json"
-    server_cfg = get_wongo_server_config(custom_command="uvx wongo")
-    assert server_cfg["command"] == "uvx wongo"
+    server_cfg = get_wongo_server_config(custom_command=sys.executable)
+    assert Path(server_cfg["command"]) == Path(sys.executable)
 
     # First write
     assert update_mcp_config_file(cfg_path, server_cfg) is True
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
-    assert data["mcpServers"]["wongo"]["command"] == "uvx wongo"
+    assert data["mcpServers"]["wongo"] == server_cfg
 
     # Merge preserving other servers
     data["mcpServers"]["other_server"] = {"command": "other"}
@@ -243,25 +246,25 @@ def test_installer_config_merging(tmp_path):
     assert merged["mcpServers"]["other_server"]["command"] == "other"
 
 
-def test_installer_corrupt_file_recovery(tmp_path):
+def test_installer_corrupt_file_is_preserved(tmp_path):
     cfg_path = tmp_path / "corrupt.json"
     cfg_path.write_text("NOT JSON CONTENT", encoding="utf-8")
     server_cfg = {"command": "wongo", "args": ["mcp", "run"]}
 
-    assert update_mcp_config_file(cfg_path, server_cfg) is True
-    assert (tmp_path / "corrupt.json.bak").exists()
-    recovered = json.loads(cfg_path.read_text(encoding="utf-8"))
-    assert recovered["mcpServers"]["wongo"]["command"] == "wongo"
+    with pytest.raises(InputError, match="unchanged"):
+        update_mcp_config_file(cfg_path, server_cfg)
+    assert cfg_path.read_text(encoding="utf-8") == "NOT JSON CONTENT"
+    assert not (tmp_path / "corrupt.json.bak").exists()
 
 
 def test_install_client_configs(tmp_path):
     results = install_client_configs(
         clients=["cursor", "vscode"],
         project_dir=tmp_path,
-        custom_command="wongo",
+        custom_command=sys.executable,
     )
     assert "cursor_project" in results
-    assert "configured" in results["cursor_project"]
+    assert results["cursor_project"]["ok"] is True
     assert (tmp_path / ".cursor" / "mcp.json").exists()
     assert (tmp_path / ".vscode" / "mcp.json").exists()
 
@@ -275,7 +278,7 @@ def test_cli_mcp_install(tmp_path, capsys):
         "--client",
         "cursor",
         "--command",
-        "uvx wongo",
+        sys.executable,
         "--json",
     ])
     assert ret == 0
