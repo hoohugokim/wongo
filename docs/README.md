@@ -19,7 +19,7 @@ coauthor decisions back to the source.
 | [Claude Code integration](../integrations/claude-code/README.md) | Install the maintained plugin and start working with an existing project. |
 | [Product definition](product-definition.md) | Understand the package, CLI, profile/style extension surface and library. |
 
-## Explore the MCP development revision
+## Explore the MCP integration
 
 | Material | What it contains |
 |:---|:---|
@@ -28,8 +28,9 @@ coauthor decisions back to the source.
 | [Presentation outline](aix-competition/presentation-deck.md) | The workflow and evidence for a Wongo presentation. |
 | [Demo script](aix-competition/demo-script.md) | A three-minute recording sequence using actual tool outputs. |
 
-These materials describe the development branch. The scorecard identifies what
-was measured; it does not establish scientific validity or LLM accuracy.
+These materials describe v0.3.1 source on `main`; the latest tagged release is
+v0.3.0, and PyPI publication is pending. The scorecard identifies what was
+measured; it does not establish scientific validity or LLM accuracy.
 
 ## Extend and maintain Wongo
 

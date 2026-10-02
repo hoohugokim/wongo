@@ -5,7 +5,9 @@ synthetic data and illustrative scientific prose. It is software demonstration
 material, not evidence of real experiments or a manuscript ready for submission.
 Verify all science and references before adapting it to research.
 
-Use the development checkout containing the MCP changes. From the repository root:
+Use a current `main` checkout containing the v0.3.1 source and MCP integration.
+The latest tagged release is v0.3.0; a v0.3.1 release tag and PyPI publication are
+pending. From the repository root:
 
 ```fish
 uv sync --all-extras
@@ -49,4 +51,4 @@ This benchmark does not measure LLM accuracy or human time savings. Run
 `tools/bytecompare.py` separately for reference-manuscript XML parity. See the
 [demo script](../../docs/aix-competition/demo-script.md) and
 [presentation outline](../../docs/aix-competition/presentation-deck.md) for
-recording instructions and the current development-release limitations.
+recording instructions and the current validation and publication limitations.

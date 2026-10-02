@@ -23,10 +23,11 @@ for the package, software, framework and library interfaces.
 |:---|:---|:---|
 | Keep prose, citations and analysis connected in `.qmd`. Check the target journal's recorded requirements. | Create main and supporting-information DOCX files with the selected journal profile and house style. | Extract Word Track Changes, inspect source context and record author-approved decisions before updating the source. |
 
-**Release:** [v0.3.0](https://github.com/hoohugokim/wongo/releases/tag/v0.3.0).
-This branch contains the **v0.3.1 development revision**, including the native MCP
-integration and its [verified demo](examples/aix-demo/README.md). PyPI publication
-is pending; use the source-archive installation below to install from `main`.
+**Latest tagged release:** [v0.3.0](https://github.com/hoohugokim/wongo/releases/tag/v0.3.0).
+The source on `main` is **v0.3.1**, including the native MCP integration and its
+[verified demo](examples/aix-demo/README.md). A v0.3.1 release tag and PyPI
+publication are pending; the source-archive installation below installs the
+current code from `main`.
 
 ## Why this exists
 

@@ -18,14 +18,14 @@ See `plans/archive/HANDOFF-wongo-uplift.md` for the full migration map and `docs
 CI (`.github/workflows/ci.yml`) runs the same gates on every push/PR: ruff and pytest on Linux (Python 3.11–3.13), Windows (3.11, 3.13) and macOS (3.12), a CLI smoke, an end-to-end job that installs Quarto 1.10.18 and R on all three platforms and renders `wongo scaffold --example` inside a Hangul-named folder (doctor, check, both renders, status, roundtrip, diff), a wheel+sdist build, and a package-data check that the wheel carries scaffold/styles/profiles assets. Tests never need Quarto or R: `tests/stub_quarto.py` stands in for Quarto (see `tests/conftest.py`). CodeQL runs weekly and on pushes. Keep both green before tagging a release; `CITATION.cff` must stay schema-valid (`uvx cffconvert --validate`) and its `version`/`date-released` updated in lockstep with releases.
 - Fish for shell snippets; public repo `hoohugokim/wongo` on GitHub, MIT
 
-```sh
+```fish
 uv sync --all-extras
 uv run pytest -q
 uv run --with ruff ruff check --ignore EXE001,DTZ011 src/wongo tests tools
 uv build
 uv run wongo --version && uv run wongo profile verify est --offline
 uv run tools/bytecompare.py selftest --target collab   # noise floor must be zero
-git worktree add --detach /tmp/wongo-prev v0.2.0        # the last release renders the baseline
+git worktree add --detach /tmp/wongo-prev v0.3.0        # the last release renders the baseline
 uv run tools/bytecompare.py baseline --repo /tmp/wongo-prev
 uv run tools/bytecompare.py check --allow tools/bytecompare-allow.txt
 ```
