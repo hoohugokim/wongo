@@ -96,14 +96,16 @@ def _cmd_render(args: argparse.Namespace) -> int:
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
-    from wongo.engine.checks import print_report, run_checks
+    from wongo.engine.checks import coverage_for_project, print_report, run_checks
 
-    checks = run_checks(Path(args.project).resolve())
+    project = Path(args.project).resolve()
+    checks = run_checks(project)
+    coverage = coverage_for_project(project)
     hard = [c for c in checks if c.level == "HARD" and not c.ok]
     if _json(args):
-        emit_json("check", not hard, checks=checks)
+        emit_json("check", not hard, checks=checks, coverage=coverage)
     else:
-        print_report(checks)
+        print_report(checks, coverage)
     return 1 if args.strict and hard else 0
 
 
@@ -276,8 +278,15 @@ def _cmd_profile_show(args: argparse.Namespace) -> int:
         ("editorial", "references/editorial-framing.md"),
     ) if (pdir / rel).exists()}
     if _json(args):
+        from wongo.engine.checks import rule_coverage
+
+        coverage = [
+            {"type": item.get("type"), "rules": rule_coverage(profile, item)}
+            for item in profile.get("manuscript_types") or []
+            if isinstance(item, dict)
+        ]
         emit_json("profile show", True, profile={k: v for k, v in profile.items() if k != "_dir"},
-                  dir=pdir, paths=paths)
+                  dir=pdir, paths=paths, coverage=coverage)
         return 0
     days = profile_staleness_days(profile)
     lines = [f"{profile.get('slug', args.slug)} — {profile.get('journal', '?')} "

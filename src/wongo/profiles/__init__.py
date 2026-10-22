@@ -206,6 +206,27 @@ def validate_profile(profile: dict) -> list[str]:
                 f"manuscript_types[{i}].word_limit_includes_references must be true or false"
             )
         if isinstance(t, dict):
+            max_items = t.get("max_display_items")
+            if max_items is not None and (isinstance(max_items, bool) or not isinstance(max_items, int) or max_items < 0):
+                problems.append(
+                    f"manuscript_types[{i}].max_display_items must be a non-negative integer or null"
+                )
+            abs_limit = t.get("abstract_limit")
+            if abs_limit is not None and (isinstance(abs_limit, bool) or not isinstance(abs_limit, int) or abs_limit < 0):
+                problems.append(
+                    f"manuscript_types[{i}].abstract_limit must be a non-negative integer or null"
+                )
+            abs_min = t.get("abstract_min")
+            if abs_min is not None and (isinstance(abs_min, bool) or not isinstance(abs_min, int) or abs_min < 0):
+                problems.append(
+                    f"manuscript_types[{i}].abstract_min must be a non-negative integer or null"
+                )
+            if (isinstance(abs_min, int) and isinstance(abs_limit, int)
+                    and not isinstance(abs_min, bool) and not isinstance(abs_limit, bool)
+                    and abs_min > abs_limit):
+                problems.append(
+                    f"manuscript_types[{i}].abstract_min exceeds abstract_limit"
+                )
             problems.extend(f"manuscript_types[{i}].{p}"
                             for p in _word_count_problems(t.get("word_count", {})))
     vd = profile.get("verified_date")
@@ -220,6 +241,18 @@ def validate_profile(profile: dict) -> list[str]:
             problems.append("toc_graphic must be a mapping or null")
         elif "required" not in toc:
             problems.append("toc_graphic.required is missing (REQUIRED whenever the block is present)")
+    hl = profile.get("highlights")
+    if hl is not None:
+        if not isinstance(hl, dict):
+            problems.append("highlights must be a mapping or null")
+        elif "required" not in hl:
+            problems.append("highlights.required is missing (REQUIRED whenever the block is present)")
+        elif not isinstance(hl["required"], bool):
+            problems.append("highlights.required must be true or false")
+        else:
+            max_chars = hl.get("max_chars_per_bullet")
+            if max_chars is not None and (isinstance(max_chars, bool) or not isinstance(max_chars, int) or max_chars <= 0):
+                problems.append("highlights.max_chars_per_bullet must be a positive integer")
     if profile.get("line_numbers") not in LINE_NUMBER_VALUES:
         problems.append(
             f"line_numbers must be true, false, or 'forbidden' (got {profile.get('line_numbers')!r})"

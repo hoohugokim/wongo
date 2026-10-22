@@ -164,13 +164,15 @@ def test_a_non_lock_os_error_while_moving_outputs_in_is_actionable_and_rolled_ba
     assert _leftovers(wongo_project) == []
 
 
-def test_an_edit_saved_while_quarto_runs_leaves_the_output_stale(stub_quarto, wongo_project, monkeypatch):
-    from wongo.engine import output_freshness
+def test_an_edit_saved_while_quarto_runs_is_not_promoted(stub_quarto, wongo_project, monkeypatch):
+    from wongo.errors import InputError
 
     monkeypatch.setenv("WONGO_STUB_QUARTO_EDIT", str(wongo_project / "index.qmd"))
-    render_project(wongo_project, "collab")
 
-    assert output_freshness(wongo_project, "collab")["state"] == "stale"
+    with pytest.raises(InputError, match="changed during rendering"):
+        render_project(wongo_project, "collab")
+
+    assert _outputs(wongo_project) == {}
 
 
 def test_the_manifest_moves_in_with_the_outputs_or_not_at_all(stub_quarto, wongo_project, monkeypatch):

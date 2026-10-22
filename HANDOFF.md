@@ -1,37 +1,34 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-10-03 by main CI/CodeQL, release metadata checks and recorded engine/brand gates
-last_worker: codex
+last_verified: 2026-10-22 by uv run pytest -q (654 passed, 6 skipped) && statutor-doctor .
+last_worker: grok
 last_machine: unknown
-handoff_id: release-v031-20261003
-supersedes: v031-main-integration-20261002
+handoff_id: build-integrity-20261022
+supersedes: research-complete-20261008
 
 ## Goal
-Deliver the v0.3.1 GitHub release, authorized by the maintainer on 2026-10-03 (T-0034).
+F1–F4 from notes/T-0336-wongo-development-report.md are committed locally. F5–F8 are not started.
 
 ## Last verified state
-- v0.3.1 integration merged in PR #5 as `5710f2f`; main CI/CodeQL passed; all prior feature branches were removed.
-- AIX fixes are `dece132`; brand integration is `ba54a39`; the integration PR preserves their commit history.
-- Approved identity v1.0.0 in `brand/`: outlined SVG/PNG logos, local fonts, tokens, CSS, Quarto example and licenses.
-- Release metadata and installation guidance target v0.3.1; PyPI publication remains T-0022.
-- All 33 generated assets rebuilt byte-identically; updated Quarto example rendered and inspected in browser.
-- Branding is opt-in for communications; journal profiles, manuscript styles and engine behavior are unchanged.
-- Prior engine verification: 528 tests passed, 6 skipped; 2 real Quarto/MCP tests; four benchmark dimensions passed.
-- Fresh v0.3.0 reference comparison: 95 parts across four DOCX files byte-identical; live manuscript unchanged.
-- Release record: notes/release-v031-2026-10-03.md and https://github.com/hoohugokim/wongo/releases/tag/v0.3.1.
-- Engine/brand evidence: notes/aix-audit-revision-2026-10-02.md and notes/brand-integration-2026-10-02.md.
-- The maintainer considers the 공모신청서 update complete and is conducting human review; no agent work remains there.
+- T-0035–T-0038 done. D-0015, D-0016, D-0017. Note: notes/T-0035-build-integrity.md.
+- `uv run pytest -q`: 654 passed, 6 skipped, on the full tree including files left unstaged.
+- The commit excludes worksheet, new profiles (bite, cej, estletters, natcomms, wrx), docs/research, and AIX edits.
+- Ruff fails on uncommitted E713 at src/wongo/engine/worksheet.py:1129.
+- Not pushed. No version bump. T-0022 and T-0025 stay open.
 
 ## Next action
-1. The maintainer will tackle T-0025 native Windows/client smoke and T-0022 PyPI setup afterwards.
-2. Use v0.3.1 as the reference baseline for future render changes; the comparison allowlist is empty.
+1. Leave the uncommitted worksheet, profile, research, and AIX files in place. Do not revert them.
+2. F5–F8 (audit hooks, preview QA, review receipt, human approval) are the next cycle. The report stays untracked at notes/T-0336-wongo-development-report.md.
+3. Clear the worksheet.py E713 before treating `ruff check` as green.
 
 ## Gotchas
-- SDK version and MCP protocol version differ; use the returned worksheet_uri verbatim.
-- Row source alignment is unverified; tags are review hints, never scientific approval.
-- The synthetic benchmark establishes workflow checks, not scientific validity, LLM accuracy or measured time savings.
-- Copy the complete brand folder for offline HTML/Quarto reuse; SVG logos are independently portable.
+- `wongo check` exits 0 when JSON `ok` is false. `--strict` exits 1.
+- Collab still promotes when `crossrefs-rendered` fails. Status must not offer submission while `checks_failed` is set.
+- A mid-render source change refuses promotion for both targets. Reference-inclusive manuscripts raise GateError on `word-limit-references`.
+- ES&T abstract 150–200 and SI-before-Acknowledgments were re-read 2026-10-22 (page updated 2026-10-05). Keywords, one paragraph, and ORCID stay manual.
+- `dependencies_discover` is off by default. Discovery is a literal-call scan, not a trace.
 
 ## Do not touch
-- `plans/archive/`, frozen `docs/CHANGELOG.md`, existing `docs/docx-quirks.md` entries, reference manuscripts.
+- `plans/archive/`, frozen `docs/CHANGELOG.md`, existing `docs/docx-quirks.md` entries. Do not edit D-0008 in place. Do not vendor `finish_docx.py`.
+

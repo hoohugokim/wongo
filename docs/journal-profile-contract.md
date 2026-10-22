@@ -46,6 +46,13 @@ manuscript_types:      # word limits are MAIN TEXT unless counting_rule says oth
                        # reference list (e.g. Water Research). `wongo check` gives a source
                        # estimate plus WARN; render adds the staged main bibliography count
                        # and refuses an over-limit submission before promoting any outputs.
+    max_display_items: 0  # OPTIONAL: maximum combined figures and tables defined in index.qmd
+                       # (e.g. 4 for estletters). Enforced as a HARD submission gate.
+    abstract_limit: 0  # OPTIONAL: maximum words allowed in the frontmatter abstract
+                       # (e.g. 200 for estletters). Enforced as a HARD submission gate.
+    abstract_min: 0    # OPTIONAL: minimum words in the frontmatter abstract
+                       # (e.g. 150 for an ES&T research article). Enforced with
+                       # abstract_limit when set. A type may set either bound alone.
     word_count:        # OPTIONAL per-type source-counting policy; shown defaults preserve
                        # existing profiles. `counting_rule` remains the source-backed rule.
       include_abstract: true
@@ -62,6 +69,11 @@ line_numbers: true|false|forbidden  # true: engine adds them on the submission r
                        # strips line numbers even if the house style enables them
 spacing: single|double
 blinding: single|double-anonymous|optional  # informational in v1 (consumed by agent judgment, not wongo render)
+highlights:            # OPTIONAL: block for journals requiring Highlights (Elsevier)
+  required: true|false # REQUIRED key whenever the block is present
+  count: [3, 5]        # OPTIONAL: [min, max] allowed bullet points (default: [3, 5])
+  max_chars_per_bullet: 85  # OPTIONAL: character cap per bullet including spaces (default: 85)
+  submission: ""       # OPTIONAL: submission guidance note (e.g. separate file)
 toc_graphic:           # the whole block may be null if the journal has no TOC/graphical-abstract concept at all
   required: true|false  # REQUIRED key whenever the block itself is present — render.py dispatches on this
   width_mm: 0          # width_mm/height_mm are the MAXIMUM box; the render scales the
@@ -140,6 +152,34 @@ figures are checked throughout the original manuscript. Invalid policy keys or
 values fail as configuration errors, including when a local profile overrides
 a shipped one. Do not infer an exclusion from a journal name or parse the prose
 `counting_rule`; record the verified policy for each manuscript type.
+
+`max_display_items` sets a hard limit on total display items (figures and tables
+combined) defined across `index.qmd`. It counts unique labels starting with `fig-`
+and `tbl-` in code chunk options (`#| label: ...`), knitr chunk headers, and
+markdown crossref identifiers (`{#fig-...}`, `{#tbl-...}`). Commented-out chunks
+are excluded. When defined items exceed `max_display_items`, submission render is
+refused (`level="HARD"`).
+
+`abstract_limit` enforces a maximum word count on the frontmatter `abstract` in
+`index.qmd`. `abstract_min` enforces a minimum on the same text. Word tokens are
+whitespace-delimited. This is a source estimate, not a submission-portal count.
+When the abstract is missing, or falls outside a bound that is set, submission
+render is refused (`level="HARD"`). A prose-only abstract rule, such as "one
+paragraph", stays manual and is listed in check coverage. It does not count as
+a completed machine check.
+
+`wongo check` and `wongo profile show --json` include `coverage`: each rule is
+`machine`, `manual`, or `unsupported`. JSON `ok` still means no HARD machine
+failure. `wongo check` without `--strict` still exits 0 in that case.
+
+`highlights` configures pre-submission audit of article highlights (e.g. Elsevier
+journals requiring 3–5 bullet points of at most 85 characters each, spaces
+included). Bullet points are harvested from `highlights.md` in the project root or
+from `index.qmd` frontmatter (`highlights:` list or block). If highlights are
+required but neither file nor frontmatter is found, `wongo check` reports a `WARN`
+(allowing collab and demo test suites to pass). If highlights are present but violate
+bullet count (not 3–5) or character limit (>85 characters for any bullet), a HARD
+gate refusal is enforced (`level="HARD"`).
 
 - Every hard number in `profile.yml` must trace to an entry in `sources`.
 - Unverified or secondary-source claims go in SKILL.md under "TO VERIFY",

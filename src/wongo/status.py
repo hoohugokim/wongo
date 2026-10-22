@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wongo import toolchain
+from wongo import __version__, toolchain
 from wongo.engine.worksheet import Worksheet, shell_arg
 from wongo.errors import WongoError
 
@@ -30,6 +30,7 @@ class Status:
     worksheet_open: int = 0
     next_command: str = ""
     next_reason: str = ""
+    source_identity: dict = field(default_factory=dict)
 
 
 def _latest_worksheet(project: Path) -> Path | None:
@@ -50,12 +51,13 @@ def _open_rows(worksheet: Path) -> int | None:
 
 
 def project_status(project: Path) -> Status:
-    from wongo.engine import output_freshness, style_name
+    from wongo.engine import install_identity, output_freshness, read_manifest, style_name
     from wongo.engine.checks import run_checks
     from wongo.profiles import load_journal_config, load_profile, manuscript_type
 
     project = Path(project).resolve()
-    status = Status(project=project, is_project=(project / "_journal.yml").exists())
+    status = Status(project=project, is_project=(project / "_journal.yml").exists(),
+                    source_identity=install_identity())
     if not status.is_project:
         status.next_command = "wongo scaffold <folder>  (or: wongo scaffold demo --example)"
         status.next_reason = "this folder is not a wongo project"
@@ -83,8 +85,12 @@ def project_status(project: Path) -> Status:
 
     status.hard_failures = [c.name for c in checks if c.level == "HARD" and not c.ok]
     status.warnings = [c.name for c in checks if c.level == "WARN" and not c.ok]
+    manifest = read_manifest(project)
     for target in ("collab", "submission"):
         status.outputs[target] = output_freshness(project, target)
+        failed = ((manifest.get("targets") or {}).get(target) or {}).get("checks_failed") or []
+        if failed:
+            status.outputs[target]["checks_failed"] = list(failed)
     sheet = _latest_worksheet(project)
     if sheet is not None:
         status.worksheet = sheet.relative_to(project).as_posix()
@@ -113,9 +119,16 @@ def project_status(project: Path) -> Status:
         status.next_reason = f"HARD check(s) failing: {', '.join(status.hard_failures)}"
     elif collab in ("missing", "stale", "unknown"):
         status.next_command = "wongo render --target collab"
+        stale_reason = status.outputs["collab"].get("detail") or (
+            "sources changed since the last coauthor render"
+        )
         status.next_reason = {"missing": "no coauthor render yet",
-                              "stale": "sources changed since the last coauthor render",
+                              "stale": stale_reason,
                               "unknown": "the last render predates wongo's output manifest"}[collab]
+    elif status.outputs["collab"].get("checks_failed"):
+        failed = ", ".join(status.outputs["collab"]["checks_failed"])
+        status.next_command = ""
+        status.next_reason = f"the coauthor render recorded failed checks: {failed}"
     elif status.outputs["submission"]["state"] != "fresh":
         status.next_command = "wongo render --target submission"
         status.next_reason = "checks pass and the coauthor render is current"
@@ -135,6 +148,13 @@ def format_status(status: Status) -> list[str]:
         return lines
     lines.append(f"journal:    {status.journal_name} ({status.journal}) · {status.ms_type} · "
                  f"style {status.style}")
+    ident = status.source_identity or {}
+    commit = str(ident.get("commit") or "")[:12]
+    source = ident.get("state") or "unknown"
+    lines.append(
+        f"engine:     wongo {__version__} · source {source}"
+        + (f" {commit}" if commit else "")
+    )
     lines.append(f"quarto:     {status.quarto or 'NOT FOUND'}")
     if status.hard_failures:
         lines.append(f"checks:     HARD FAIL: {', '.join(status.hard_failures)}")
@@ -147,6 +167,8 @@ def format_status(status: Status) -> list[str]:
         if info.get("changed") and info["state"] in ("stale", "modified", "missing"):
             detail += f" ({', '.join(info['changed'][:4])}"
             detail += ", …)" if len(info["changed"]) > 4 else ")"
+        if info.get("checks_failed"):
+            detail += f"; render checks failed: {', '.join(info['checks_failed'])}"
         lines.append(f"{target + ':':<12}{detail}")
     if status.worksheet:
         lines.append(f"worksheet:  {status.worksheet} ({status.worksheet_open} open)")

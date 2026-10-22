@@ -89,10 +89,13 @@ Table of Contents/Abstract Graphics" PDF, dated 2024-02-28).
 limit; if over, must not exceed the submitted version's count, and any excess
 needs explicit justification in the revision letter. Build this into S6.
 
-**Supporting Information**: submitted as separate file(s); "Supporting
-Information Available" paragraph placed after Acknowledgments ending with the
-standard availability sentence; SI needs a cover sheet (authors, title, counts
-of pages/figures/tables) and pages numbered S1, S2, …. Letters to the Editor,
+**Supporting Information**: submitted as separate file(s). The file description
+is labeled Supporting Information and placed before Acknowledgments and before
+References. The author-guidelines page updated 2026-10-05 states this placement
+(`profile.yml` `si.availability_paragraph: before-acknowledgments`). The
+pre-2026-07-30 guidance put that paragraph later. SI needs a cover sheet
+(authors, title, counts of pages/figures/tables) and pages numbered S1, S2, ….
+Letters to the Editor,
 Features, Viewpoints, and Correspondence cannot include SI.
 
 **References**: author responsibility for accuracy/format per the ACS Style
@@ -110,8 +113,8 @@ judged by breadth of impact; routine-data manuscripts declined. Environmental
 relevance must be demonstrable, not asserted. → expand in
 `references/editorial-framing.md` and wire into the cover-letter draft.
 
-**Word count rule** (verified against the live Author Guidelines page,
-2026-07-03): count runs from the Abstract through the end of the main text
+**Word count rule** (re-read 2026-10-22 against the author-guidelines page
+updated 2026-10-05): count runs from the Abstract through the end of the main text
 (abstract + body + titles/footnotes/captions of graphics); references are
 excluded; all front/back matter (title, authors, affiliations, TOC graphic,
 figures, tables, reference list, SI file-list, acknowledgments, notes) is

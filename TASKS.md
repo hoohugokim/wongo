@@ -35,3 +35,7 @@
 - [x] T-0032 Address all 14 AIX audit findings: repaired MCP/client adapters and review contracts, verified SDK bounds, measured benchmark and revised computed-value demo; 528 tests passed, real stdio/Quarto workflow passed, build clean, 95 reference DOCX parts byte-identical to v0.3.0 (D-0014; notes/aix-audit-revision-2026-10-02.md).
 - [x] T-0033 Adopt approved Wongo identity v1.0.0 under `brand/` and apply it to the README, documentation hub, contributor/plugin guides and AIX materials; deterministic assets, rendered Quarto example, license provenance and local links verified (notes/brand-integration-2026-10-02.md).
 - [x] T-0034 Prepare the maintainer-authorized v0.3.1 GitHub release: synchronize citation date and release installation guidance, retain verified engine/brand evidence, and package wheel/sdist for the tagged release (notes/release-v031-2026-10-03.md); PyPI and native Windows pilot remain separate tasks.
+- [x] T-0035 Declared build inputs, profile/style identity, and mid-render fingerprint refusal (F1; D-0015; 2026-10-22, notes/T-0035-build-integrity.md).
+- [x] T-0036 Document-scoped cross-references and Quarto unresolved-crossref failures (F2; D-0016; 2026-10-22).
+- [x] T-0037 ES&T rule coverage: abstract bounds, word-count exclusions, SI placement consistency (F3; 2026-10-22, notes/T-0035-build-integrity.md).
+- [x] T-0038 Declared post-render stage inside the render transaction (F4; D-0017; 2026-10-22).
