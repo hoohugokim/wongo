@@ -45,6 +45,14 @@ EXPECTED_TOOLS = {
     "wongo_worksheet_batch_propose": {"file", "proposals"},
     "wongo_worksheet_lint": {"file"},
     "wongo_diff": {"original", "revised"},
+    "wongo_audit": {"project", "target", "name"},
+    "wongo_qa_inspect": {"project", "target"},
+    "wongo_qa_preview": {"project", "target", "dpi"},
+    "wongo_evidence_list": {"project", "target", "kind"},
+    "wongo_review_export": {"destination", "project", "target"},
+    "wongo_review_verify": {"file"},
+    "wongo_gate_status": {"project", "target"},
+    "wongo_gate_propose": {"gate", "project", "target"},
 }
 EXPECTED_PROMPTS = {
     "wongo-pre-submission-audit": {"project"},

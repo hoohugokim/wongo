@@ -9,6 +9,7 @@ not claim to see every file an R or Python program opens.
 from __future__ import annotations
 
 import re
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,6 +28,11 @@ _READ_CALL_RE = re.compile(
     """
 )
 _SHELL_CHARS = set("\n|&;<>`$")
+_INTERPRETER_RE = re.compile(
+    r"(?:python(?:\d+(?:\.\d+)*)?|rscript|r|node|bash|sh|zsh|fish|pwsh|powershell|cmd|env)"
+    r"(?:\.exe)?$", re.IGNORECASE,
+)
+_SCRIPT_SUFFIXES = {".r", ".py", ".sh", ".ps1", ".cmd", ".bat", ".js", ".ts", ".jl"}
 
 
 @dataclass(frozen=True)
@@ -92,6 +98,42 @@ def postprocess_paths(project: Path, cfg: dict) -> list[Path]:
     return paths
 
 
+def audit_specs(project: Path, cfg: dict) -> list[dict]:
+    """Explicit audit scripts and the only extra files they may receive in scratch."""
+    raw = cfg.get("audits", [])
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        raise ConfigError("_journal.yml audits must be a list of audit mappings")
+    specs = []
+    seen = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ConfigError("Each audits entry must be a mapping with id and script")
+        identifier, script = item.get("id"), item.get("script")
+        if not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", identifier):
+            raise ConfigError("Each audit id must start with a letter and contain letters, digits, '_' or '-'")
+        if identifier in seen:
+            raise ConfigError(f"Duplicate audit id {identifier!r}; use a distinct id for each checker")
+        seen.add(identifier)
+        if not isinstance(script, str) or not script.strip():
+            raise ConfigError(f"Audit {identifier} needs a project-relative script path")
+        postprocess_paths(project, {"postprocess": [script]})
+        required = item.get("required", False)
+        timeout = item.get("timeout", 120)
+        if type(required) is not bool:
+            raise ConfigError(f"Audit {identifier} required must be true or false")
+        if type(timeout) is not int or timeout <= 0:
+            raise ConfigError(f"Audit {identifier} timeout must be a positive number of seconds")
+        raw_inputs = item.get("inputs", [])
+        if not isinstance(raw_inputs, list):
+            raise ConfigError(f"Audit {identifier} inputs must be a list of paths or explicit external mappings")
+        inputs = dependency_specs({"dependencies": raw_inputs})
+        specs.append({"id": identifier, "script": script, "inputs": inputs,
+                      "required": required, "timeout": timeout})
+    return specs
+
+
 def _inside_project(root: Path, raw: str, *, label: str) -> Path:
     candidate = Path(raw)
     if candidate.is_absolute():
@@ -123,9 +165,43 @@ def _hook_tokens(project: Path) -> list[str]:
             text = str(item).strip()
             if not text:
                 continue
-            for part in text.split():
-                if "/" in part or part.endswith((".R", ".r", ".py", ".sh")):
-                    tokens.append(part.strip("'\""))
+            try:
+                parts = shlex.split(text, posix=False)
+            except ValueError as exc:
+                raise ConfigError(f"_quarto.yml {key} has an invalid quoted hook: {text}") from exc
+            interpreter = ""
+            skip_argument = False
+            options_done = False
+            for raw in parts:
+                part = raw[1:-1] if len(raw) > 1 and raw[0] == raw[-1] and raw[0] in "'\"" else raw
+                if skip_argument:
+                    skip_argument = False
+                    continue
+                if not options_done and part == "--":
+                    options_done = True
+                    continue
+                if not options_done and part.lower() in {"-c", "-e", "-m", "-command", "--eval", "--print"}:
+                    break
+                name = re.split(r"[/\\]", part)[-1]
+                if not options_done and _INTERPRETER_RE.fullmatch(name):
+                    interpreter = "" if name.lower() == "env" else name.lower().removesuffix(".exe")
+                    continue
+                if not options_done and part.startswith("-"):
+                    if interpreter.startswith("python"):
+                        if part.startswith(("-c", "-m")):
+                            break
+                        skip_argument = part in {"-W", "-X", "--check-hash-based-pycs"}
+                    elif interpreter == "node":
+                        skip_argument = part in {"-r", "--require", "--loader", "--import"}
+                    elif interpreter in {"powershell", "pwsh"}:
+                        skip_argument = part.lower() in {"-executionpolicy", "-inputformat", "-outputformat"}
+                    elif interpreter in {"bash", "sh", "zsh", "fish"}:
+                        skip_argument = part in {"-o", "-O"}
+                    continue
+                if (interpreter or "/" in part or "\\" in part
+                        or Path(part).suffix.lower() in _SCRIPT_SUFFIXES
+                        or (project / part).is_file()):
+                    tokens.append(part)
                     break
     return tokens
 
@@ -176,16 +252,33 @@ def declared_inputs(project: Path, cfg: dict) -> list[DeclaredInput]:
     """Files and missing paths whose hash belongs in the source fingerprint."""
     root = Path(project).resolve()
     items: list[DeclaredInput] = []
-    for spec in dependency_specs(cfg):
+    specs = dependency_specs(cfg)
+    external_directories = []
+    for spec in specs:
         items.extend(_expand(root, spec))
+        if spec["external"]:
+            _, path, outside = _resolve_spec(root, spec)
+            if outside and path.is_dir():
+                external_directories.append(path)
+    external_paths = {item.key for item in items if item.external}
     for token in _hook_tokens(root):
-        items.extend(_expand(root, {"path": token, "external": False}))
+        path = (root / token).resolve()
+        authorized = path.as_posix() in external_paths or any(
+            path.is_relative_to(directory) for directory in external_directories
+        )
+        items.extend(_expand(root, {"path": token, "external": authorized}))
     for path in postprocess_paths(root, cfg):
         try:
             key = path.relative_to(root).as_posix()
         except ValueError:
             key = path.as_posix()
         items.append(DeclaredInput(key, path if path.is_file() else None, False))
+    for audit in audit_specs(root, cfg):
+        path = _inside_project(root, audit["script"], label="audit script")
+        items.append(DeclaredInput(path.relative_to(root).as_posix(),
+                                   path if path.is_file() else None, False))
+        for spec in audit["inputs"]:
+            items.extend(_expand(root, spec))
     unique: dict[str, DeclaredInput] = {}
     for item in items:
         unique.setdefault(item.key, item)

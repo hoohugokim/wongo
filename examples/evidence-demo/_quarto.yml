@@ -1,0 +1,6 @@
+project:
+  type: default
+format:
+  docx:
+    toc: false
+    number-sections: false

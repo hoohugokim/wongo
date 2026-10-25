@@ -296,3 +296,34 @@ def probe_r(rscript: Tool, timeout: float = 120) -> RReport:
         elif len(parts) >= 2 and parts[0] in (*R_REQUIRED, *R_OPTIONAL):
             report.packages[parts[0]] = None if parts[1] == "MISSING" else parts[1]
     return report
+
+
+def qa_tool_command(name: str) -> list[str]:
+    """Resolve optional preview tools without installing or launching them."""
+    if name not in {"soffice", "pdfinfo", "pdftoppm"}:
+        raise ToolchainError(f"Unknown preview tool {name!r}.")
+    override = os.environ.get(f"WONGO_{name.upper()}")
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_file():
+            raise ToolchainError(
+                f"WONGO_{name.upper()} does not name a file: {path}. Correct or remove the override."
+            )
+        return [str(path.resolve())]
+    found = shutil.which(name)
+    if found:
+        return [str(Path(found).resolve())]
+    candidates = []
+    if name == "soffice":
+        candidates = [Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")]
+        if platform_name() == "windows":
+            candidates = [windows_program_files() / "LibreOffice" / "program" / "soffice.exe"]
+    elif platform_name() == "macos":
+        candidates = [Path("/opt/homebrew/bin") / name, Path("/usr/local/bin") / name]
+    for path in candidates:
+        if path.is_file():
+            return [str(path.resolve())]
+    raise ToolchainError(
+        f"Optional preview tool {name} was not found. Install LibreOffice and Poppler "
+        f"separately, or set WONGO_{name.upper()} to its executable. DOCX inspection does not need them."
+    )

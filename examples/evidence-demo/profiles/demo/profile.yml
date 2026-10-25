@@ -1,0 +1,16 @@
+slug: demo
+journal: Synthetic evidence demonstration
+publisher: Example only
+manuscript_types:
+  - type: article
+    word_limit: null
+    counting_rule: No journal policy asserted by this synthetic fixture
+line_numbers: false
+toc_graphic:
+  required: false
+si:
+  separate_file: true
+  page_prefix: S
+  needs_cover_sheet: false
+sources: []
+verified_date: '2026-10-23'

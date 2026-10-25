@@ -6,11 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from wongo import __version__, toolchain
-from wongo.engine.worksheet import Worksheet, shell_arg
+from wongo.engine.worksheet import shell_arg
 from wongo.errors import WongoError
 
-WORKSHEET_GLOB = "merge-*.md"
-UP_TO_DATE = "everything is rendered and current"
+UP_TO_DATE = "renders current; author authorization not recorded"
 
 
 @dataclass
@@ -31,23 +30,14 @@ class Status:
     next_command: str = ""
     next_reason: str = ""
     source_identity: dict = field(default_factory=dict)
-
-
-def _latest_worksheet(project: Path) -> Path | None:
-    decisions = project / "decisions"
-    if not decisions.is_dir():
-        return None
-    sheets = sorted(decisions.glob(WORKSHEET_GLOB), key=lambda p: (p.stat().st_mtime, p.name))
-    return sheets[-1] if sheets else None
-
-
-def _open_rows(worksheet: Path) -> int | None:
-    """Rows still needing a decision (what `wongo review` would show), or
-    None when the worksheet cannot be read."""
-    try:
-        return Worksheet.load(worksheet).counts().needs_decision
-    except WongoError:
-        return None
+    evidence_target: str = "submission"
+    technical: dict = field(default_factory=dict)
+    audit: dict = field(default_factory=dict)
+    visual: dict = field(default_factory=dict)
+    author_decisions: dict = field(default_factory=dict)
+    submission_approved: bool = False
+    demonstration: bool = False
+    worksheet_context: str | None = None
 
 
 def project_status(project: Path) -> Status:
@@ -91,10 +81,21 @@ def project_status(project: Path) -> Status:
         failed = ((manifest.get("targets") or {}).get(target) or {}).get("checks_failed") or []
         if failed:
             status.outputs[target]["checks_failed"] = list(failed)
-    sheet = _latest_worksheet(project)
-    if sheet is not None:
-        status.worksheet = sheet.relative_to(project).as_posix()
-        status.worksheet_open = _open_rows(sheet) or 0
+    from wongo.gates import readiness
+
+    try:
+        dimensions = readiness(project, "submission", checks=checks, outputs=status.outputs["submission"])
+    except WongoError as exc:
+        status.config_error = str(exc)
+        status.next_command = "wongo doctor"
+        status.next_reason = "the evidence or author-gate configuration has a problem"
+        return status
+    for name in ("technical", "audit", "visual", "author_decisions", "submission_approved", "demonstration"):
+        setattr(status, name, dimensions[name])
+    coauthors = status.author_decisions["coauthor_rows"]
+    status.worksheet = coauthors["worksheet"]
+    status.worksheet_open = coauthors["open"]
+    status.worksheet_context = coauthors["context"] if status.worksheet else None
 
     collab = status.outputs["collab"]["state"]
     saved_over = [f"output/{name}" for target in ("collab", "submission")
@@ -111,9 +112,16 @@ def project_status(project: Path) -> Status:
             "holds coauthor edits, move it into from-coauthors/ and run wongo roundtrip on "
             "it; if not, render again"
         )
+    elif coauthors["state"] == "invalid":
+        status.next_command = ""
+        status.next_reason = coauthors["detail"]
     elif status.worksheet and status.worksheet_open:
         status.next_command = f"wongo review {shell_arg(status.worksheet)}"
-        status.next_reason = f"{status.worksheet_open} coauthor edit(s) still need a decision"
+        status.next_reason = (
+            f"{status.worksheet_open} demonstration fixture row(s) remain unresolved"
+            if status.demonstration else
+            f"{status.worksheet_open} coauthor edit(s) still need a decision"
+        )
     elif status.hard_failures:
         status.next_command = "wongo check"
         status.next_reason = f"HARD check(s) failing: {', '.join(status.hard_failures)}"
@@ -131,10 +139,33 @@ def project_status(project: Path) -> Status:
         status.next_reason = f"the coauthor render recorded failed checks: {failed}"
     elif status.outputs["submission"]["state"] != "fresh":
         status.next_command = "wongo render --target submission"
-        status.next_reason = "checks pass and the coauthor render is current"
+        status.next_reason = "technical checks pass and the coauthor render is current; author authorization is separate"
+    elif not status.audit.get("required_passed", True):
+        status.next_command = "wongo audit --target submission"
+        status.next_reason = f"required audit evidence is {status.audit['state']}"
+    elif not status.visual.get("required_passed", True):
+        inventory_state = status.visual.get("inspection", {}).get("state")
+        if inventory_state in {"failed", "stale", "invalid"}:
+            status.next_command = "wongo qa inspect --target submission"
+            status.next_reason = f"recorded OOXML inventory is {inventory_state}; resolve its issues and inspect again"
+        elif status.visual.get("representation") == "native-word-inspection":
+            status.next_command = "wongo qa native-review --help"
+            status.next_reason = "a person must inspect the remaining native Word pages and record the inspection"
+        elif status.visual.get("preview", {}).get("state") == "fresh":
+            status.next_command = "wongo qa review --help"
+            status.next_reason = "a person must inspect the current preview pages and record the inspection"
+        else:
+            status.next_command = "wongo qa preview --target submission"
+            status.next_reason = f"required visual evidence is {status.visual['state']}"
+    elif status.author_decisions.get("state") not in {"approved", "not-configured", "not-required"}:
+        status.next_command = "wongo gates status"
+        status.next_reason = f"renders current; author decisions are {status.author_decisions['state']}"
     else:
         status.next_command = ""
-        status.next_reason = UP_TO_DATE
+        status.next_reason = (
+            "renders current; configured author gates approved (locally attributed)"
+            if status.submission_approved else UP_TO_DATE
+        )
     return status
 
 
@@ -170,12 +201,16 @@ def format_status(status: Status) -> list[str]:
         if info.get("checks_failed"):
             detail += f"; render checks failed: {', '.join(info['checks_failed'])}"
         lines.append(f"{target + ':':<12}{detail}")
+    for label, evidence in (("technical", status.technical), ("audit", status.audit),
+                            ("visual", status.visual), ("author", status.author_decisions)):
+        lines.append(f"{label + ':':<12}{evidence.get('state', 'not-recorded')} ({status.evidence_target})")
+    if status.demonstration:
+        lines.append("context:    synthetic demonstration; fixture rows are demonstration decisions")
     if status.worksheet:
-        lines.append(f"worksheet:  {status.worksheet} ({status.worksheet_open} open)")
+        context = "demonstration, " if status.worksheet_context == "demonstration" else ""
+        lines.append(f"worksheet:  {status.worksheet} ({context}{status.worksheet_open} open)")
     if status.next_command:
         lines.append(f"next:       {status.next_command}  — {status.next_reason}")
-    elif status.next_reason == UP_TO_DATE:
-        lines.append(f"next:       nothing to do — {status.next_reason}")
     else:
         lines.append(f"next:       {status.next_reason}")
     return lines

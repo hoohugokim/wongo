@@ -268,17 +268,18 @@ def quarto_render(
     stage_dir: Path,
     quarto: list[str] | None = None,
     quarto_stdout: int | None = None,
+    on_event: EventHandler | None = None,
 ) -> QuartoRender:
     """Render `qmd` under a temporary name and move the raw DOCX to
     stage_dir/out_name. The deliverable in output/ is not touched.
 
-    Quarto's combined output is reprinted on stderr. `warnings` lists lines
+    Quarto's combined output is returned through diagnostic events. `warnings` lists lines
     that say a cross-reference was not resolved. Quarto still exits 0 for
     those, so the caller has to fail the render itself. `quarto_stdout` is
-    retained for callers that used to point Quarto at stderr; captured text
-    always goes to stderr so a JSON response stays one object.
+    retained for callers that used to point Quarto at stderr; the engine
+    never prints the captured text.
     """
-    del quarto_stdout  # captured and reprinted; never mixed into stdout
+    del quarto_stdout
     quarto = quarto or toolchain.quarto_command()
     staged_name = f"{STAGE_PREFIX}{out_name}"
     out_dir = quarto_output_dir(project)
@@ -308,11 +309,12 @@ def quarto_render(
         raise
     output = completed.stdout or ""
     if output:
-        print(output, file=sys.stderr, end="" if output.endswith("\n") else "\n")
+        _emit(on_event, "diagnostic", source="quarto", text=output)
     if completed.returncode != 0:
         _discard(candidates)
         raise ToolchainError(
-            f"quarto render failed for {qmd} (see quarto output above)"
+            f"quarto render failed for {qmd}; fix the reported Quarto error and render again.",
+            output=output,
         )
     produced = next((c for c in candidates if c.exists()), None)
     if produced is None:
@@ -502,7 +504,8 @@ def source_files(project: Path) -> list[Path]:
     and journal config, the bibliography, and everything under figures/."""
     from wongo.engine.checks import bibliography_paths
 
-    files = [project / n for n in ("index.qmd", "si.qmd", "_quarto.yml", "_journal.yml")]
+    files = [project / n for n in ("index.qmd", "si.qmd", "_quarto.yml", "_journal.yml",
+                                 "highlights.md")]
     index = project / "index.qmd"
     if index.exists():
         try:
@@ -561,18 +564,21 @@ def install_identity() -> dict:
     try:
         root = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            cwd=here.parent, check=False, capture_output=True, text=True,
+            cwd=here.parent, check=False, capture_output=True, text=True, encoding="utf-8",
+            errors="replace",
         )
         if root.returncode != 0:
             return {"state": "unknown"}
         checkout = root.stdout.strip()
         commit = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=checkout, check=False, capture_output=True, text=True,
+            cwd=checkout, check=False, capture_output=True, text=True, encoding="utf-8",
+            errors="replace",
         )
         dirty = subprocess.run(
             ["git", "status", "--porcelain"],
-            cwd=checkout, check=False, capture_output=True, text=True,
+            cwd=checkout, check=False, capture_output=True, text=True, encoding="utf-8",
+            errors="replace",
         )
     except OSError:
         return {"state": "unknown"}
@@ -584,12 +590,7 @@ def install_identity() -> dict:
     }
 
 
-def build_identity(profile: dict, style: dict) -> dict:
-    """Profile, style, CSL, and reference-doc hashes, plus the install identity.
-
-    The install's clean/dirty state is recorded and displayed. It is not
-    compared when deciding whether a manuscript is stale.
-    """
+def _asset_identity(profile: dict, style: dict) -> dict:
     from wongo.styles import styles_dir
 
     pdir = Path(profile["_dir"])
@@ -597,10 +598,9 @@ def build_identity(profile: dict, style: dict) -> dict:
     def file_hash(path: Path) -> dict | None:
         if not path.is_file():
             return None
-        return {"path": path.as_posix(), "sha256": _sha256(path)}
+        return {"path": path.as_posix(), "sha256": _hash_file(path.as_posix(), path)}
 
     identity = {
-        "source": install_identity(),
         "profile": file_hash(pdir / "profile.yml"),
         "style": file_hash(styles_dir() / f"{style.get('_name', 'default')}.yml"),
     }
@@ -609,6 +609,11 @@ def build_identity(profile: dict, style: dict) -> dict:
     if profile.get("reference_doc"):
         identity["reference_doc"] = file_hash(pdir / profile["reference_doc"])
     return identity
+
+
+def build_identity(profile: dict, style: dict) -> dict:
+    """Build assets plus install identity; dirty/clean does not affect freshness."""
+    return {"source": install_identity(), **_asset_identity(profile, style)}
 
 
 def read_manifest(project: Path) -> dict:
@@ -624,7 +629,8 @@ def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
                    style_name: str, quarto_version: str | None, *,
                    sources: dict[str, str] | None = None, dest: Path | None = None,
                    identity: dict | None = None, postprocess: list | None = None,
-                   checks_failed: list[str] | None = None) -> Path:
+                   checks_failed: list[str] | None = None,
+                   style_override: str | None = None, si_references: dict | None = None) -> Path:
     """Record what produced each output (versions, config, source hashes) so
     `wongo status` can tell a fresh output from a stale or hand-edited one.
 
@@ -633,7 +639,7 @@ def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
     are promoted together with the outputs. `identity` names the profile,
     style, and install that produced the file. `postprocess` records each
     declared script and the output hashes around it. Output hashes are the
-    bytes after those scripts.
+    bytes after those scripts and explicit SI-reference resolution.
     """
     path = dest or project / "output" / MANIFEST_NAME
     data = read_manifest(project)
@@ -645,6 +651,7 @@ def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
         "journal": cfg.get("journal"),
         "ms_type": cfg.get("ms_type"),
         "style": style_name,
+        "style_override": style_override,
         "outputs": {p.name: _sha256(p) for p in outputs},
         "sources": sources if sources is not None else source_fingerprint(project),
         "checks_failed": list(checks_failed or []),
@@ -653,13 +660,16 @@ def write_manifest(project: Path, target: str, outputs: list[Path], cfg: dict,
         entry["identity"] = identity
     if postprocess:
         entry["postprocess"] = postprocess
+    if si_references:
+        entry["si_references"] = si_references
     data.setdefault("targets", {})[target] = entry
     write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return path
 
 
 def _run_declared_postprocess(project: Path, cfg: dict, target: str,
-                              outputs: list[Path]) -> list[dict]:
+                              outputs: list[Path], *,
+                              on_event: EventHandler | None = None) -> list[dict]:
     """Run `_journal.yml` postprocess scripts on staged DOCX files.
 
     Scripts are not shell commands. Python scripts use this interpreter.
@@ -676,37 +686,58 @@ def _run_declared_postprocess(project: Path, cfg: dict, target: str,
                 f"postprocess script {rel} is missing. "
                 "The previous outputs were left unchanged."
             )
-        before = {path.name: _sha256(path) for path in outputs}
+        script_hash = _hash_file(rel, script)
+        before = {path.name: _hash_file(path.name, path) for path in outputs}
         env = os.environ.copy()
         env["WONGO_POSTPROCESS_TARGET"] = target
         env["WONGO_POSTPROCESS_OUTPUTS"] = os.pathsep.join(str(path) for path in outputs)
         env["WONGO_PROJECT"] = str(root)
         env["PYTHONIOENCODING"] = "utf-8"
-        command = [sys.executable, str(script)] if script.suffix == ".py" else [str(script)]
+        command = [sys.executable, str(script)] if script.suffix.lower() == ".py" else [str(script)]
         try:
-            subprocess.run(
-                command, cwd=root, check=True, env=env, timeout=120,
+            completed = subprocess.run(
+                command, cwd=root, check=False, env=env, timeout=120,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
             )
-        except subprocess.CalledProcessError as exc:
-            raise InputError(
-                f"postprocess script {rel} failed (exit {exc.returncode}). "
-                "The previous outputs were left unchanged."
-            ) from exc
         except subprocess.TimeoutExpired as exc:
+            output = exc.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
+            if output:
+                _emit(on_event, "diagnostic", source=rel, text=output)
             raise InputError(
                 f"postprocess script {rel} timed out after 120 seconds. "
-                "The previous outputs were left unchanged."
+                "The previous outputs were left unchanged. Fix the script and render again.",
+                output=output,
             ) from exc
         except OSError as exc:
             raise InputError(
                 f"could not run postprocess script {rel} ({exc.strerror or exc}). "
                 "The previous outputs were left unchanged."
             ) from exc
-        after = {path.name: _sha256(path) for path in outputs}
+        output = completed.stdout or ""
+        if output:
+            _emit(on_event, "diagnostic", source=rel, text=output)
+        if completed.returncode != 0:
+            raise InputError(
+                f"postprocess script {rel} failed (exit {completed.returncode}). "
+                "The previous outputs were left unchanged. Fix the script and render again.",
+                output=output,
+            )
+        for path in outputs:
+            try:
+                Document(path)
+            except Exception as exc:
+                raise InputError(
+                    f"postprocess script {rel} left {path.name} missing or invalid. "
+                    "The previous outputs were left unchanged. Fix the script to preserve "
+                    "valid DOCX files and render again."
+                ) from exc
+        after = {path.name: _hash_file(path.name, path) for path in outputs}
         records.append({
             "path": rel,
-            "sha256": _sha256(script),
+            "sha256": script_hash,
             "outputs": {name: {"before": before[name], "after": after[name]} for name in before},
         })
     return records
@@ -724,7 +755,8 @@ def _identity_drift(project: Path, entry: dict) -> tuple[list[str], str | None]:
         )
     cfg = load_journal_config(project)
     profile = load_profile(cfg["journal"], project)
-    current = build_identity(profile, resolve_style(cfg))
+    override = entry.get("style_override") if "style_override" in entry else entry.get("style")
+    current = _asset_identity(profile, resolve_style(cfg, override))
     changed = []
     for key in ("profile", "style", "csl", "reference_doc"):
         old = recorded.get(key)
@@ -773,10 +805,9 @@ def render_project(
 ) -> RenderResult:
     """Render one manuscript project; see the module docstring.
 
-    `on_event(kind, payload)` receives "checks" before rendering, again after
-    reference-inclusive validation when required, and "wrote" after the outputs
-    are in place. `quarto_stdout`
-    redirects Quarto's stdout (e.g. to fd 2 when stdout must stay JSON).
+    `on_event(kind, payload)` receives "checks" before rendering and after final
+    validation, "diagnostic" for tool output, and "wrote" after promotion.
+    `quarto_stdout` is retained for compatibility; tool output is captured.
     Raises WongoError subclasses for every user-fixable failure.
     """
     from wongo.engine.checks import Check, run_checks
@@ -790,9 +821,24 @@ def render_project(
     mtype = manuscript_type(profile, cfg["ms_type"])  # fail fast on bad ms_type
     style = resolve_style(cfg, style_override)  # fail fast on an unknown style
 
+    from wongo.engine.inputs import MISSING
+
+    sources = source_fingerprint(project)
+    identity = build_identity(profile, style)
+    missing = sorted(key for key, digest in sources.items() if digest == MISSING)
+    if missing:
+        raise InputError(
+            "Declared input missing: " + ", ".join(missing) + ". Restore the file "
+            "or remove it from _journal.yml dependencies.",
+            paths=missing,
+        )
+
     checks = run_checks(project)
     _emit(on_event, "checks", checks=checks)
     hard = [c for c in checks if c.level == "HARD" and not c.ok]
+    if any(c.name == "si-references" for c in hard):
+        raise GateError("Invalid explicit SI reference configuration; fix the si-references check and render again.",
+                        checks=checks)
     if hard and target == "submission":
         raise GateError("HARD checks failed — submission render refused (fix, or render --target collab).",
                         checks=checks)
@@ -809,17 +855,35 @@ def render_project(
             checks=checks,
         )
 
-    # A missing declared input fails before Quarto starts, for either target.
-    from wongo.engine.inputs import MISSING
-
-    sources = source_fingerprint(project)
-    missing = sorted(key for key, digest in sources.items() if digest == MISSING)
-    if missing:
-        raise InputError(
-            "Declared input missing: " + ", ".join(missing) + ". Restore the file "
-            "or remove it from _journal.yml dependencies.",
-            paths=missing,
+    def require_unchanged_inputs() -> None:
+        try:
+            current_profile = load_profile(cfg["journal"], project)
+            current_style = resolve_style(cfg, style_override)
+            changed = (
+                source_fingerprint(project) != sources
+                or current_profile != profile
+                or current_style != style
+                or _asset_identity(current_profile, current_style)
+                != {key: value for key, value in identity.items() if key != "source"}
+            )
+        except WongoError:
+            changed = True
+        if not changed:
+            return
+        message = (
+            "A source, journal profile, or build asset changed during rendering. "
+            "The previous outputs were left unchanged. Finish saving and render again."
         )
+        if mtype.get("word_limit_includes_references"):
+            failed = [check for check in checks if check.name != "word-limit-references"]
+            failed.append(Check(
+                "word-limit-references", "HARD", False,
+                message + " The reference-inclusive count is unverified.",
+            ))
+            raise GateError(message, checks=failed)
+        raise InputError(message)
+
+    require_unchanged_inputs()
     quarto = toolchain.quarto_command()
     unrenderable = toolchain.unrenderable_path_reason(project)
     if unrenderable:
@@ -831,14 +895,16 @@ def render_project(
     stage.mkdir(parents=True)
     try:
         rendered = quarto_render(project, "index.qmd", f"main-{target}.docx", profile,
-                                 stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout)
+                                 stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout,
+                                 on_event=on_event)
         staged = [rendered.path]
         warnings = list(rendered.warnings)
         postprocess_main(staged[0], profile, cfg, target, project,
                          style_override=style_override)
         if (project / "si.qmd").exists():
             rendered_si = quarto_render(project, "si.qmd", f"si-{target}.docx", profile,
-                                        stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout)
+                                        stage_dir=stage, quarto=quarto, quarto_stdout=quarto_stdout,
+                                        on_event=on_event)
             warnings.extend(rendered_si.warnings)
             postprocess_si(rendered_si.path, profile, cfg, target, project,
                            style_override=style_override)
@@ -851,39 +917,27 @@ def render_project(
                 + " | ".join(warnings),
                 warnings,
             )
-        changed_inputs = (
-            source_fingerprint(project) != sources
-            or load_profile(cfg["journal"], project) != profile
-        )
-        if changed_inputs:
-            if mtype.get("word_limit_includes_references"):
-                checks = [c for c in checks if c.name != "word-limit-references"]
-                checks.append(Check(
-                    "word-limit-references", "HARD", False,
-                    "Sources or the journal profile changed during rendering; the "
-                    "reference-inclusive count is unverified. Finish saving and render again.",
-                ))
-                raise GateError(
-                    "Sources or the journal profile changed during rendering. "
-                    "The previous outputs were left unchanged. Finish saving and render again.",
-                    checks=checks,
-                )
-            raise InputError(
-                "A source or the journal profile changed during rendering. "
-                "The previous outputs were left unchanged. Finish saving and render again."
-            )
-        if mtype.get("word_limit_includes_references"):
-            checks = run_checks(project, rendered_main=staged[0])
-            _emit(on_event, "checks", checks=checks)
+        require_unchanged_inputs()
+        transforms = _run_declared_postprocess(project, cfg, target, staged, on_event=on_event)
+        require_unchanged_inputs()
+        from wongo.engine.si_refs import enabled as si_refs_enabled
+        from wongo.engine.si_refs import resolve as resolve_si_references
+
+        if len(staged) > 1:
+            resolve_si_references(staged[1], None, active=False)
+        si_references = resolve_si_references(staged[0], staged[1] if len(staged) > 1 else None,
+                                               active=si_refs_enabled(cfg))
+        require_unchanged_inputs()
+        checks = run_checks(project, rendered_main=staged[0])
+        if si_references:
+            checks.append(Check(
+                "si-references-rendered", "HARD", True,
+                f"{len(si_references['references'])} main-to-SI link(s) resolved from final SI bookmarks and captions",
+            ))
         if warning_check is not None:
             checks = [c for c in checks if c.name != "crossrefs-rendered"]
             checks.append(warning_check)
-        transforms = _run_declared_postprocess(project, cfg, target, staged)
-        if source_fingerprint(project) != sources:
-            raise InputError(
-                "A declared input changed while post-processing. "
-                "The previous outputs were left unchanged. Finish saving and render again."
-            )
+        _emit(on_event, "checks", checks=checks)
         if target == "submission" and any(c.level == "HARD" and not c.ok for c in checks):
             if any(c.name == "word-limit-references" and not c.ok for c in checks):
                 message = (
@@ -898,13 +952,15 @@ def render_project(
                 )
             raise GateError(message, checks=checks)
         version = toolchain.tool_version(quarto)
+        require_unchanged_inputs()
         failed = [c.name for c in checks if c.level == "HARD" and not c.ok]
         # the manifest is promoted with the outputs, so the two always agree
         staged.append(write_manifest(
             project, target, [p for p in staged if p.suffix == ".docx"], cfg,
             style.get("_name", "default"), version, sources=sources,
-            dest=stage / MANIFEST_NAME, identity=build_identity(profile, style),
+            dest=stage / MANIFEST_NAME, identity=identity,
             postprocess=transforms, checks_failed=failed,
+            style_override=style_override, si_references=si_references,
         ))
         placed = promote(staged, out_dir)
     finally:
@@ -945,5 +1001,16 @@ def output_freshness(project: Path, target: str) -> dict:
     recorded = entry.get("sources") or {}
     current = source_fingerprint(project)
     changed = sorted(k for k in set(recorded) | set(current) if recorded.get(k) != current.get(k))
+    from wongo.engine.si_refs import enabled as si_refs_enabled
+    from wongo.profiles import load_journal_config
+
+    if si_refs_enabled(load_journal_config(project)):
+        binding = entry.get("si_references")
+        outputs = entry.get("outputs") or {}
+        if (not isinstance(binding, dict) or binding.get("schema") != "wongo-si-references/1"
+                or not isinstance(binding.get("references"), list)
+                or binding.get("main_after") != outputs.get(f"main-{target}.docx")
+                or binding.get("si_sha256") != outputs.get(f"si-{target}.docx")):
+            changed.append("si reference identity")
     return {"state": "stale" if changed else "fresh", "changed": changed,
             "rendered_at": entry.get("rendered_at")}

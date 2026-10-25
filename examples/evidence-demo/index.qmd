@@ -1,0 +1,24 @@
+---
+title: A synthetic evidence workflow
+author:
+  - name: Example Author
+abstract: This demonstration binds a computed response, a rendered table and an explicit audit to one manuscript build. It makes no scientific claim.
+---
+
+```{r}
+#| include: false
+measurements <- read.csv("data/measurements.csv")
+response <- measurements$response[[1]]
+```
+
+# Results
+
+The measured response was `r sprintf("%.1f", response)` units.
+The same synthetic observation appears in @tbl-response.
+
+```{r}
+#| label: tbl-response
+#| tbl-cap: Synthetic response; no experimental inference.
+#| echo: false
+knitr::kable(measurements)
+```

@@ -19,7 +19,7 @@ from wongo.mcp.tools import _safe_call
 
 
 def test_mcp_server_registration():
-    """Verify that all 12 tools, 3 prompts, and resources are registered on MCPServer."""
+    """Verify manuscript/evidence tools, prompts and resources are registered."""
     server = create_mcp_server()
     assert server.name == "wongo"
 
@@ -37,9 +37,19 @@ def test_mcp_server_registration():
         "wongo_worksheet_batch_propose",
         "wongo_worksheet_lint",
         "wongo_diff",
+        "wongo_audit",
+        "wongo_qa_inspect",
+        "wongo_qa_preview",
+        "wongo_evidence_list",
+        "wongo_review_export",
+        "wongo_review_verify",
+        "wongo_gate_status",
+        "wongo_gate_propose",
     }
     assert expected_tools.issubset(tool_names)
-    assert len(expected_tools) == 12
+    assert len(expected_tools) == 20
+    assert "wongo_gate_approve" not in tool_names
+    assert "wongo_gate_confirm" not in tool_names
 
     prompt_names = set(server._prompt_manager._prompts.keys())
     expected_prompts = {

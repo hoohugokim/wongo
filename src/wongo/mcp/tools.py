@@ -1,10 +1,11 @@
-"""MCP Tools for Wongo: exposes 12 deterministic manuscript tools.
+"""MCP tools for deterministic manuscript operations and explicit evidence work.
 
 Every tool returns a structured dictionary with ok: bool and actionable fields.
 Wongo never modifies source .qmd files directly; all outputs are in output/ or decisions/.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +46,7 @@ def _safe_call(fn, *args, **kwargs) -> dict[str, Any]:
 
 
 def register_tools(server: MCPServer) -> None:
-    """Register all 12 Wongo tools onto the MCP server."""
+    """Register engine adapters; human confirmation is deliberately absent."""
 
     @server.tool(name="wongo_status", description="Get manuscript project readiness, output freshness, and recommended next step.")
     def wongo_status(project: str = ".") -> dict[str, Any]:
@@ -67,6 +68,14 @@ def register_tools(server: MCPServer) -> None:
                 "worksheet": str(st.worksheet) if st.worksheet else None,
                 "worksheet_open": st.worksheet_open,
                 "outputs": to_jsonable(st.outputs),
+                "technical": st.technical,
+                "audit": st.audit,
+                "visual": st.visual,
+                "author_decisions": st.author_decisions,
+                "evidence_target": st.evidence_target,
+                "submission_approved": st.submission_approved,
+                "demonstration": st.demonstration,
+                "worksheet_context": st.worksheet_context,
             }
 
         return _safe_call(_run)
@@ -164,9 +173,15 @@ def register_tools(server: MCPServer) -> None:
     ) -> dict[str, Any]:
         from wongo.engine import render_project
 
+        def on_event(kind: str, payload: dict) -> None:
+            if kind == "diagnostic":
+                text = payload["text"]
+                print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
+
         def _run():
             # stdout belongs exclusively to the MCP JSON-RPC transport.
-            res = render_project(Path(project), target, style_override=style, quarto_stdout=2)
+            res = render_project(Path(project), target, style_override=style,
+                                 on_event=on_event, quarto_stdout=2)
             return {
                 "ok": True,
                 "target": res.target,
@@ -342,3 +357,73 @@ def register_tools(server: MCPServer) -> None:
             }
 
         return _safe_call(_run)
+
+    @server.tool(name="wongo_audit", description="Explicitly execute declared project audits on scratch copies of sealed outputs; never infers scientific validity.")
+    def wongo_audit(project: str = ".", target: str = "submission", name: str | None = None) -> dict[str, Any]:
+        from wongo.audit import run_audits
+
+        def on_event(kind, payload):
+            if kind == "diagnostic":
+                text = payload["text"]
+                print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
+
+        return _safe_call(run_audits, Path(project), target, name, on_event=on_event)
+
+    @server.tool(name="wongo_qa_inspect", description="Read final DOCX OOXML inventory and accessibility descriptions; writes a scoped inspection receipt.")
+    def wongo_qa_inspect(project: str = ".", target: str = "submission") -> dict[str, Any]:
+        from wongo.qa import inspect_outputs
+
+        return _safe_call(inspect_outputs, Path(project), target)
+
+    @server.tool(name="wongo_qa_preview", description="Explicitly generate LibreOffice layout-preview PDFs and page images; cannot certify native Word layout.")
+    def wongo_qa_preview(project: str = ".", target: str = "submission", dpi: int = 144) -> dict[str, Any]:
+        from wongo.qa import create_preview
+
+        return _safe_call(create_preview, Path(project), target, dpi=dpi)
+
+    @server.tool(name="wongo_evidence_list", description="Read and verify scoped evidence records without executing audit or preview code.")
+    def wongo_evidence_list(project: str = ".", target: str = "submission", kind: str | None = None) -> dict[str, Any]:
+        from wongo.evidence import load_records, verify_record
+
+        def run():
+            records = load_records(Path(project), kind, target)
+            return {"ok": True, "records": [
+                {"record": record, **verify_record(Path(project), record)} for record in records
+            ]}
+
+        return _safe_call(run)
+
+    @server.tool(name="wongo_review_export", description="Export portable evidence and only explicitly selected files; source dependencies are hash-only by default.")
+    def wongo_review_export(destination: str, project: str = ".", target: str = "submission",
+                            include: list[str] | None = None, outputs: bool = False,
+                            artifacts: bool = False, record_ids: list[str] | None = None) -> dict[str, Any]:
+        from wongo.review_export import export_review
+
+        return _safe_call(export_review, Path(project), Path(destination), target,
+                          include=include, include_outputs=outputs, include_artifacts=artifacts,
+                          record_ids=record_ids)
+
+    @server.tool(name="wongo_review_verify", description="Verify hashes, evidence bindings and declared omissions in a portable review archive.")
+    def wongo_review_verify(file: str) -> dict[str, Any]:
+        from wongo.review_export import verify_bundle
+
+        return _safe_call(verify_bundle, Path(file))
+
+    @server.tool(name="wongo_gate_status", description="Read locally attributed human gate decisions separately from technical readiness; never executes approval.")
+    def wongo_gate_status(project: str = ".", target: str = "submission") -> dict[str, Any]:
+        from wongo.gates import gate_status
+
+        def run():
+            result = gate_status(Path(project), target)
+            return {"ok": result["state"] != "invalid", "author_decisions": result}
+
+        return _safe_call(run)
+
+    @server.tool(name="wongo_gate_propose", description="Propose a named human gate decision; this never records author approval. A person confirms through the interactive CLI.")
+    def wongo_gate_propose(gate: str, project: str = ".", target: str = "submission",
+                           decision: str = "approved", proposer: str = "agent", rationale: str = "",
+                           evidence_ids: list[str] | None = None) -> dict[str, Any]:
+        from wongo.gates import propose_gate
+
+        return _safe_call(propose_gate, Path(project), gate, decision, target=target,
+                          proposer=proposer, rationale=rationale, evidence_ids=evidence_ids)

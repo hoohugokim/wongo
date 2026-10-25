@@ -34,7 +34,9 @@ FENCE_RE = re.compile(
     r"(~{3,})(?!~)[^\n]*\n.*?^ {0,3}\2~*)[ \t]*(?:\n|$)",
     re.DOTALL | re.MULTILINE,
 )
-INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+INLINE_CODE_RE = re.compile(
+    r"(?<!`)(`+)(?!`)((?:(?!\n[ \t\r]*\n).)*?)(?<!`)\1(?!`)", re.DOTALL,
+)
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?")
 # chunk-option captions (`#| tbl-cap: "..."` / `#| fig-cap: "..."`) live INSIDE fenced
@@ -48,18 +50,10 @@ HEADING_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
 DIV_FENCE_RE = re.compile(r"^:{3,}.*$", re.MULTILINE)
 SHORTCODE_RE = re.compile(r"\{\{<.*?>\}\}", re.DOTALL)
 REF_USE_RE = re.compile(r"@((?:fig|tbl|eq|sec|lst|thm)-[\w.-]+)")
-LABEL_DEF_RE = re.compile(
-    r"#\|\s*label:\s*\"?((?:fig|tbl|lst)-[\w.-]+)\"?"
-    r"|\{#((?:fig|tbl|eq|sec|lst|thm)-[\w.-]+)"
-    # knitr chunk-name form, e.g. ```{r fig-plot} — also a valid Quarto label
-    r"|^```\{\w+[,]?\s+((?:fig|tbl|lst)-[\w.-]+)\s*[},]",
-    re.MULTILINE,
-)
-DISPLAY_ITEM_CHUNK_LABEL_RE = re.compile(
-    r"^\s*#\|\s*label:\s*[\"']?((?:fig|tbl)-[\w.-]+)[\"']?\s*$"
-)
 DISPLAY_ITEM_MARKDOWN_ID_RE = re.compile(r"\{#((?:fig|tbl)-[\w.-]+)")
-DISPLAY_ITEM_KNITR_RE = re.compile(r"^```\{{1,2}\w+[,]?\s+((?:fig|tbl)-[\w.-]+)\s*[},]")
+CODE_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+CHUNK_LABEL_RE = re.compile(r"^\s*#\|\s*label:\s*[\"']?((?:fig|tbl|lst)-[\w.-]+)[\"']?\s*$")
+MARKDOWN_LABEL_RE = re.compile(r"\{#((?:fig|tbl|eq|sec|lst|thm)-[\w.-]+)")
 CITE_RE = re.compile(r"(?<![\w@.\\])-?@([A-Za-z][\w:.#$%&+?<>~/-]*)")
 BIB_KEY_RE = re.compile(r"^@\w+\{([^,\s]+)\s*,", re.MULTILINE)
 
@@ -89,12 +83,11 @@ def prose(body: str, *, include_figure_captions: bool = True,
     reads as one word in any journal's count). Table/figure captions declared
     as chunk options inside fences are kept unless the counting policy excludes
     that caption kind. Citation/crossref checks always use the inclusive defaults."""
+    body, chunks = _markdown_context(body)
     captions = [
-        caption for kind, caption in CHUNK_CAPTION_RE.findall(body)
+        caption for _, chunk in chunks for kind, caption in _chunk_captions(chunk)
         if (include_figure_captions if kind == "fig" else include_table_captions)
     ]
-    body = FENCE_RE.sub("", body)
-    body = COMMENT_RE.sub("", body)
     body = DIV_FENCE_RE.sub("", body)
     body = SHORTCODE_RE.sub("", body)
     body = IMAGE_RE.sub(lambda m: m.group(1) if include_figure_captions else "", body)
@@ -144,7 +137,7 @@ def _without_sections(body: str, titles: list[str], *, exclude_boxes: bool = Fal
     intact so `prose()` can still harvest their captions.
     """
     excluded = {_heading_name(t) for t in titles}
-    lines = COMMENT_RE.sub("", body).splitlines(keepends=True)
+    lines = _markdown_context(body, keep_code=True)[0].splitlines(keepends=True)
     kept: list[str] = []
     skip_level = 0
     fence = ""
@@ -223,16 +216,246 @@ def word_count(text: str, *, include_abstract: bool = True,
     return total
 
 
+def word_count_breakdown(text: str, policy: dict, reference_words: int | None,
+                         includes_references: bool) -> dict:
+    """Decompose the existing source counter without introducing another policy."""
+    source_total = word_count(text, **policy)
+    no_abstract_policy = {**policy, "include_abstract": False}
+    no_abstract = word_count(text, **no_abstract_policy)
+    no_figure_policy = {**no_abstract_policy, "include_figure_captions": False}
+    no_figure = word_count(text, **no_figure_policy)
+    body = word_count(text, **{**no_figure_policy, "include_table_captions": False})
+    return {
+        "abstract": source_total - no_abstract,
+        "body": body,
+        "figure_captions": no_abstract - no_figure,
+        "table_captions": no_figure - body,
+        "source_total": source_total,
+        "excluded_source_words": word_count(text) - source_total,
+        "excluded_sections": list(policy.get("exclude_sections") or []),
+        "rendered_references": reference_words if includes_references else 0,
+        "references_status": (
+            "included-from-render" if reference_words is not None else "pending-render"
+        ) if includes_references else "excluded-by-profile",
+        "total": source_total + (reference_words or 0),
+        "approximation": [
+            "Whitespace-delimited source estimate; citation syntax remains source text.",
+            "Inline code contributes one placeholder token; generated output is not evaluated.",
+            "Caption categories follow the source counter, including figure-block text.",
+            "Excluded words are diagnostic and are not added to the included total.",
+        ],
+        "generated_content": "not-evaluated",
+        "inline_code": "one-placeholder-token-per-expression",
+    }
+
+
 def crossrefs_used(text: str) -> set[str]:
     body = prose(split_front_matter(text)[1])
     return {ref.rstrip(".,;:]") for ref in REF_USE_RE.findall(body)}
 
 
 def labels_defined(text: str) -> set[str]:
-    out = set()
-    for groups in LABEL_DEF_RE.findall(text):
-        out.add(next(g for g in groups if g))
-    return out
+    return {label for label, _ in _label_locations(text)}
+
+
+def _comment_free_line(text: str, start: int, end: int, comment: bool,
+                       inline_end: int) -> tuple[str, bool, int]:
+    kept = []
+    cursor = start
+    while cursor < end:
+        if inline_end > cursor:
+            stop = min(end, inline_end)
+            kept.append(text[cursor:stop])
+            cursor = stop
+        elif comment:
+            closing = text.find("-->", cursor, end)
+            if closing < 0:
+                kept.append("\n" if text[start:end].endswith("\n") else "")
+                break
+            cursor = closing + 3
+            comment = False
+        else:
+            token = re.search(r"<!--|`+", text[cursor:end])
+            if token is None:
+                kept.append(text[cursor:end])
+                break
+            token_start = cursor + token.start()
+            kept.append(text[cursor:token_start])
+            cursor = token_start + len(token[0])
+            if token[0] == "<!--":
+                comment = True
+                continue
+            closing = re.search(r"(?<!`)" + re.escape(token[0]) + r"(?!`)", text[cursor:])
+            paragraph = re.search(r"\n[ \t\r]*\n", text[cursor:])
+            if closing and (paragraph is None or closing.start() < paragraph.start()):
+                inline_end = cursor + closing.end()
+            kept.append(token[0])
+    return "".join(kept), comment, inline_end
+
+
+def _markdown_context(text: str, *, keep_code: bool = False) -> tuple[str, list[tuple[int, str]]]:
+    """Mask metadata/comments/fences and retain executable chunk source separately.
+
+    Both masked prose and chunk offsets retain the source's line numbers.
+    A literal code example cannot introduce labels or chunk-option captions.
+    Section filtering retains code verbatim so later prose extraction can
+    harvest captions and ignore headings inside code.
+    """
+    metadata = FRONT_MATTER_RE.match(text)
+    if metadata:
+        text = "\n" * text[:metadata.end()].count("\n") + text[metadata.end():]
+    visible = []
+    chunks = []
+    fence = ""
+    executable = False
+    chunk = []
+    start = 0
+    comment = False
+    inline_end = 0
+    offset = 0
+    list_indent = 0
+    indented_code = False
+    previous_blank = True
+    for lineno, line in enumerate(text.splitlines(keepends=True), start=1):
+        line_end = offset + len(line)
+        in_inline = inline_end > offset
+        logical = line
+        if not fence:
+            indent = len(line) - len(line.lstrip(" "))
+            item = re.match(r"^ {0,3}(?:[-+*]|\d+[.)])[ \t]+", line)
+            if item and not comment and not in_inline:
+                list_indent = item.end()
+                logical = line[item.end():]
+            else:
+                if line.strip() and indent < list_indent:
+                    list_indent = 0
+                logical = line[list_indent:] if list_indent else line
+            relative_indent = len(logical) - len(logical.lstrip(" "))
+            if (not comment and not in_inline and line.strip()
+                    and relative_indent >= 4 and (indented_code or previous_blank)):
+                indented_code = True
+                visible.append(line if keep_code else "\n" if line.endswith("\n") else "")
+                offset = line_end
+                previous_blank = False
+                continue
+            if line.strip():
+                indented_code = False
+            line, comment, inline_end = _comment_free_line(text, offset, line_end, comment, inline_end)
+            if item:
+                logical = line[item.end():]
+            else:
+                logical = line[list_indent:] if list_indent else line
+        else:
+            logical = line[list_indent:] if list_indent else line
+        marker = None if in_inline else CODE_FENCE_RE.match(logical)
+        offset = line_end
+        previous_blank = not line.strip()
+        if not fence:
+            if not marker:
+                visible.append(line)
+                continue
+            fence = marker[1]
+            inline_end = 0
+            executable = bool(re.match(r"\{[A-Za-z]\w*(?:[\s,}]|$)", marker[2].strip()))
+            chunk = [logical]
+            start = lineno
+        else:
+            chunk.append(line)
+            if (marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence)
+                    and not marker[2].strip()):
+                if executable:
+                    chunks.append((start, "".join(chunk)))
+                fence = ""
+        visible.append(line if keep_code else "\n" if line.endswith("\n") else "")
+    return "".join(visible), chunks
+
+
+def _chunk_labels(chunk: str) -> list[tuple[str, int]]:
+    labels = []
+    lines = chunk.splitlines()
+    header = re.match(r"^\s*(?:`{3,}|~{3,})\{\w+[,]?\s+((?:fig|tbl|lst)-[\w.-]+)\s*[},]", lines[0])
+    if header:
+        labels.append((header[1], 0))
+    for offset, line in enumerate(lines[1:], start=1):
+        match = CHUNK_LABEL_RE.match(line)
+        if match:
+            labels.append((match[1], offset))
+    return labels
+
+
+def _chunk_captions(chunk: str) -> list[tuple[str, str]]:
+    options = "\n".join(
+        match[1] for line in chunk.splitlines()
+        if (match := re.match(r"^\s*#\| ?(.*)$", line))
+    )
+    try:
+        parsed = yaml.safe_load(options)
+    except yaml.YAMLError:
+        return CHUNK_CAPTION_RE.findall(chunk)
+    if not isinstance(parsed, dict):
+        return []
+    captions = []
+    for kind in ("fig", "tbl"):
+        raw = parsed.get(f"{kind}-cap")
+        if isinstance(raw, str):
+            captions.append((kind, raw))
+        elif isinstance(raw, list):
+            captions.extend((kind, str(value)) for value in raw)
+    return captions
+
+
+def _label_locations(text: str) -> list[tuple[str, int]]:
+    visible, chunks = _markdown_context(text)
+    visible = INLINE_CODE_RE.sub(lambda match: "\n" * match[0].count("\n"), visible)
+    found = []
+    for lineno, line in enumerate(visible.splitlines(), start=1):
+        found.extend((match[1], lineno) for match in MARKDOWN_LABEL_RE.finditer(line))
+    for start, chunk in chunks:
+        found.extend((label, start + offset) for label, offset in _chunk_labels(chunk))
+    return sorted(found, key=lambda item: item[1])
+
+
+def _display_callouts_used(text: str) -> set[str]:
+    visible, chunks = _markdown_context(text)
+
+    def without_self_refs(caption: str, attributes: str) -> str:
+        owners = set(DISPLAY_ITEM_MARKDOWN_ID_RE.findall(attributes))
+        return REF_USE_RE.sub(lambda match: "" if match[1].rstrip(".,;:]") in owners
+                             else match[0], caption)
+
+    visible = IMAGE_RE.sub(
+        lambda match: "![" + without_self_refs(match[1], match[3] or "")
+        + "](" + match[2] + ")" + (match[3] or ""), visible,
+    )
+    visible = re.sub(
+        r"^ {0,3}(?:Table:|:)[ \t]+\S[^\n]*(?:\n[^\n]+)*",
+        lambda match: without_self_refs(match[0], match[0]), visible, flags=re.MULTILINE,
+    )
+    lines = visible.splitlines(keepends=True)
+    divs = []
+    for index, line in enumerate(lines):
+        div = re.match(r"^ {0,3}:{3,}(.*)$", line)
+        if not div:
+            continue
+        if div[1].strip():
+            divs.append((index, div[1]))
+        elif divs:
+            opening, attributes = divs.pop()
+            end = index
+            while end > opening + 1 and not lines[end - 1].strip():
+                end -= 1
+            start = end
+            while start > opening + 1 and lines[start - 1].strip():
+                start -= 1
+            for caption_line in range(start, end):
+                lines[caption_line] = without_self_refs(lines[caption_line], attributes)
+    visible = "".join(lines)
+    used = crossrefs_used(visible)
+    for _, chunk in chunks:
+        owners = {label for label, _ in _chunk_labels(chunk)}
+        for _, caption in _chunk_captions(chunk):
+            used.update(crossrefs_used(caption) - owners)
+    return used
 
 
 def citekeys_used(text: str) -> set[str]:
@@ -291,23 +514,10 @@ def display_items_defined(text: str) -> list[tuple[str, int]]:
     identifiers ({#fig-...}, {#tbl-...}). HTML comments are stripped while
     preserving line numbers.
     """
-    clean = COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
     found: dict[str, int] = {}
-    for lineno, line in enumerate(clean.splitlines(), start=1):
-        m_chunk = DISPLAY_ITEM_CHUNK_LABEL_RE.match(line)
-        if m_chunk:
-            lbl = m_chunk.group(1)
-            if lbl not in found:
-                found[lbl] = lineno
-        m_knitr = DISPLAY_ITEM_KNITR_RE.match(line)
-        if m_knitr:
-            lbl = m_knitr.group(1)
-            if lbl not in found:
-                found[lbl] = lineno
-        for m_id in DISPLAY_ITEM_MARKDOWN_ID_RE.finditer(line):
-            lbl = m_id.group(1)
-            if lbl not in found:
-                found[lbl] = lineno
+    for label, lineno in _label_locations(text):
+        if label.startswith(("fig-", "tbl-")):
+            found.setdefault(label, lineno)
     return list(found.items())
 
 
@@ -399,6 +609,7 @@ class Check:
     detail: str
     locations: list[str] = field(default_factory=list)  # "index.qmd:12: @key"
     patch_hint: dict | None = None
+    breakdown: dict | None = None
 
 
 def _locations(texts: dict[str, str], items: list[str], pattern) -> list[str]:
@@ -505,7 +716,11 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
             "excess_words": wc - limit,
             "hint": f"Trim at least {wc - limit} words from index.qmd or exclude non-counted sections.",
         }
-    checks.append(Check("word-limit", "HARD", wc_ok, detail, patch_hint=wc_hint))
+    checks.append(Check(
+        "word-limit", "HARD", wc_ok, detail, patch_hint=wc_hint,
+        breakdown=word_count_breakdown(texts["index.qmd"], mtype.get("word_count", {}),
+                                       reference_words, includes_refs),
+    ))
     if missing_references:
         checks.append(Check(
             "word-limit-references", "HARD", False,
@@ -545,6 +760,22 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
         _locations(texts, [f"@{k}" for k in missing], lambda item: _at_ref(item[1:])),
         patch_hint=cite_hint,
     ))
+
+    from wongo.engine.si_refs import enabled as si_refs_enabled
+    from wongo.engine.si_refs import source_issues, source_requests
+
+    si_issues, si_count = source_issues(cfg, texts)
+    if si_count or si_refs_enabled(cfg):
+        checks.append(Check(
+            "si-references", "HARD", not si_issues,
+            "; ".join(si_issues) if si_issues else
+            f"{si_count} static main-to-SI request(s); destinations and numbers are unverified until render",
+            si_issues,
+            patch_hint={"action": "configure_si_references", "hint":
+                        "Enable si_references: true and use [SI item](wongo-si:fig-label) "
+                        "or [SI item](wongo-si:tbl-label) from index.qmd with si.qmd present."}
+            if si_issues else None,
+        ))
 
     defined = {name: labels_defined(text) for name, text in texts.items()}
     unresolved = []
@@ -589,14 +820,17 @@ def run_checks(project: Path, *, rendered_main: Path | None = None) -> list[Chec
 
     uncited = []
     for name, text in texts.items():
-        used = crossrefs_used(text)
+        used = _display_callouts_used(text)
+        if name == "si.qmd" and si_refs_enabled(cfg) and not si_issues:
+            used.update(label for label, _ in source_requests(texts["index.qmd"]))
         labels = {lbl for lbl, _ in display_items_defined(text)}
         labels.update(lbl for lbl in defined.get(name, set()) if lbl.startswith(("fig-", "tbl-")))
         for label in sorted(labels - used):
             uncited.append(f"{name}: {label}")
     checks.append(Check(
         "uncited", "WARN", not uncited,
-        "all display items are cited in their own document" if not uncited else
+        ("all display items have local or explicit main-to-SI callouts" if si_refs_enabled(cfg) else
+         "all display items are cited in their own document") if not uncited else
         "display items not cited in their own document: " + ", ".join(uncited),
         uncited,
     ))
@@ -878,6 +1112,11 @@ def rule_coverage(profile: dict, mtype: dict) -> list[dict]:
         rules.append({"id": "abstract-length", "enforcement": "manual"})
     if (mtype.get("word_count") or {}).get("exclude_sections"):
         rules.append({"id": "word-count-exclusions", "enforcement": "machine"})
+    if mtype.get("max_display_items") is not None:
+        rules.append({"id": "display-items-limit", "enforcement": "machine"})
+    if (profile.get("highlights") or {}).get("required") is True:
+        rules.append({"id": "highlights", "enforcement": "machine",
+                      "detail": "Present highlights have HARD count/length checks; missing highlights are WARN."})
     lowered = abstract_rule.lower()
     if "one paragraph" in lowered or "one-paragraph" in lowered:
         rules.append({"id": "abstract-one-paragraph", "enforcement": "manual"})
@@ -887,6 +1126,12 @@ def rule_coverage(profile: dict, mtype: dict) -> list[dict]:
         rules.append({"id": "si-availability-placement", "enforcement": "manual"})
     if profile.get("orcid_hard_at"):
         rules.append({"id": "orcid", "enforcement": "manual"})
+    for rule in rules:
+        rule.update({
+            "provenance_scope": "profile",
+            "sources": list(profile.get("sources") or []),
+            "verified_date": str(profile["verified_date"]) if profile.get("verified_date") else None,
+        })
     for name in ("citekeys", "crossrefs", "figures"):
         rules.append({"id": name, "enforcement": "machine"})
     return rules
@@ -903,6 +1148,14 @@ def print_report(checks: list[Check], coverage: list[dict] | None = None) -> Non
     for c in checks:
         mark = "PASS" if c.ok else ("FAIL" if c.level == "HARD" else "WARN")
         print(f"[{mark}] {c.level:4} {c.name}: {c.detail}")
+        if c.breakdown:
+            counts = c.breakdown
+            print(
+                f"      included: abstract {counts['abstract']}, body {counts['body']}, "
+                f"figure captions {counts['figure_captions']}, table captions {counts['table_captions']}; "
+                f"excluded source words {counts['excluded_source_words']}; "
+                f"rendered references {counts['rendered_references'] if counts['rendered_references'] is not None else 'pending'}"
+            )
         if not c.ok:
             for location in c.locations:
                 print(f"      {location}")

@@ -112,6 +112,9 @@ def scaffold(dest: Path, *, journal: str | None = None, ms_type: str | None = No
     if example:
         shutil.copytree(EXAMPLE, dest, dirs_exist_ok=True)
         placeholder_toc_art(dest / "figures" / "toc-art.png")
-    (dest / "_journal.yml").write_text(journal_yml(journal, ms_type, style), encoding="utf-8")
+    config = journal_yml(journal, ms_type, style)
+    if example:
+        config += "demonstration: true\n"
+    (dest / "_journal.yml").write_text(config, encoding="utf-8")
     files = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
     return ScaffoldResult(dest, journal, ms_type, style, example, journal_name, files)

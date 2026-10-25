@@ -1,0 +1,17 @@
+journal: demo
+ms_type: article
+style: default
+demonstration: true
+dependencies:
+  - data/measurements.csv
+audits:
+  - id: rendered-response
+    script: scripts/audit_response.py
+    inputs: [data/measurements.csv, index.qmd]
+    required: true
+visual_review_required: true
+manual_gates:
+  - id: scientific-release
+    label: Scientific interpretation and declared audit scope reviewed
+  - id: author-release
+    label: All authors authorize this exact manuscript build

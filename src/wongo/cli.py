@@ -23,7 +23,7 @@ from wongo.errors import WongoError
 from wongo.textio import configure_stdio
 
 ISSUES_URL = "https://github.com/hoohugokim/wongo/issues"
-GROUPS = ("profile", "style", "worksheet", "mcp")  # commands whose name has two words
+GROUPS = ("profile", "style", "worksheet", "mcp", "evidence", "qa", "gates")
 
 
 def _json(args: argparse.Namespace) -> bool:
@@ -79,6 +79,9 @@ def _cmd_render(args: argparse.Namespace) -> int:
         if kind == "checks" and not json_mode:
             print_report(payload["checks"])
             sys.stdout.flush()  # the report must precede quarto's own output
+        elif kind == "diagnostic":
+            text = payload["text"]
+            print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
 
     result = render_project(Path(args.project), args.target, style_override=args.style,
                             on_event=on_event, quarto_stdout=2 if json_mode else None)
@@ -516,6 +519,11 @@ def build_parser() -> argparse.ArgumentParser:
     mi.set_defaults(fn=_cmd_mcp_install, command="mcp install")
 
     worksheet_cli.add_parsers(sub, common)  # worksheet status|lint|set, review
+    from wongo import evidence_cli, gates_cli, qa_cli
+
+    evidence_cli.add_parsers(sub, common)
+    qa_cli.add_parsers(sub, common)
+    gates_cli.add_parsers(sub, common)
     return parser
 
 
