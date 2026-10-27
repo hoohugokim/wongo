@@ -23,7 +23,10 @@ HARD:
       the manuscript text. No synopsis/word-count requirement exists in this
       guidance.
 - [ ] SI: separate file, S-pagination, cover sheet, availability paragraph
-      after Acknowledgments. VERIFIED 2026-07-03: SI does NOT have to be
+      before Acknowledgments. VERIFIED 2026-10-22 against
+      https://researcher-resources.acs.org/publish/author_guidelines?coden=esthag
+      (page updated 2026-10-05): the description appears before the
+      Acknowledgement and Reference sections. VERIFIED 2026-07-03: SI does NOT have to be
       PDF-only (DOC/DOCX is an accepted format per official example
       descriptions). Whether SI needs its own internal table of contents is
       still unconfirmed (not addressed in fetched guidance).

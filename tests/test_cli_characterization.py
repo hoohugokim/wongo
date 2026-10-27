@@ -63,12 +63,17 @@ def test_check_report_text(cli, wongo_project):
 
     assert code == 0
     assert out == (
-        "[PASS] HARD word-limit: 13 words vs limit 500 for article (rule: body plus abstract)\n"
+        "[PASS] HARD word-limit: 13 words vs limit 500 for article "
+        "(rule: body plus abstract; source estimate, not a submission-portal count)\n"
+        "      included: abstract 3, body 7, figure captions 3, table captions 0; "
+        "excluded source words 0; rendered references 0\n"
         "[PASS] HARD citekeys: all citekeys resolve\n"
         "[PASS] HARD crossrefs: all cross-references resolve\n"
+        "[PASS] WARN uncited: all display items are cited in their own document\n"
         "[PASS] HARD figures: all referenced figures exist\n"
         "[PASS] WARN profile-staleness: profile verified 0 days ago\n"
         "[PASS] WARN si-file: si.qmd present\n"
+        "[INFO] coverage: recorded rules are machine-enforced\n"
     )
 
 

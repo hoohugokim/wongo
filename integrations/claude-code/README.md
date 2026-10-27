@@ -190,7 +190,7 @@ integrations/claude-code/
 
 - The marketplace entry's `source` is `./integrations/claude-code`, resolved
   from the repository root (the folder that contains `.claude-plugin/`).
-- `plugin.json` declares the plugin release version, currently `0.3.1`.
+- `plugin.json` declares the plugin release version, currently `0.4.0`.
   Keep it aligned with the package and citation version on each release.
   The marketplace entry does not duplicate the version.
 - Journal judgment is not copied into the skill: Claude reads it from the paths

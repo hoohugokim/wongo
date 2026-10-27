@@ -87,6 +87,11 @@ def test_mcp_stdio_manuscript_workflow(wongo_project, stub_quarto, tmp_path, mon
     )
     monkeypatch.setenv("WONGO_STUB_PANDOC_MD_FILE", str(extracted))
     monkeypatch.setenv("WONGO_STUB_QUARTO_STDOUT", "render diagnostic on stdout")
+    script = wongo_project / "finish.py"
+    script.write_text("print('postprocess diagnostic on stdout')\n", encoding="utf-8")
+    config = wongo_project / "_journal.yml"
+    config.write_text(config.read_text(encoding="utf-8") + "postprocess: [finish.py]\n",
+                      encoding="utf-8")
     log = tmp_path / "server-stderr.log"
 
     async def run():
@@ -131,3 +136,4 @@ def test_mcp_stdio_manuscript_workflow(wongo_project, stub_quarto, tmp_path, mon
     asyncio.run(run())
     # Quarto chatter reached stderr, never the JSON-RPC stdout stream.
     assert "render diagnostic on stdout" in log.read_text(encoding="utf-8")
+    assert "postprocess diagnostic on stdout" in log.read_text(encoding="utf-8")

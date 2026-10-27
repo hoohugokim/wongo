@@ -36,6 +36,8 @@ not establish scientific validity or LLM accuracy.
 
 - [Contributing](CONTRIBUTING.md): setup, verification, profiles, styles and brand usage.
 - [Journal profile contract](journal-profile-contract.md): the schema and evidence rules for journal requirements.
+- [Build evidence](build-evidence.md): explicit audits, renderer-specific QA, portable review and human author gates (current development tree).
+- [Main-to-SI references](si-references.md): opt-in labels from final rendered Supporting Information.
 - [DOCX quirks](docx-quirks.md): recorded Word/OOXML failures and their verified fixes.
 - [Design system](../brand/README.md): approved artwork, colors, type, fonts and document examples.
 - [Decision ledger](../DECISIONS.md): accepted architectural and workflow choices.

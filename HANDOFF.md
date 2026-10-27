@@ -1,37 +1,31 @@
 <!-- statutor: plane=state | policy=overwrite_bounded (max 40 lines) | writer=executor | OVERWRITE, NEVER APPEND -->
 # HANDOFF
 
-last_verified: 2026-10-03 by main CI/CodeQL, release metadata checks and recorded engine/brand gates
+last_verified: 2026-10-27 release preparation and artifact smoke
 last_worker: codex
-last_machine: unknown
-handoff_id: release-v031-20261003
-supersedes: v031-main-integration-20261002
+handoff_id: release-v040-prepared-20261027
+supersedes: si-references-complete-20261024
 
 ## Goal
-Deliver the v0.3.1 GitHub release, authorized by the maintainer on 2026-10-03 (T-0034).
+Publish v0.4.0 on GitHub. User authorized release branch push, PR/merge after CI, tag and wheel/sdist/checksum publication. PyPI is excluded.
 
 ## Last verified state
-- v0.3.1 integration merged in PR #5 as `5710f2f`; main CI/CodeQL passed; all prior feature branches were removed.
-- AIX fixes are `dece132`; brand integration is `ba54a39`; the integration PR preserves their commit history.
-- Approved identity v1.0.0 in `brand/`: outlined SVG/PNG logos, local fonts, tokens, CSS, Quarto example and licenses.
-- Release metadata and installation guidance target v0.3.1; PyPI publication remains T-0022.
-- All 33 generated assets rebuilt byte-identically; updated Quarto example rendered and inspected in browser.
-- Branding is opt-in for communications; journal profiles, manuscript styles and engine behavior are unchanged.
-- Prior engine verification: 528 tests passed, 6 skipped; 2 real Quarto/MCP tests; four benchmark dimensions passed.
-- Fresh v0.3.0 reference comparison: 95 parts across four DOCX files byte-identical; live manuscript unchanged.
-- Release record: notes/release-v031-2026-10-03.md and https://github.com/hoohugokim/wongo/releases/tag/v0.3.1.
-- Engine/brand evidence: notes/aix-audit-revision-2026-10-02.md and notes/brand-integration-2026-10-02.md.
-- The maintainer considers the 공모신청서 update complete and is conducting human review; no agent work remains there.
+- T-0039–T-0041 integration is committed as 7075a17; version preparation is 79c293f on codex/release-v040.
+- Isolated integration: 889 passed, 4 skipped; release metadata/front-door tests: 16 passed. Full Ruff and clean-export wheel/sdist builds passed.
+- Wheel Python source matches clean export; version/profile smoke passed; unrelated five profiles excluded. Original dirty tree and worksheet E713 remain untouched.
+- Release metadata is synchronized to 0.4.0 in package, citation, lockfile and plugin; README installs the v0.4.0 tag.
+- User explicitly waived private-reference parity for v0.4.0 and deferred native Windows/Korean-account/Word pilot to a future release. Neither check is claimed as passed.
+- Release branch is pushed. Remote CI must pass before merge; final tag/release and uploaded digests still need verification.
 
 ## Next action
-1. The maintainer will tackle T-0025 native Windows/client smoke and T-0022 PyPI setup afterwards.
-2. Use v0.3.1 as the reference baseline for future render changes; the comparison allowlist is empty.
+1. Finish remote CI, address concrete failures, merge the release PR, and build/verify final artifacts from the selected release revision.
+2. Publish v0.4.0 with checksums, verify tag/release target and downloaded asset hashes.
+3. Record final release evidence in notes/release-v040-2026-10-27.md. T-0022/T-0025 and future private parity remain separate.
 
 ## Gotchas
-- SDK version and MCP protocol version differ; use the returned worksheet_uri verbatim.
-- Row source alignment is unverified; tags are review hints, never scientific approval.
-- The synthetic benchmark establishes workflow checks, not scientific validity, LLM accuracy or measured time savings.
-- Copy the complete brand folder for offline HTML/Quarto reuse; SVG logos are independently portable.
+- Plain check exits 0 for JSON ok:false; strict exits 1. Native crossref warnings can promote collab; mid-render drift refuses both targets.
+- Engine returns results/WongoError; CLI/MCP own output. Render promotion is transactional. Wongo never applies worksheet decisions to QMD.
+- Evidence and agent proposals do not confer human approval or scientific validity. Converted previews do not certify native Word layout.
 
 ## Do not touch
-- `plans/archive/`, frozen `docs/CHANGELOG.md`, existing `docs/docx-quirks.md` entries, reference manuscripts.
+- Original checkout's worksheet/profile/research/AIX/agent work; worksheet E713; private manuscript; plans/archive/; frozen CHANGELOG.

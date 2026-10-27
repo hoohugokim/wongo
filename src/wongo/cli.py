@@ -23,7 +23,7 @@ from wongo.errors import WongoError
 from wongo.textio import configure_stdio
 
 ISSUES_URL = "https://github.com/hoohugokim/wongo/issues"
-GROUPS = ("profile", "style", "worksheet", "mcp")  # commands whose name has two words
+GROUPS = ("profile", "style", "worksheet", "mcp", "evidence", "qa", "gates")
 
 
 def _json(args: argparse.Namespace) -> bool:
@@ -79,6 +79,9 @@ def _cmd_render(args: argparse.Namespace) -> int:
         if kind == "checks" and not json_mode:
             print_report(payload["checks"])
             sys.stdout.flush()  # the report must precede quarto's own output
+        elif kind == "diagnostic":
+            text = payload["text"]
+            print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
 
     result = render_project(Path(args.project), args.target, style_override=args.style,
                             on_event=on_event, quarto_stdout=2 if json_mode else None)
@@ -96,14 +99,16 @@ def _cmd_render(args: argparse.Namespace) -> int:
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
-    from wongo.engine.checks import print_report, run_checks
+    from wongo.engine.checks import coverage_for_project, print_report, run_checks
 
-    checks = run_checks(Path(args.project).resolve())
+    project = Path(args.project).resolve()
+    checks = run_checks(project)
+    coverage = coverage_for_project(project)
     hard = [c for c in checks if c.level == "HARD" and not c.ok]
     if _json(args):
-        emit_json("check", not hard, checks=checks)
+        emit_json("check", not hard, checks=checks, coverage=coverage)
     else:
-        print_report(checks)
+        print_report(checks, coverage)
     return 1 if args.strict and hard else 0
 
 
@@ -276,8 +281,15 @@ def _cmd_profile_show(args: argparse.Namespace) -> int:
         ("editorial", "references/editorial-framing.md"),
     ) if (pdir / rel).exists()}
     if _json(args):
+        from wongo.engine.checks import rule_coverage
+
+        coverage = [
+            {"type": item.get("type"), "rules": rule_coverage(profile, item)}
+            for item in profile.get("manuscript_types") or []
+            if isinstance(item, dict)
+        ]
         emit_json("profile show", True, profile={k: v for k, v in profile.items() if k != "_dir"},
-                  dir=pdir, paths=paths)
+                  dir=pdir, paths=paths, coverage=coverage)
         return 0
     days = profile_staleness_days(profile)
     lines = [f"{profile.get('slug', args.slug)} — {profile.get('journal', '?')} "
@@ -507,6 +519,11 @@ def build_parser() -> argparse.ArgumentParser:
     mi.set_defaults(fn=_cmd_mcp_install, command="mcp install")
 
     worksheet_cli.add_parsers(sub, common)  # worksheet status|lint|set, review
+    from wongo import evidence_cli, gates_cli, qa_cli
+
+    evidence_cli.add_parsers(sub, common)
+    qa_cli.add_parsers(sub, common)
+    gates_cli.add_parsers(sub, common)
     return parser
 
 

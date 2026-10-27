@@ -9,6 +9,7 @@ structured VerifyResult serves --json.
 from __future__ import annotations
 
 import ipaddress
+import re
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -25,6 +26,45 @@ from wongo.profiles import (
     profile_staleness_days,
     validate_profile,
 )
+from wongo.textio import read_text
+
+_PLACEMENT_HISTORICAL = ("pre-2026", "previous guidance", "formerly", "reversed from")
+_BEFORE_ACK = re.compile(r"\bbefore (the )?(acknowledgement|acknowledgment)", re.IGNORECASE)
+_AFTER_ACK = re.compile(r"\bafter (the )?(acknowledgement|acknowledgment)", re.IGNORECASE)
+
+
+def placement_statements(text: str) -> set[str]:
+    """SI availability phrases in current instructions. Historical lines are skipped."""
+    found: set[str] = set()
+    for line in text.splitlines():
+        lowered = line.lower()
+        if any(mark in lowered for mark in _PLACEMENT_HISTORICAL):
+            continue
+        if _BEFORE_ACK.search(line):
+            found.add("before-acknowledgments")
+        if _AFTER_ACK.search(line):
+            found.add("after-acknowledgments")
+    return found
+
+
+def si_placement_problems(profile_dir: Path, profile: dict) -> list[str]:
+    """Skill and checklist text must not contradict `si.availability_paragraph`."""
+    expected = (profile.get("si") or {}).get("availability_paragraph")
+    if expected not in ("before-acknowledgments", "after-acknowledgments"):
+        return []
+    problems = []
+    for rel in ("SKILL.md", "references/submission-checklist.md"):
+        path = Path(profile_dir) / rel
+        if not path.is_file():
+            continue
+        stated = placement_statements(read_text(path))
+        opposite = sorted(stated - {expected})
+        if opposite:
+            problems.append(
+                f"{rel} states SI availability placement {', '.join(opposite)}, "
+                f"but profile.yml si.availability_paragraph is {expected}"
+            )
+    return problems
 
 STALE_DAYS = 183
 
@@ -123,6 +163,9 @@ def verify_profile(slug: str, *, offline: bool = False,
 
     for problem in validate_profile(profile):
         emit(f"CONTRACT: {problem} (docs/journal-profile-contract.md)")
+        result.problems.append(f"contract: {problem}")
+    for problem in si_placement_problems(pdir, profile):
+        emit(f"CONTRACT: {problem}")
         result.problems.append(f"contract: {problem}")
     if days is None:
         emit("WARN: profile has no verified_date — audit it against the live "

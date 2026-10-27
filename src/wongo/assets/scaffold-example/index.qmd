@@ -10,6 +10,13 @@ author:
 abstract: |
   This example manuscript shows how wongo turns a Quarto source into journal-ready Word files.
   Every number in the text is computed from data by inline R code, so the text cannot drift from the analysis.
+  The story is synthetic: a model wetland receives a nitrate pulse, and a log-linear fit estimates a first-order removal rate.
+  Nothing here is a field result, a treatment claim, or a number you should cite.
+  The introduction names the question, the methods name the fit, and the results print the rate from the same data frame.
+  A figure and a table are labelled and cited in the document that defines them.
+  Acknowledgments and the reference list sit in their own sections so a journal word count can leave them out.
+  Use this file to see a check pass, then replace the prose, the data, and the citations with the manuscript you are writing.
+  Keep one sentence on each line so a later Word round-trip can find the sentence a coauthor edited.
   Replace this abstract with your own.
 keywords: [example, wongo, Quarto, reproducible manuscript, water treatment]
 ---
