@@ -42,7 +42,7 @@ The script receives these environment variables:
 |---|---|
 | `WONGO_AUDIT_PROJECT` | Scratch project root |
 | `WONGO_AUDIT_OUTPUTS` | Absolute copied DOCX paths, separated by `os.pathsep` |
-| `WONGO_AUDIT_INPUTS` | JSON mapping declared input keys to scratch paths |
+| `WONGO_AUDIT_INPUTS` | JSON mapping normalized input keys to scratch paths; keys use forward slashes on every OS, with resolved absolute paths for external inputs and project-relative paths for internal inputs |
 | `WONGO_AUDIT_RESULT` | Result JSON file to write |
 | `WONGO_AUDIT_TARGET`, `WONGO_AUDIT_ID` | Selected target and configured audit id |
 

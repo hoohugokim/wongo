@@ -236,7 +236,7 @@ def test_external_inputs_need_explicit_audit_permission_and_stay_temporary(
     external.write_text('{"value": 12.4}', encoding="utf-8")
     body = ("import json,os\nfrom pathlib import Path\n"
             "inputs=json.loads(os.environ['WONGO_AUDIT_INPUTS'])\n"
-            f"copied=Path(inputs[{str(external)!r}])\n"
+            f"copied=Path(inputs[{external.resolve().as_posix()!r}])\n"
             f"assert copied != Path({str(external)!r})\n"
             "assert json.loads(copied.read_text())['value']==12.4\n"
             f"Path(os.environ['WONGO_AUDIT_RESULT']).write_text(json.dumps({repr(_RESULT)}))\n")
